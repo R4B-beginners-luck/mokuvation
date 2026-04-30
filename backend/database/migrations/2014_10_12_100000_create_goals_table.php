@@ -9,7 +9,7 @@ return new class extends Migration {
         Schema::create('goals', function (Blueprint $table) {
             $table->uuid('id')->primary()->comment('目標ID');
 
-            $table->uuid('user_id')->comment('ユーザーID（所有者）');
+            $table->string('user_id')->comment('ユーザーID（所有者）');
             $table->uuid('parent_goal_id')->nullable()->comment('親目標ID（階層構造）');
             
             $table->string('title')->comment('目標タイトル');
