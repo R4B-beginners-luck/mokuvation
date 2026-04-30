@@ -24,6 +24,7 @@
 | description | text | NULLABLE | 目標の詳細・備考 |
 | period_type | string |  | 期間区分（short / middle / long） |
 | due_at | timestamp | NULLABLE | 期限日時 |
+| is_completed | boolean | DEFAULT false | 達成フラグ |
 | created_at | timestamp | timestamps() | 作成日時 |
 | updated_at | timestamp | timestamps() | 更新日時 |
 | deleted_at | timestamp | softDeletes() | 削除日時（論理削除） |
