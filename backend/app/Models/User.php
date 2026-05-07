@@ -2,48 +2,28 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    // 1. 主キーのカスタマイズ設定
+    protected $primaryKey = 'user_id';
+    public $incrementing = false; // 自動採番（オートインクリメント）を無効化
+    protected $keyType = 'string'; // 主キーの型を文字列に指定
+
+    // 2. 複数代入を許可するカラムの指定
     protected $fillable = [
-        'name',
-        'email',
+        'user_id',
+        'user_name',
         'password',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    // 3. リレーション：ユーザーは複数の目標を持つ（1対多）
+    public function goals()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(Goal::class, 'user_id', 'user_id');
     }
 }
