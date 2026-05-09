@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { Page, ShortTermGoal } from './types';
-import { shortTermGoalsInitial, shortTermGoalsNoToday } from './data/dummy';
+import type { Page, ShortTermGoal, Task } from './types';
+import { shortTermGoalsInitial, tasksInitial, tasksNoToday } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
 import { TopPage }     from './pages/TopPage';
@@ -16,12 +16,13 @@ export default function App() {
 
   // ── Short-term goals: lifted state (can be toggled / added) ─────────────────
   const [shortTermGoals, setShortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
+  const [tasks, setTasks] = useState<Task[]>(tasksInitial);
 
   // Sync when demo mode changes
   const handleDemoToggle = () => {
     const next = !demoNoToday;
     setDemoNoToday(next);
-    setShortTermGoals(next ? shortTermGoalsNoToday : shortTermGoalsInitial);
+    setTasks(next ? tasksNoToday : tasksInitial);
   };
 
   const handleLogin = () => {
@@ -34,14 +35,13 @@ export default function App() {
     setPage('login');
   };
 
-  const handleToggleGoal = (id: string) => {
-    setShortTermGoals((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, completed: !g.completed } : g))
+  const handleToggleTask = (id: string) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
     );
   };
 
-  const handleAddGoal = (goal: ShortTermGoal) => {
-    setShortTermGoals((prev) => [goal, ...prev]);
+  const handleAddTask = (task: Task) => {
+    setTasks((prev) => [task, ...prev]);
   };
 
   // ── Login screen (no sidebar) ────────────────────────────────────────────────
@@ -55,13 +55,13 @@ export default function App() {
       <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout}>
         {page === 'top' && (
           <TopPage
-            shortTermGoals={shortTermGoals}
-            onToggle={handleToggleGoal}
-            onAddGoal={handleAddGoal}
+            tasks={tasks}
+            onToggle={handleToggleTask}
+            onAddTask={handleAddTask}
           />
         )}
         {page === 'calendar' && (
-          <CalendarPage shortTermGoals={shortTermGoals} />
+          <CalendarPage tasks={tasks} />
         )}
         {page === 'goals' && (
           <GoalsPage shortTermGoals={shortTermGoals} />

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ShortTermGoal } from '../types';
+import type { Task } from '../types';
 import { longTermGoals, midTermGoals, TODAY } from '../data/dummy';
 import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongTermSummary, AddGoalModal } from '../features/dashboard';
 
@@ -12,9 +12,9 @@ const MOTIVATIONAL_MESSAGES = [
 ];
 
 interface TopPageProps {
-  shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
   onToggle: (id: string) => void;
-  onAddGoal: (goal: ShortTermGoal) => void;
+  onAddTask: (goal: Task) => void;
 }
 
 function getDateLabel(): string {
@@ -23,10 +23,10 @@ function getDateLabel(): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${days[d.getDay()]}）`;
 }
 
-export function TopPage({ shortTermGoals, onToggle, onAddGoal }: TopPageProps) {
+export function TopPage({ tasks, onToggle, onAddTask }: TopPageProps) {
   const [modalOpen, setModalOpen] = useState(false);
 
-  const todayGoals = shortTermGoals.filter((g) => g.date === TODAY);
+  const todayGoals = tasks.filter((g) => g.date === TODAY);
   const hasGoalsToday = todayGoals.length > 0;
 
   // Pick a deterministic motivational message based on date
@@ -59,15 +59,15 @@ export function TopPage({ shortTermGoals, onToggle, onAddGoal }: TopPageProps) {
             <EmptyTodayCard onOpenModal={() => setModalOpen(true)} />
           )}
 
-          <WeeklyProgressChart shortTermGoals={shortTermGoals} />
+          <WeeklyProgressChart tasks={tasks} />
         </div>
 
         {/* Right sidebar column */}
         <div className="top-page__sidebar">
-          <StreakDisplay shortTermGoals={shortTermGoals} />
+          <StreakDisplay tasks={tasks} />
           <LongTermSummary
             longTermGoals={longTermGoals}
-            shortTermGoals={shortTermGoals}
+            tasks={tasks}
           />
         </div>
       </div>
@@ -77,7 +77,7 @@ export function TopPage({ shortTermGoals, onToggle, onAddGoal }: TopPageProps) {
         <AddGoalModal
           longTermGoals={longTermGoals}
           midTermGoals={midTermGoals}
-          onAdd={onAddGoal}
+          onAdd={onAddTask}
           onClose={() => setModalOpen(false)}
         />
       )}

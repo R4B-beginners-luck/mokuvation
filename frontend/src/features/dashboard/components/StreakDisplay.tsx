@@ -1,8 +1,8 @@
-import type { ShortTermGoal } from '../../../types';
+import type { Task } from '../../../types';
 import { TODAY } from '../../../data/dummy';
 
 interface StreakDisplayProps {
-  shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
 }
 
 function daysAgo(n: number) {
@@ -11,7 +11,7 @@ function daysAgo(n: number) {
   return d.toISOString().split('T')[0];
 }
 
-function calcStreak(goals: ShortTermGoal[]): number {
+function calcStreak(goals: Task[]): number {
   const completedDates = new Set(
     goals.filter((g) => g.completed).map((g) => g.date)
   );
@@ -26,11 +26,11 @@ function calcStreak(goals: ShortTermGoal[]): number {
   return streak;
 }
 
-export function StreakDisplay({ shortTermGoals }: StreakDisplayProps) {
-  const streak = calcStreak(shortTermGoals);
+export function StreakDisplay({ tasks }: StreakDisplayProps) {
+  const streak = calcStreak(tasks);
 
-  const todayGoals   = shortTermGoals.filter((g) => g.date === TODAY);
-  const totalDone    = shortTermGoals.filter((g) => g.completed).length;
+  const todayGoals   = tasks.filter((g) => g.date === TODAY);
+  const totalDone    = tasks.filter((g) => g.completed).length;
 
   return (
     <section className="card">

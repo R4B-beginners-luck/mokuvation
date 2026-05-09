@@ -1,11 +1,11 @@
-import type { LongTermGoal, ShortTermGoal } from '../../../types';
+import type { LongTermGoal, Task } from '../../../types';
 
 interface LongTermSummaryProps {
   longTermGoals: LongTermGoal[];
-  shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
 }
 
-export function LongTermSummary({ longTermGoals, shortTermGoals }: LongTermSummaryProps) {
+export function LongTermSummary({ longTermGoals, tasks }: LongTermSummaryProps) {
   return (
     <section className="card">
       <div className="card__title">
@@ -14,7 +14,7 @@ export function LongTermSummary({ longTermGoals, shortTermGoals }: LongTermSumma
       </div>
 
       {longTermGoals.map((lt) => {
-        const related   = shortTermGoals.filter((s) => s.longTermGoalId === lt.id);
+        const related   = tasks.filter((s) => s.goalId === lt.id); /* Note: goalId logic may need exact matching depending on schema */
         const completed = related.filter((s) => s.completed).length;
         const pct       = related.length > 0 ? Math.round((completed / related.length) * 100) : 0;
 
