@@ -1,7 +1,7 @@
-import type { ShortTermGoal, MidTermGoal, LongTermGoal } from '../../types';
+import type { Task, MidTermGoal, LongTermGoal } from '../../types';
 
 interface TodaySectionProps {
-  goals: ShortTermGoal[];
+  goals: Task[];
   midTermGoals: MidTermGoal[];
   longTermGoals: LongTermGoal[];
   onToggle: (id: string) => void;

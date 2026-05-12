@@ -1,8 +1,8 @@
-import type { ShortTermGoal, MidTermGoal, LongTermGoal } from '../../../types';
+import type { Task, MidTermGoal, LongTermGoal } from '../../../types';
 
 interface DayGoalListProps {
   date: string | null;
-  shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
   midTermGoals: MidTermGoal[];
   longTermGoals: LongTermGoal[];
 }
@@ -13,7 +13,7 @@ function formatDate(dateStr: string): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${days[d.getDay()]}）`;
 }
 
-export function DayGoalList({ date, shortTermGoals, midTermGoals, longTermGoals }: DayGoalListProps) {
+export function DayGoalList({ date, tasks, midTermGoals, longTermGoals }: DayGoalListProps) {
   if (!date) {
     return (
       <div className="day-detail">
@@ -24,11 +24,21 @@ export function DayGoalList({ date, shortTermGoals, midTermGoals, longTermGoals 
     );
   }
 
-  const dayGoals   = shortTermGoals.filter((g) => g.date === date);
+  const dayGoals   = tasks.filter((g) => g.date === date);
   const completed  = dayGoals.filter((g) => g.completed).length;
 
-  const getMidTitle  = (id?: string) => id ? midTermGoals.find((m) => m.id === id)?.title  : undefined;
-  const getLongTitle = (id: string)  => longTermGoals.find((l) => l.id === id)?.title ?? '';
+  const getParentTags = (goalId?: string) => {
+    if (!goalId) return { mid: undefined, long: undefined };
+    
+    const mid = midTermGoals.find(m => m.id === goalId);
+    if (mid) {
+      const long = longTermGoals.find(l => l.id === mid.longTermGoalId);
+      return { mid: mid.title, long: long?.title };
+    }
+
+    const long = longTermGoals.find(l => l.id === goalId);
+    return { mid: undefined, long: long?.title };
+  };
 
   return (
     <div className="day-detail">
@@ -52,10 +62,15 @@ export function DayGoalList({ date, shortTermGoals, midTermGoals, longTermGoals 
                 <div className="goal-item__body">
                   <div className="goal-item__title">{goal.title}</div>
                   <div className="goal-item__meta">
-                    <span className="tag tag--long">{getLongTitle(goal.longTermGoalId)}</span>
-                    {goal.midTermGoalId && (
-                      <span className="tag tag--mid">{getMidTitle(goal.midTermGoalId)}</span>
-                    )}
+                    {(() => {
+                      const tags = getParentTags(goal.goalId);
+                      return (
+                        <>
+                          {(tags.long || goal.goalId) && <span className="tag tag--long">{tags.long ?? '長期目標(未設定)'}</span>}
+                          {tags.mid && <span className="tag tag--mid">{tags.mid}</span>}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

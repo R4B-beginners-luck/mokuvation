@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import type { Goal, ShortTermGoal } from '../types';
+import type { Goal, ShortTermGoal, Task } from '../types';
 import { longTermGoals, midTermGoals } from '../data/dummy';
 import { GoalGraph, GoalDetailPanel } from '../features/goals';
 
 interface GoalsPageProps {
   shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
 }
 
-export function GoalsPage({ shortTermGoals }: GoalsPageProps) {
+export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [activeLtId, setActiveLtId]   = useState(longTermGoals[0]?.id ?? '');
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
 
@@ -54,16 +55,22 @@ export function GoalsPage({ shortTermGoals }: GoalsPageProps) {
 
           {/* Legend */}
           <div className="graph-legend">
-            <div className="graph-legend__item">
-              <span className="graph-legend__dot" style={{ background: 'var(--node-long)' }} />
+            <div className="graph-legend__item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="14" height="14" viewBox="-12 -12 24 24">
+                <polygon points="10,0 5,8.66 -5,8.66 -10,0 -5,-8.66 5,-8.66" fill="var(--node-long)" />
+              </svg>
               長期目標
             </div>
-            <div className="graph-legend__item">
-              <span className="graph-legend__dot" style={{ background: 'var(--node-mid)' }} />
+            <div className="graph-legend__item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="14" height="14" viewBox="-10 -10 20 20">
+                <rect x="-8.5" y="-8.5" width="17" height="17" fill="var(--node-mid)" />
+              </svg>
               中期目標
             </div>
-            <div className="graph-legend__item">
-              <span className="graph-legend__dot" style={{ background: 'var(--node-short)' }} />
+            <div className="graph-legend__item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="14" height="14" viewBox="-10 -10 20 20">
+                <circle cx="0" cy="0" r="8" fill="var(--node-short)" />
+              </svg>
               短期目標
             </div>
             <div className="graph-legend__item" style={{ marginLeft: 'var(--sp-2)', paddingLeft: 'var(--sp-2)', borderLeft: '1px solid var(--border)' }}>
@@ -80,6 +87,7 @@ export function GoalsPage({ shortTermGoals }: GoalsPageProps) {
         longTermGoals={longTermGoals}
         midTermGoals={midTermGoals}
         shortTermGoals={shortTermGoals}
+        tasks={tasks}
         onSelectNode={handleSelectNode}
       />
     </div>

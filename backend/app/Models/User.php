@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     use SoftDeletes;
+    use HasApiTokens, SoftDeletes;
 
     // 1. 主キーのカスタマイズ設定
     protected $primaryKey = 'user_id';

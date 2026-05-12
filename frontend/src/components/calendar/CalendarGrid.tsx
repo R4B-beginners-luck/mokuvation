@@ -1,9 +1,9 @@
-import type { ShortTermGoal } from '../../types';
+import type { Task } from '../../types';
 
 interface CalendarGridProps {
   year: number;
   month: number; // 0-indexed
-  shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
 }
@@ -15,7 +15,7 @@ function pad2(n: number) { return String(n).padStart(2, '0'); }
 export function CalendarGrid({
   year,
   month,
-  shortTermGoals,
+  tasks,
   selectedDate,
   onSelectDate,
 }: CalendarGridProps) {
@@ -51,7 +51,7 @@ export function CalendarGrid({
 
   // Goal stats per date
   const statsByDate: Record<string, { total: number; done: number }> = {};
-  shortTermGoals.forEach((g) => {
+  tasks.forEach((g) => {
     if (!statsByDate[g.date]) statsByDate[g.date] = { total: 0, done: 0 };
     statsByDate[g.date].total++;
     if (g.completed) statsByDate[g.date].done++;

@@ -10,10 +10,34 @@ interface GoalGraphProps {
 }
 
 const NODE_CONFIG = {
-  long:  { r: 36, color: '#e8a234', textColor: '#16151a', fontSize: 12, fontWeight: '700' },
-  mid:   { r: 26, color: '#5ab5a0', textColor: '#16151a', fontSize: 11, fontWeight: '600' },
-  short: { r: 18, color: '#9b7fd4', textColor: '#fff',    fontSize: 10, fontWeight: '500' },
+  long:  { r: 36, color: '#e8a234', textColor: '#e8a234', fontSize: 13, fontWeight: '700' },
+  mid:   { r: 26, color: '#5ab5a0', textColor: '#5ab5a0', fontSize: 12, fontWeight: '600' },
+  short: { r: 18, color: '#9b7fd4', textColor: '#c2b3e6', fontSize: 11, fontWeight: '500' },
 };
+
+function truncateText(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen) + '...';
+}
+
+function getPolygonPoints(type: string, radius: number): string {
+  if (type === 'long') {
+    // Hexagon
+    const points = [];
+    for (let i = 0; i < 6; i++) {
+        const angle_deg = 60 * i - 30;
+        const angle_rad = Math.PI / 180 * angle_deg;
+        points.push(`${radius * Math.cos(angle_rad)},${radius * Math.sin(angle_rad)}`);
+    }
+    return points.join(' ');
+  }
+  if (type === 'mid') {
+    // Square
+    const size = radius;
+    return `-${size},-${size} ${size},-${size} ${size},${size} -${size},${size}`;
+  }
+  return '';
+}
 
 function computeInitialPositions(
   lt: LongTermGoal,
@@ -60,17 +84,6 @@ function computeInitialPositions(
   });
 
   return pos;
-}
-
-function wrapText(text: string, maxLen: number): string[] {
-  if (text.length <= maxLen) return [text];
-  const mid = Math.floor(text.length / 2);
-  const breakAt = text.lastIndexOf('の', mid) !== -1
-    ? text.lastIndexOf('の', mid) + 1
-    : text.lastIndexOf('・', mid) !== -1
-      ? text.lastIndexOf('・', mid) + 1
-      : mid;
-  return [text.slice(0, breakAt), text.slice(breakAt)];
 }
 
 export function GoalGraph({
@@ -234,8 +247,9 @@ export function GoalGraph({
           const isShort    = goal.type === 'short';
           const isDone     = isShort && (goal as ShortTermGoal).completed;
 
-          const maxLen = goal.type === 'long' ? 7 : goal.type === 'mid' ? 6 : 5;
-          const lines  = wrapText(goal.title, maxLen);
+          const maxLen = goal.type === 'long' ? 14 : goal.type === 'mid' ? 12 : 10;
+          const displayTitle = truncateText(goal.title, maxLen);
+          const iconYOffset = cfg.r * 1.5;
 
           return (
             <g
@@ -248,33 +262,55 @@ export function GoalGraph({
                 if (!dragRef.current) onSelectNode(goal);
               }}
             >
-              {isSelected && (
-                <circle
-                  r={cfg.r + 6}
-                  fill="none"
-                  stroke={cfg.color}
-                  strokeWidth={2}
-                  strokeOpacity={0.5}
-                  strokeDasharray="4,3"
-                />
+              {isSelected && goal.type !== 'short' && (
+                <>
+                  <polygon
+                    points={getPolygonPoints(goal.type, cfg.r + 10)}
+                    fill={cfg.color}
+                    opacity={0.15}
+                  />
+                  <polygon
+                    points={getPolygonPoints(goal.type, cfg.r + 6)}
+                    fill="none"
+                    stroke={cfg.color}
+                    strokeWidth={3}
+                    strokeOpacity={0.8}
+                  />
+                </>
+              )}
+              {isSelected && goal.type === 'short' && (
+                <>
+                  <circle
+                    r={cfg.r + 10}
+                    fill={cfg.color}
+                    opacity={0.15}
+                  />
+                  <circle
+                    r={cfg.r + 6}
+                    fill="none"
+                    stroke={cfg.color}
+                    strokeWidth={3}
+                    strokeOpacity={0.8}
+                  />
+                </>
               )}
 
-              {isSelected && (
+              {goal.type !== 'short' ? (
+                <polygon
+                  points={getPolygonPoints(goal.type, cfg.r)}
+                  fill={cfg.color}
+                  stroke={isSelected ? cfg.color : 'rgba(255,255,255,0.1)'}
+                  strokeWidth={isSelected ? 2 : 1}
+                />
+              ) : (
                 <circle
                   r={cfg.r}
-                  fill={cfg.color}
-                  opacity={0.25}
-                  filter={`url(#glow-${goal.type === 'long' ? 'gold' : goal.type === 'mid' ? 'teal' : 'violet'})`}
+                  fill={isDone ? '#3a3840' : cfg.color}
+                  stroke={isSelected ? cfg.color : 'rgba(255,255,255,0.1)'}
+                  strokeWidth={isSelected ? 2 : 1}
+                  opacity={isDone ? 0.6 : 1}
                 />
               )}
-
-              <circle
-                r={cfg.r}
-                fill={isDone ? '#3a3840' : cfg.color}
-                stroke={isSelected ? cfg.color : 'rgba(255,255,255,0.1)'}
-                strokeWidth={isSelected ? 2 : 1}
-                opacity={isDone ? 0.6 : 1}
-              />
 
               {isDone && (
                 <text
@@ -283,25 +319,24 @@ export function GoalGraph({
                   fontSize={cfg.r * 0.7}
                   fill={cfg.color}
                   opacity={0.9}
+                  style={{ pointerEvents: 'none' }}
                 >
                   ✓
                 </text>
               )}
 
-              {!isDone && lines.map((line, li) => (
-                <text
-                  key={li}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fontSize={cfg.fontSize}
-                  fontWeight={cfg.fontWeight}
-                  fontFamily="'DM Sans', sans-serif"
-                  fill={cfg.textColor}
-                  y={(lines.length > 1 ? (li - 0.5) : 0) * (cfg.fontSize + 1)}
-                >
-                  {line}
-                </text>
-              ))}
+              {/* Title outside the shape */}
+              <text
+                textAnchor="middle"
+                fontSize={cfg.fontSize}
+                fontWeight={cfg.fontWeight}
+                fontFamily="'DM Sans', sans-serif"
+                fill={isSelected ? '#ffffff' : cfg.textColor}
+                y={iconYOffset}
+                style={{ pointerEvents: 'none', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+              >
+                {displayTitle}
+              </text>
             </g>
           );
         })}

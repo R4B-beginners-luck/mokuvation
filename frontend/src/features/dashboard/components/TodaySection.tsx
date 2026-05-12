@@ -1,7 +1,7 @@
-import type { ShortTermGoal, MidTermGoal, LongTermGoal } from '../../../types';
+import type { Task, MidTermGoal, LongTermGoal } from '../../../types';
 
 interface TodaySectionProps {
-  goals: ShortTermGoal[];
+  goals: Task[];
   midTermGoals: MidTermGoal[];
   longTermGoals: LongTermGoal[];
   onToggle: (id: string) => void;
@@ -53,10 +53,7 @@ export function TodaySection({
               <div className="goal-item__body">
                 <div className="goal-item__title">{goal.title}</div>
                 <div className="goal-item__meta">
-                  <span className="tag tag--long">{getLongTitle(goal.longTermGoalId)}</span>
-                  {goal.midTermGoalId && (
-                    <span className="tag tag--mid">{getMidTitle(goal.midTermGoalId)}</span>
-                  )}
+                  {goal.goalId && <span className="tag tag--long">{getLongTitle(goal.goalId)}</span>}
                 </div>
               </div>
             </div>
