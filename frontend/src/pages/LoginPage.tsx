@@ -1,7 +1,8 @@
 import { LoginForm } from '../features/auth';
+import type { User } from '../types';
 
 interface LoginPageProps {
-  onLogin: () => void;
+  onLogin: (user: User) => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {

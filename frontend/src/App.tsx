@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Page, ShortTermGoal, Task } from './types';
+import type { Page, ShortTermGoal, Task, User } from './types';
 import { shortTermGoalsInitial, tasksInitial, tasksNoToday } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
@@ -10,28 +10,33 @@ import { GoalsPage }   from './pages/GoalsPage';
 export default function App() {
   const [page, setPage]           = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // 追加: ログイン中のユーザー情報を管理
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // ── Demo toggle: "no goals today" vs "has goals today" ──────────────────────
   const [demoNoToday, setDemoNoToday] = useState(false);
 
   // ── Short-term goals: lifted state (can be toggled / added) ─────────────────
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const [tasks, setTasks] = useState<Task[]>(tasksInitial);
 
-  // Sync when demo mode changes
+
   const handleDemoToggle = () => {
     const next = !demoNoToday;
     setDemoNoToday(next);
     setTasks(next ? tasksNoToday : tasksInitial);
   };
 
-  const handleLogin = () => {
+  // 修正: LoginPageから渡されるユーザー情報を受け取るように変更
+  const handleLogin = (user: User) => {
     setIsLoggedIn(true);
+    setCurrentUser(user);
     setPage('top');
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    setCurrentUser(null); // クリア
+    localStorage.removeItem('access_token'); // トークン破棄
     setPage('login');
   };
 
@@ -44,20 +49,28 @@ export default function App() {
     setTasks((prev) => [task, ...prev]);
   };
 
-  // ── Login screen (no sidebar) ────────────────────────────────────────────────
+  // ログイン前
   if (!isLoggedIn) {
+    // LoginPageにhandleLoginを渡し、認証成功時にuserを受け取るようにする
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  // ── Authenticated layout ─────────────────────────────────────────────────────
+  // 認証後
   return (
     <>
-      <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout}>
+      {/* 修正: LayoutにcurrentUserを渡し、Sidebarなどで名前を使えるようにする */}
+      <Layout 
+        currentPage={page} 
+        onNavigate={setPage} 
+        onLogout={handleLogout}
+        user={currentUser} 
+      >
         {page === 'top' && (
           <TopPage
             tasks={tasks}
             onToggle={handleToggleTask}
             onAddTask={handleAddTask}
+
           />
         )}
         {page === 'calendar' && (
@@ -68,7 +81,6 @@ export default function App() {
         )}
       </Layout>
 
-      {/* Demo state toggle button */}
       <button
         className="demo-toggle"
         onClick={handleDemoToggle}

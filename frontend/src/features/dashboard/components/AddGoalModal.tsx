@@ -6,13 +6,13 @@ import { TODAY } from '../../../data/dummy';
 interface AddGoalModalProps {
   longTermGoals: LongTermGoal[];
   midTermGoals: MidTermGoal[];
-  onAdd: (goal: ShortTermGoal) => void;
+  onAdd: (task: ShortTermGoal) => void;
   onClose: () => void;
 }
 
 export function AddGoalModal({ longTermGoals, midTermGoals, onAdd, onClose }: AddGoalModalProps) {
   const [title, setTitle]           = useState('');
-  const [date, setDate]             = useState(TODAY);
+  const [dueDate, setDate]             = useState(TODAY);
   const [longTermId, setLongTermId] = useState(longTermGoals[0]?.id ?? '');
   const [midTermId, setMidTermId]   = useState('');
   const [description, setDescription] = useState('');
@@ -26,7 +26,7 @@ export function AddGoalModal({ longTermGoals, midTermGoals, onAdd, onClose }: Ad
       type: 'short',
       title: title.trim(),
       description: description.trim(),
-      date,
+      dueDate: dueDate,
       completed: false,
       longTermGoalId: longTermId,
       midTermGoalId: midTermId || undefined,
@@ -57,7 +57,7 @@ export function AddGoalModal({ longTermGoals, midTermGoals, onAdd, onClose }: Ad
             id="goal-date"
             className="form-input"
             type="date"
-            value={date}
+            value={dueDate}
             onChange={(e) => setDate(e.target.value)}
           />
         </div>

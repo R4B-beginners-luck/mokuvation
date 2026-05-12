@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import type { User } from '../../../types';
 
 interface LoginFormProps {
-  onLogin: () => void;
+  onLogin: (user: User) => void;
 }
 
 export function LoginForm({ onLogin }: LoginFormProps) {

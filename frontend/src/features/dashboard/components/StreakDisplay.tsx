@@ -3,6 +3,7 @@ import { TODAY } from '../../../data/dummy';
 
 interface StreakDisplayProps {
   tasks: Task[];
+  streakCount?: number; // ← 追加: APIからの確定した継続日数を受け取れるようにする
 }
 
 function daysAgo(n: number) {
@@ -26,8 +27,9 @@ function calcStreak(goals: Task[]): number {
   return streak;
 }
 
-export function StreakDisplay({ tasks }: StreakDisplayProps) {
-  const streak = calcStreak(tasks);
+export function StreakDisplay({ tasks, streakCount }: StreakDisplayProps) {
+  // 修正ポイント：APIからの値を優先し、なければフロントで計算する
+  const displayStreak = streakCount !== undefined ? streakCount : calcStreak(tasks);
 
   const todayGoals   = tasks.filter((g) => g.date === TODAY);
   const totalDone    = tasks.filter((g) => g.completed).length;
@@ -40,19 +42,24 @@ export function StreakDisplay({ tasks }: StreakDisplayProps) {
       </div>
       <div className="streak-display">
         <div className="streak-stat">
+          {/* 修正ポイント：計算結果ではなく displayStreak を表示 */}
           <div className="streak-stat__number" style={{ color: 'var(--accent-gold)' }}>
-            🔥 {streak}
+            🔥 {displayStreak}
           </div>
           <div className="streak-stat__label">連続達成日数</div>
         </div>
+        
         <div className="streak-divider" />
+        
         <div className="streak-stat">
           <div className="streak-stat__number" style={{ color: 'var(--accent-teal)', fontSize: 26 }}>
             {todayGoals.filter((g) => g.completed).length}/{todayGoals.length}
           </div>
           <div className="streak-stat__label">今日の達成</div>
         </div>
+
         <div className="streak-divider" />
+
         <div className="streak-stat">
           <div className="streak-stat__number" style={{ color: 'var(--accent-violet)', fontSize: 26 }}>
             {totalDone}

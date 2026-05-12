@@ -34,6 +34,12 @@ export interface ShortTermGoal {
   dueDate?: string;
 }
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export type Goal = LongTermGoal | MidTermGoal | ShortTermGoal;
 
 export interface Task {
