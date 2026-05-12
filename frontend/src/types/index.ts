@@ -1,4 +1,4 @@
-// ─── Goal types ────────────────────────────────────────────────────────────
+// ─── Goal & Task types ────────────────────────────────────────────────────────────
 
 export interface LongTermGoal {
   id: string;
@@ -6,6 +6,8 @@ export interface LongTermGoal {
   title: string;
   description: string;
   createdAt: string;
+  /** IDs of other long-term goals that are related (bidirectional) */
+  relatedLongTermGoalIds?: string[];
 }
 
 export interface MidTermGoal {
@@ -23,14 +25,23 @@ export interface ShortTermGoal {
   type: 'short';
   title: string;
   description: string;
-  /** YYYY-MM-DD — short-term goals are daily tasks */
-  date: string;
   completed: boolean;
   longTermGoalId: string;
   midTermGoalId?: string;
 }
 
 export type Goal = LongTermGoal | MidTermGoal | ShortTermGoal;
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  /** YYYY-MM-DD — the date this task is scheduled for */
+  date: string;
+  completed: boolean;
+  /** Which goal this task is related to */
+  goalId?: string;
+}
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
 

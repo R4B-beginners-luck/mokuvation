@@ -1,10 +1,11 @@
-import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal } from '../../../types';
+import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../../../types';
 
 interface GoalDetailPanelProps {
   selected: Goal | null;
   longTermGoals: LongTermGoal[];
   midTermGoals: MidTermGoal[];
   shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
   onSelectNode: (goal: Goal) => void;
 }
 
@@ -25,6 +26,7 @@ export function GoalDetailPanel({
   longTermGoals,
   midTermGoals,
   shortTermGoals,
+  tasks,
   onSelectNode,
 }: GoalDetailPanelProps) {
   if (!selected) {
@@ -74,7 +76,24 @@ export function GoalDetailPanel({
     }
   }
 
-  const accentColor = TYPE_COLOR[selected.type];
+  // タスクの集計
+  let relatedTasks: Task[] = [];
+  if (selected.type === 'short') {
+    // 短期目標：直接紐づくタスク
+    relatedTasks = tasks.filter(t => t.goalId === selected.id);
+  } else if (selected.type === 'mid') {
+    // 中期目標：自身に紐づくタスク＋配下の短期目標に紐づくタスク
+    const childShortIds = shortTermGoals.filter(s => s.midTermGoalId === selected.id).map(s => s.id);
+    relatedTasks = tasks.filter(t => t.goalId === selected.id || (t.goalId && childShortIds.includes(t.goalId)));
+  } else if (selected.type === 'long') {
+    // 長期目標：自身＋配下の中期・短期目標に紐づくタスク
+    const childMidIds = midTermGoals.filter(m => m.longTermGoalId === selected.id).map(m => m.id);
+    const childShortIds = shortTermGoals.filter(s => s.longTermGoalId === selected.id).map(s => s.id);
+    relatedTasks = tasks.filter(t => t.goalId === selected.id || (t.goalId && childMidIds.includes(t.goalId)) || (t.goalId && childShortIds.includes(t.goalId)));
+  }
+
+  const completedTasks = relatedTasks.filter(t => t.completed).length;
+  const accentColor = TYPE_COLOR[selected.type] || 'var(--text-muted)';
 
   return (
     <aside className="detail-panel">
@@ -115,13 +134,6 @@ export function GoalDetailPanel({
         </div>
       </div>
 
-      {selected.type === 'short' && (
-        <div className="detail-panel__date">
-          <span>📅</span>
-          <span>{(selected as ShortTermGoal).date}</span>
-        </div>
-      )}
-
       {selected.description && (
         <div>
           <div className="detail-panel__section-title">説明</div>
@@ -153,6 +165,40 @@ export function GoalDetailPanel({
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {relatedTasks.length > 0 && (
+        <div style={{ marginTop: 'var(--sp-4)' }}>
+          <div className="detail-panel__section-title">
+            関連タスク（{completedTasks} / {relatedTasks.length}件完了）
+          </div>
+          {selected.type !== 'short' ? (
+            <details>
+              <summary style={{ fontSize: 13, cursor: 'pointer', color: 'var(--text-muted)' }}>
+                配下のタスク一覧を表示
+              </summary>
+              <ul style={{ listStyle: 'none', margin: '8px 0 0 0', padding: 0 }}>
+                {relatedTasks.map(t => (
+                  <li key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: 13 }}>
+                    <span style={{ color: t.completed ? 'var(--color-success)' : 'var(--text-muted)' }}>{t.completed ? '✓' : '○'}</span>
+                    <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? 'var(--text-muted)' : 'inherit' }}>{t.title}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{t.date}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {relatedTasks.map(t => (
+                <li key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: 13 }}>
+                  <span style={{ color: t.completed ? 'var(--color-success)' : 'var(--text-muted)' }}>{t.completed ? '✓' : '○'}</span>
+                  <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? 'var(--text-muted)' : 'inherit' }}>{t.title}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{t.date}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

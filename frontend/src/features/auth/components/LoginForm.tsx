@@ -9,7 +9,9 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   const [pass, setPass]   = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
     if (!id.trim() || !pass.trim()) {
       setError('IDとパスワードを入力してください');
       return;
@@ -19,7 +21,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   };
 
   return (
-    <div className="login-form">
+    <form className="login-form" onSubmit={handleSubmit}>
       <div className="form-field">
         <label htmlFor="login-id">ユーザーID</label>
         <input
@@ -43,7 +45,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           placeholder="••••••••"
           value={pass}
           onChange={(e) => setPass(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.form?.requestSubmit()}
         />
       </div>
 
@@ -51,9 +53,9 @@ export function LoginForm({ onLogin }: LoginFormProps) {
         <p style={{ fontSize: 12, color: 'var(--accent-coral)', marginTop: -8 }}>{error}</p>
       )}
 
-      <button className="btn-primary" onClick={handleSubmit} style={{ width: '100%', padding: 'var(--sp-4)' }}>
+      <button type="submit" className="btn-primary" style={{ width: '100%', padding: 'var(--sp-4)' }}>
         ログイン
       </button>
-    </div>
+    </form>
   );
 }

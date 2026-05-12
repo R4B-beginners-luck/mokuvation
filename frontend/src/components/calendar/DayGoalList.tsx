@@ -1,8 +1,8 @@
-import type { ShortTermGoal, MidTermGoal, LongTermGoal } from '../../types';
+import type { Task, MidTermGoal, LongTermGoal } from '../../types';
 
 interface DayGoalListProps {
   date: string | null;
-  shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
   midTermGoals: MidTermGoal[];
   longTermGoals: LongTermGoal[];
 }
@@ -13,22 +13,34 @@ function formatDate(dateStr: string): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${days[d.getDay()]}）`;
 }
 
-export function DayGoalList({ date, shortTermGoals, midTermGoals, longTermGoals }: DayGoalListProps) {
+export function DayGoalList({ date, tasks, midTermGoals, longTermGoals }: DayGoalListProps) {
   if (!date) {
     return (
       <div className="day-detail">
         <div className="day-detail__empty">
-          📅<br />日付を選択してください
+          👆<br />日付を選択してください
         </div>
       </div>
     );
   }
 
-  const dayGoals   = shortTermGoals.filter((g) => g.date === date);
-  const completed  = dayGoals.filter((g) => g.completed).length;
+  const dayGoals   = tasks.filter((t) => t.date === date);
+  const completed  = dayGoals.filter((t) => t.completed).length;
 
-  const getMidTitle  = (id?: string) => id ? midTermGoals.find((m) => m.id === id)?.title  : undefined;
-  const getLongTitle = (id: string)  => longTermGoals.find((l) => l.id === id)?.title ?? '';
+  const getParentTags = (goalId?: string) => {
+    if (!goalId) return { mid: undefined, long: undefined };
+    
+    // Check if goalId refers to a MidTermGoal
+    const mid = midTermGoals.find(m => m.id === goalId);
+    if (mid) {
+      const long = longTermGoals.find(l => l.id === mid.longTermGoalId);
+      return { mid: mid.title, long: long?.title };
+    }
+
+    // Check if goalId refers to a LongTermGoal directly
+    const long = longTermGoals.find(l => l.id === goalId);
+    return { mid: undefined, long: long?.title };
+  };
 
   return (
     <div className="day-detail">
@@ -40,27 +52,28 @@ export function DayGoalList({ date, shortTermGoals, midTermGoals, longTermGoals 
       </div>
 
       {dayGoals.length === 0 ? (
-        <div className="day-detail__empty">この日は目標が設定されていません</div>
+        <div className="day-detail__empty">この日はタスクが設定されていません</div>
       ) : (
         <ul className="day-detail__list">
-          {dayGoals.map((goal) => (
-            <li key={goal.id}>
-              <div className={`goal-item${goal.completed ? ' completed' : ''}`} style={{ cursor: 'default' }}>
-                <div className={`goal-item__check${goal.completed ? ' checked' : ''}`}>
-                  {goal.completed && '✓'}
-                </div>
-                <div className="goal-item__body">
-                  <div className="goal-item__title">{goal.title}</div>
-                  <div className="goal-item__meta">
-                    <span className="tag tag--long">{getLongTitle(goal.longTermGoalId)}</span>
-                    {goal.midTermGoalId && (
-                      <span className="tag tag--mid">{getMidTitle(goal.midTermGoalId)}</span>
-                    )}
+          {dayGoals.map((goal) => {
+            const { mid, long } = getParentTags(goal.goalId);
+            return (
+              <li key={goal.id}>
+                <div className={`goal-item${goal.completed ? ' completed' : ''}`} style={{ cursor: 'default' }}>
+                  <div className={`goal-item__check${goal.completed ? ' checked' : ''}`}>
+                    {goal.completed && '✓'}
+                  </div>
+                  <div className="goal-item__body">
+                    <div className="goal-item__title">{goal.title}</div>
+                    <div className="goal-item__meta">
+                      {long && <span className="tag tag--long">{long}</span>}
+                      {mid && <span className="tag tag--mid">{mid}</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

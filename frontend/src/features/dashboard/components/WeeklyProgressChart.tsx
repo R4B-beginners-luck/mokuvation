@@ -1,12 +1,8 @@
-interface ShortTermGoal {
-  date: string;
-  completed: boolean;
-}
-
-const TODAY = new Date().toISOString().split('T')[0];
+import type { Task } from '../../../types';
+import { TODAY } from '../../../data/dummy';
 
 interface WeeklyProgressChartProps {
-  shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
 }
 
 function daysAgo(n: number): string {
@@ -32,9 +28,9 @@ const daysWithLabel = WEEK_DAYS.map(({ date }) => {
   return { date, label: WEEKDAY_JP[d.getDay()] };
 });
 
-export function WeeklyProgressChart({ shortTermGoals }: WeeklyProgressChartProps) {
+export function WeeklyProgressChart({ tasks }: WeeklyProgressChartProps) {
   const stats = daysWithLabel.map(({ date, label }) => {
-    const dayGoals = shortTermGoals.filter((g) => g.date === date);
+    const dayGoals = tasks.filter((g) => g.date === date);
     const total = dayGoals.length;
     const done  = dayGoals.filter((g) => g.completed).length;
     const pct   = total > 0 ? Math.round((done / total) * 100) : 0;

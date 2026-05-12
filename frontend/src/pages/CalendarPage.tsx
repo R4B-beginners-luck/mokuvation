@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import type { ShortTermGoal } from '../types';
+import type { Task } from '../types';
 import { longTermGoals, midTermGoals } from '../data/dummy';
 import { CalendarGrid, DayGoalList } from '../features/calendar';
 
 interface CalendarPageProps {
-  shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
 }
 
 const MONTH_JP = [
@@ -12,7 +12,7 @@ const MONTH_JP = [
   '7月', '8月', '9月', '10月', '11月', '12月',
 ];
 
-export function CalendarPage({ shortTermGoals }: CalendarPageProps) {
+export function CalendarPage({ tasks }: CalendarPageProps) {
   const now   = new Date();
   const [year,  setYear]  = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -51,7 +51,7 @@ export function CalendarPage({ shortTermGoals }: CalendarPageProps) {
         <CalendarGrid
           year={year}
           month={month}
-          shortTermGoals={shortTermGoals}
+          tasks={tasks}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
         />
@@ -72,7 +72,7 @@ export function CalendarPage({ shortTermGoals }: CalendarPageProps) {
       {/* Day detail panel */}
       <DayGoalList
         date={selectedDate}
-        shortTermGoals={shortTermGoals}
+        tasks={tasks}
         midTermGoals={midTermGoals}
         longTermGoals={longTermGoals}
       />
