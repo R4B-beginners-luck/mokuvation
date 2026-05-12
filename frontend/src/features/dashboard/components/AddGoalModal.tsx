@@ -6,7 +6,7 @@ import { TODAY } from '../../../data/dummy';
 interface AddGoalModalProps {
   longTermGoals: LongTermGoal[];
   midTermGoals: MidTermGoal[];
-  onAdd: (task: ShortTermGoal) => void;
+  onAdd: (goal: any) => void;
   onClose: () => void;
 }
 
