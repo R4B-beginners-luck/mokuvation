@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import type { Goal, ShortTermGoal } from '../types';
+import type { Goal, ShortTermGoal, Task } from '../types';
 import { longTermGoals, midTermGoals } from '../data/dummy';
 import { GoalGraph, GoalDetailPanel } from '../features/goals';
 
 interface GoalsPageProps {
   shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
 }
 
-export function GoalsPage({ shortTermGoals }: GoalsPageProps) {
+export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [activeLtId, setActiveLtId]   = useState(longTermGoals[0]?.id ?? '');
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
 
@@ -80,6 +81,7 @@ export function GoalsPage({ shortTermGoals }: GoalsPageProps) {
         longTermGoals={longTermGoals}
         midTermGoals={midTermGoals}
         shortTermGoals={shortTermGoals}
+        tasks={tasks}
         onSelectNode={handleSelectNode}
       />
     </div>

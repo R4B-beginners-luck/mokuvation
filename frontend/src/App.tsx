@@ -15,7 +15,7 @@ export default function App() {
   const [demoNoToday, setDemoNoToday] = useState(false);
 
   // ── Short-term goals: lifted state (can be toggled / added) ─────────────────
-  const [shortTermGoals, setShortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
+  const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const [tasks, setTasks] = useState<Task[]>(tasksInitial);
 
   // Sync when demo mode changes
@@ -64,7 +64,7 @@ export default function App() {
           <CalendarPage tasks={tasks} />
         )}
         {page === 'goals' && (
-          <GoalsPage shortTermGoals={shortTermGoals} />
+          <GoalsPage shortTermGoals={shortTermGoals} tasks={tasks} />
         )}
       </Layout>
 
