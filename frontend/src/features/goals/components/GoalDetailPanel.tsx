@@ -21,6 +21,22 @@ const TYPE_COLOR: Record<string, string> = {
   short: 'var(--accent-violet)',
 };
 
+function getDaysRemaining(dueDate: string): { days: number; label: string } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diff < 0) {
+    return { days: Math.abs(diff), label: `${Math.abs(diff)}日超過` };
+  } else if (diff === 0) {
+    return { days: 0, label: '今日まで' };
+  } else {
+    return { days: diff, label: `あと${diff}日` };
+  }
+}
+
 export function GoalDetailPanel({
   selected,
   longTermGoals,
@@ -132,6 +148,26 @@ export function GoalDetailPanel({
         >
           {selected.title}
         </div>
+        {(selected.type === 'mid' || selected.type === 'short') && (selected as MidTermGoal | ShortTermGoal).dueDate && (
+          (() => {
+            const dueDate = (selected as MidTermGoal | ShortTermGoal).dueDate!;
+            const { label } = getDaysRemaining(dueDate);
+            return (
+              <div style={{ 
+                marginTop: '12px', 
+                paddingLeft: 'var(--sp-3)',
+                fontSize: 13, 
+                fontWeight: 600,
+                color: accentColor,
+                backgroundColor: `${accentColor}15`,
+                padding: '8px var(--sp-3)',
+                borderRadius: '6px'
+              }}>
+                📅 {dueDate} · <span style={{ fontWeight: 700, fontSize: 14 }}>{label}</span>
+              </div>
+            );
+          })()
+        )}
       </div>
 
       {selected.description && (

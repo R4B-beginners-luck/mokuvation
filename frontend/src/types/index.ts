@@ -16,6 +16,8 @@ export interface MidTermGoal {
   title: string;
   description: string;
   longTermGoalId: string;
+  /** YYYY-MM-DD */
+  dueDate?: string;
   /** IDs of other mid-term goals that are related (bidirectional) */
   relatedMidTermGoalIds: string[];
 }
@@ -28,6 +30,8 @@ export interface ShortTermGoal {
   completed: boolean;
   longTermGoalId: string;
   midTermGoalId?: string;
+  /** YYYY-MM-DD */
+  dueDate?: string;
 }
 
 export type Goal = LongTermGoal | MidTermGoal | ShortTermGoal;
