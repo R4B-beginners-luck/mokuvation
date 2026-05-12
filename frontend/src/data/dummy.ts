@@ -56,6 +56,7 @@ export const midTermGoals: MidTermGoal[] = [
     description:
       'React / TypeScript / Node.js / PostgreSQL を体系的に学び、フロント〜バックまで一人で開発できるようにする。',
     longTermGoalId: 'lt1',
+    dueDate: '2026-09-30',
     relatedMidTermGoalIds: ['mt3'],
   },
   {
@@ -65,6 +66,7 @@ export const midTermGoals: MidTermGoal[] = [
     description:
       'GitHub で実際のプロジェクトに Issue コメント・PR を出し、実践的なコードレビュー経験を積む。',
     longTermGoalId: 'lt1',
+    dueDate: '2026-10-31',
     relatedMidTermGoalIds: ['mt3'],
   },
   {
@@ -74,6 +76,7 @@ export const midTermGoals: MidTermGoal[] = [
     description:
       '英語の RFC・仕様書・ドキュメントを辞書なしで読めるようにする。週1本英語記事を精読する習慣をつける。',
     longTermGoalId: 'lt1',
+    dueDate: '2026-12-31',
     relatedMidTermGoalIds: ['mt1', 'mt2'],
   },
   // ── under lt2 ──────────────────────────────────────────────────
@@ -84,6 +87,7 @@ export const midTermGoals: MidTermGoal[] = [
     description:
       'ジムまたは自宅トレーニングを週3回以上継続する。3ヶ月後に体脂肪率を2%下げることを目標とする。',
     longTermGoalId: 'lt2',
+    dueDate: '2026-08-12',
     relatedMidTermGoalIds: ['mt5'],
   },
   {
@@ -93,6 +97,7 @@ export const midTermGoals: MidTermGoal[] = [
     description:
       '毎日の食事を記録し、タンパク質・炭水化物・脂質のバランスを意識する。外食は週3回以内に抑える。',
     longTermGoalId: 'lt2',
+    dueDate: '2026-08-12',
     relatedMidTermGoalIds: ['mt4'],
   },
 ];
@@ -106,6 +111,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     description: 'モックアップに合わせたUIを作成し、ルーティングを整理する。',
     completed: false,
     longTermGoalId: 'lt1', midTermGoalId: 'mt1',
+    dueDate: '2026-06-30',
   },
   {
     id: 'st3', type: 'short',
@@ -113,6 +119,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     description: 'バックエンドのCRUD APIを構築し、Postmanでテストする。',
     completed: true,
     longTermGoalId: 'lt1', midTermGoalId: 'mt1',
+    dueDate: '2026-06-15',
   },
   {
     id: 'st4', type: 'short',
@@ -120,6 +127,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     description: '週に2時間以上、英語のPodcastや動画を視聴する。',
     completed: false,
     longTermGoalId: 'lt1', midTermGoalId: 'mt3',
+    dueDate: '2026-07-31',
   },
   {
     id: 'st2', type: 'short',
@@ -127,6 +135,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     description: '継続するために家の近くのジムを契約し、メニューを組む。',
     completed: true,
     longTermGoalId: 'lt2', midTermGoalId: 'mt4',
+    dueDate: '2026-05-31',
   }
 ];
 
