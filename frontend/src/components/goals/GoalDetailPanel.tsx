@@ -127,7 +127,7 @@ export function GoalDetailPanel({
       {selected.type === 'short' && (
         <div className="detail-panel__date">
           <span>📅</span>
-          <span>{(selected as ShortTermGoal).date}</span>
+          <span>{(selected as ShortTermGoal).dueDate}</span>
         </div>
       )}
 
