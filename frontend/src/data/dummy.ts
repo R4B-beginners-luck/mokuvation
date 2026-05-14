@@ -104,6 +104,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F90,
     relatedMidTermGoalIds: [],
     labelIds: ['dev'],
+    primaryLabelId: 'dev',
   },
   {
     id: 'mt2',
@@ -115,6 +116,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F180,
     relatedMidTermGoalIds: [],
     labelIds: ['embedded', 'dev'],
+    primaryLabelId: 'embedded',
   },
   {
     id: 'mt3',
@@ -126,6 +128,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F60,
     relatedMidTermGoalIds: [],
     labelIds: ['dev', 'share'],
+    primaryLabelId: 'dev',
   },
   {
     id: 'mt4',
@@ -137,6 +140,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: '',
     relatedMidTermGoalIds: [],
     labelIds: ['share'],
+    primaryLabelId: 'share',
   },
   {
     id: 'mt5',
@@ -148,6 +152,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F30,
     relatedMidTermGoalIds: [],
     labelIds: ['dev'],
+    primaryLabelId: 'dev',
   },
   // ── under lt2: 健康的な生活習慣の構築 ──────────────────────
   {
@@ -160,6 +165,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F90,
     relatedMidTermGoalIds: [],
     labelIds: ['health'],
+    primaryLabelId: 'health',
   },
   {
     id: 'mt7',
@@ -171,6 +177,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: '',
     relatedMidTermGoalIds: [],
     labelIds: ['health', 'money'],
+    primaryLabelId: 'health',
   },
   {
     id: 'mt8',
@@ -182,6 +189,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F60,
     relatedMidTermGoalIds: [],
     labelIds: ['health'],
+    primaryLabelId: 'health',
   },
   // ── under lt3: TOEIC 800点達成 ────────────────────────────
   {
@@ -194,6 +202,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F90,
     relatedMidTermGoalIds: [],
     labelIds: ['eng', 'cert'],
+    primaryLabelId: 'eng',
   },
   {
     id: 'mt10',
@@ -205,6 +214,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F90,
     relatedMidTermGoalIds: [],
     labelIds: ['eng', 'cert'],
+    primaryLabelId: 'eng',
   },
   {
     id: 'mt11',
@@ -216,6 +226,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: '',
     relatedMidTermGoalIds: [],
     labelIds: ['eng', 'cert'],
+    primaryLabelId: 'eng',
   },
   {
     id: 'mt12',
@@ -227,6 +238,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F120,
     relatedMidTermGoalIds: [],
     labelIds: ['cert'],
+    primaryLabelId: 'cert',
   },
   // ── under lt4: 卒業研究・PWA家計簿アプリ完成 ────────────────
   {
@@ -239,6 +251,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F30,
     relatedMidTermGoalIds: [],
     labelIds: ['research'],
+    primaryLabelId: 'research',
   },
   {
     id: 'mt14',
@@ -250,6 +263,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F120,
     relatedMidTermGoalIds: [],
     labelIds: ['dev', 'research'],
+    primaryLabelId: 'dev',
   },
   {
     id: 'mt15',
@@ -261,6 +275,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F150,
     relatedMidTermGoalIds: [],
     labelIds: ['research'],
+    primaryLabelId: 'research',
   },
   // ── under lt5: お金・生活管理の安定 ──────────────────────
   {
@@ -273,6 +288,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F60,
     relatedMidTermGoalIds: [],
     labelIds: ['money'],
+    primaryLabelId: 'money',
   },
   {
     id: 'mt17',
@@ -284,6 +300,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F30,
     relatedMidTermGoalIds: [],
     labelIds: ['money'],
+    primaryLabelId: 'money',
   },
   {
     id: 'mt18',
@@ -295,6 +312,7 @@ export const midTermGoals: MidTermGoal[] = [
     dueDate: F14,
     relatedMidTermGoalIds: [],
     labelIds: ['money'],
+    primaryLabelId: 'money',
   },
 ];
 
