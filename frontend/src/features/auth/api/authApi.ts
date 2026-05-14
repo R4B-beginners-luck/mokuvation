@@ -57,5 +57,13 @@ export const authApi = {
     return fetchWithAuth('/users/me', {
       method: 'GET',
     });
+  },
+
+  register: async (credentials: any): Promise<any> => {
+    return fetchWithAuth('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
   }
+  
 };

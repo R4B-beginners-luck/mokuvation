@@ -13,3 +13,9 @@ export interface AuthResponse {
   user: User;
   token: string;
 }
+
+export interface RegisterCredentials {
+  user_id: string;
+  user_name: string;
+  password: string;
+}
