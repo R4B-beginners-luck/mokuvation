@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
 interface LoginFormProps {
-  onLogin: () => void;
+  // LoginPage側での型エラーを避けるため、引数は (data?: any) としておきます
+  onLogin: (data?: any) => void;
 }
 
 export function LoginForm({ onLogin }: LoginFormProps) {
+  // useAuthから必要な機能を取り出す
   const { login, isLoading, error: authError } = useAuth();
   
   const [userId, setUserId] = useState('');
@@ -15,18 +17,31 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    // 1. フロントエンドでのバリデーション
     if (!userId.trim() || !password.trim()) {
       setValidationError('ユーザーIDとパスワードを入力してください');
       return;
     }
     setValidationError('');
 
-    const success = await login({ user_id: userId, password });
-    if (success) {
-      onLogin();
+    // 2. useAuthのlogin関数を実行
+    // 設計書に合わせて user_id というキーで送るようフックに渡す
+    const result = await login({ user_id: userId, password });
+
+    if (result) {
+      /**
+       * 【整合性のための注記】
+       * 本来は useAuth 内部で localStorage.setItem('user_info', ...) を
+       * 行うのが理想的です。もしフック側でやっていない場合は、
+       * ここで result (APIレスポンス) を使って保存処理を行います。
+       */
+      
+      // 親コンポーネントに通知
+      onLogin(result);
     }
   };
 
+  // エラー表示の優先順位決定
   const displayError = validationError || authError;
 
   return (
@@ -40,8 +55,8 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           placeholder="user001"
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
-          autoFocus
           disabled={isLoading}
+          autoFocus
         />
       </div>
 
@@ -55,6 +70,8 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={isLoading}
+          // Enterキーでの送信を可能にする
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.form?.requestSubmit()}
         />
       </div>
 
