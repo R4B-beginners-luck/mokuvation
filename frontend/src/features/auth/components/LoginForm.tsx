@@ -7,7 +7,6 @@ interface LoginFormProps {
 
 export function LoginForm({ onLogin }: LoginFormProps) {
   const { login, isLoading, error: authError } = useAuth();
-  
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState('');

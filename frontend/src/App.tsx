@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Page, ShortTermGoal, Task } from './types';
 import { shortTermGoalsInitial, tasksInitial, tasksNoToday } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
+import { LoadingPage } from './pages/LoadingPage';
 import { TopPage }     from './pages/TopPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GoalsPage }   from './pages/GoalsPage';
+import { authApi } from './features/auth/api/authApi';
 
 export default function App() {
   const [page, setPage]           = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // ── Demo toggle: "no goals today" vs "has goals today" ──────────────────────
   const [demoNoToday, setDemoNoToday] = useState(false);
@@ -17,6 +20,27 @@ export default function App() {
   // ── Short-term goals: lifted state (can be toggled / added) ─────────────────
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const [tasks, setTasks] = useState<Task[]>(tasksInitial);
+
+  // ── トークン検証による自動ログイン ──────────────────────────────────────────
+  useEffect(() => {
+    const verifyToken = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          await authApi.getMe();
+          setIsLoggedIn(true);
+          setPage('top');
+        } catch (error) {
+          // トークンが無効な場合はログイン画面へ
+          localStorage.removeItem('auth_token');
+          setIsLoggedIn(false);
+        }
+      }
+      setIsCheckingAuth(false);
+    };
+    
+    verifyToken();
+  }, []);
 
   // Sync when demo mode changes
   const handleDemoToggle = () => {
@@ -31,6 +55,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('auth_token');
     setIsLoggedIn(false);
     setPage('login');
   };
@@ -45,6 +70,10 @@ export default function App() {
   };
 
   // ── Login screen (no sidebar) ────────────────────────────────────────────────
+  if (isCheckingAuth) {
+    return <LoadingPage />;
+  }
+
   if (!isLoggedIn) {
     return <LoginPage onLogin={handleLogin} />;
   }
