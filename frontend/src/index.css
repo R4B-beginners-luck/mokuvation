@@ -676,6 +676,7 @@ a { text-decoration: none; color: inherit; }
 .goal-item__meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--sp-2);
   margin-top: var(--sp-1);
 }
