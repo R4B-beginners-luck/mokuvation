@@ -1,24 +1,33 @@
 import { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
 
 interface LoginFormProps {
   onLogin: () => void;
 }
 
 export function LoginForm({ onLogin }: LoginFormProps) {
-  const [id, setId]       = useState('');
-  const [pass, setPass]   = useState('');
-  const [error, setError] = useState('');
+  const { login, isLoading, error: authError } = useAuth();
+  
+  const [userId, setUserId] = useState('');
+  const [password, setPassword] = useState('');
+  const [validationError, setValidationError] = useState('');
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!id.trim() || !pass.trim()) {
-      setError('IDとパスワードを入力してください');
+    if (!userId.trim() || !password.trim()) {
+      setValidationError('ユーザーIDとパスワードを入力してください');
       return;
     }
-    setError('');
-    onLogin();
+    setValidationError('');
+
+    const success = await login({ user_id: userId, password });
+    if (success) {
+      onLogin();
+    }
   };
+
+  const displayError = validationError || authError;
 
   return (
     <form className="login-form" onSubmit={handleSubmit}>
@@ -28,11 +37,11 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           id="login-id"
           className="form-input"
           type="text"
-          placeholder="user@example.com"
-          value={id}
-          onChange={(e) => setId(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+          placeholder="user001"
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
           autoFocus
+          disabled={isLoading}
         />
       </div>
 
@@ -43,18 +52,25 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           className="form-input"
           type="password"
           placeholder="••••••••"
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.form?.requestSubmit()}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={isLoading}
         />
       </div>
 
-      {error && (
-        <p style={{ fontSize: 12, color: 'var(--accent-coral)', marginTop: -8 }}>{error}</p>
+      {displayError && (
+        <p style={{ fontSize: 12, color: 'var(--accent-coral)', marginTop: -8 }}>
+          {displayError}
+        </p>
       )}
 
-      <button type="submit" className="btn-primary" style={{ width: '100%', padding: 'var(--sp-4)' }}>
-        ログイン
+      <button 
+        type="submit" 
+        className="btn-primary" 
+        style={{ width: '100%', padding: 'var(--sp-4)' }}
+        disabled={isLoading}
+      >
+        {isLoading ? 'ログイン中...' : 'ログイン'}
       </button>
     </form>
   );

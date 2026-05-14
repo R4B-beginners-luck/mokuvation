@@ -1,10 +1,14 @@
-import { LoginForm } from '../features/auth';
+import { useState } from 'react';
+import { LoginForm, RegisterForm } from '../features/auth';
 
 interface LoginPageProps {
   onLogin: () => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  // 'login' または 'register' の状態を管理
+  const [view, setView] = useState<'login' | 'register'>('login');
+
   return (
     <div className="login-page">
       <div className="login-page__bg-decoration">
@@ -18,13 +22,40 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           <h1 className="login-card__title">
             moku<span>vation</span>
           </h1>
-          <p className="login-card__subtitle">目標と行動を、毎日の力に。</p>
+          <p className="login-card__subtitle">
+            {view === 'login' ? '目標と行動を、毎日の力に。' : '新しい一歩を、ここから。'}
+          </p>
         </div>
 
-        <LoginForm onLogin={onLogin} />
+        {/* 表示の切り替え */}
+        {view === 'login' ? (
+          <>
+            <LoginForm onLogin={onLogin} />
+            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+              <button 
+                onClick={() => setView('register')} 
+                style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: '14px' }}
+              >
+                新規登録はこちら
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <RegisterForm onSuccess={onLogin} />
+            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+              <button 
+                onClick={() => setView('login')} 
+                style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', textDecoration: 'underline', fontSize: '14px' }}
+              >
+                ログインに戻る
+              </button>
+            </div>
+          </>
+        )}
 
         <p className="login-hint">
-          ※ デモ用モック。任意のIDとパスワードでログインできます。
+          ※ 認証機能テスト中
         </p>
       </div>
     </div>
