@@ -20,6 +20,10 @@ export interface MidTermGoal {
   dueDate?: string;
   /** IDs of other mid-term goals that are related (bidirectional) */
   relatedMidTermGoalIds: string[];
+  /** Labels assigned to this goal */
+  labelIds?: string[];
+  /** The primary label ID for this goal (used for node color in graph) */
+  primaryLabelId?: string;
 }
 
 export interface ShortTermGoal {
@@ -32,6 +36,10 @@ export interface ShortTermGoal {
   midTermGoalId?: string;
   /** YYYY-MM-DD */
   dueDate?: string;
+  /** Labels assigned to this goal */
+  labelIds?: string[];
+  /** The primary label ID for this goal (used for node color in graph) */
+  primaryLabelId?: string;
 }
 
 export interface User {
@@ -75,4 +83,10 @@ export interface GraphEdge {
   /** dashed = mid <-> mid relationship */
   dashed?: boolean;
   color?: string;
+}
+
+export interface Label {
+  id: string | number;
+  name: string;
+  color: string;
 }
