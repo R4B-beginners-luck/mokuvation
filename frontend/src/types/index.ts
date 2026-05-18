@@ -43,8 +43,8 @@ export interface ShortTermGoal {
 }
 
 export interface User {
-  id: string;
-  name: string;
+  user_id: string;
+  user_name: string;
   email: string;
 }
 

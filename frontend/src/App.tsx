@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Page, ShortTermGoal, Task } from './types';
+import type { Page, ShortTermGoal, Task, User } from './types';
 import { shortTermGoalsInitial, tasksInitial, tasksNoToday } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
@@ -10,6 +10,7 @@ import { GoalsPage }   from './pages/GoalsPage';
 export default function App() {
   const [page, setPage]           = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser]             = useState<User | null>(null);
 
   // ── Demo toggle: "no goals today" vs "has goals today" ──────────────────────
   const [demoNoToday, setDemoNoToday] = useState(false);
@@ -25,14 +26,16 @@ export default function App() {
     setTasks(next ? tasksNoToday : tasksInitial);
   };
 
-  const handleLogin = () => {
+  const handleLogin = (userData: User) => {
     setIsLoggedIn(true);
     setPage('top');
+    setUser(userData);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setPage('login');
+    setUser(null);
   };
 
   const handleToggleTask = (id: string) => {
@@ -52,7 +55,7 @@ export default function App() {
   // ── Authenticated layout ─────────────────────────────────────────────────────
   return (
     <>
-      <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout}>
+      <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout} >
         {page === 'top' && (
           <TopPage
             tasks={tasks}
