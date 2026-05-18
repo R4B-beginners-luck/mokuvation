@@ -31,6 +31,7 @@ class GoalController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'color_code' => ['nullable', 'regex:/^#([0-9A-Fa-f]{6})$/'],
             'period_type' => ['required', 'string', 'in:short,middle,long'],
             'due_at' => ['nullable', 'date'],
             'parent_goal_id' => ['nullable', 'uuid', 'exists:goals,id'],
@@ -67,6 +68,7 @@ class GoalController extends Controller
         $validated = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'color_code' => ['nullable', 'regex:/^#([0-9A-Fa-f]{6})$/'],
             'period_type' => ['sometimes', 'required', 'string', 'in:short,middle,long'],
             'due_at' => ['nullable', 'date'],
             'is_completed' => ['sometimes', 'boolean'],
