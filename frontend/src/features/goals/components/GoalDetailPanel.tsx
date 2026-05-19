@@ -1,4 +1,5 @@
 import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../../../types';
+import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
 
 interface GoalDetailPanelProps {
   selected: Goal | null;
@@ -7,18 +8,14 @@ interface GoalDetailPanelProps {
   shortTermGoals: ShortTermGoal[];
   tasks: Task[];
   onSelectNode: (goal: Goal) => void;
+  onEditGoal: (goal: Goal) => void;
+  onAddGoal: (goal: Goal, presetGoalType?: 'mid' | 'short') => void;
 }
 
 const TYPE_LABEL: Record<string, string> = {
   long:  '長期目標',
   mid:   '中期目標',
   short: '短期目標',
-};
-
-const TYPE_COLOR: Record<string, string> = {
-  long:  'var(--accent-gold)',
-  mid:   'var(--accent-teal)',
-  short: 'var(--accent-violet)',
 };
 
 function getDaysRemaining(dueDate: string): { days: number; label: string } {
@@ -37,6 +34,26 @@ function getDaysRemaining(dueDate: string): { days: number; label: string } {
   }
 }
 
+function uniqueGoals(goals: Array<Goal | null>): Goal[] {
+  const seen = new Set<string>();
+  return goals.filter(isGoal).filter((goal) => {
+    if (seen.has(goal.id)) {
+      return false;
+    }
+    seen.add(goal.id);
+    return true;
+  });
+}
+
+function isGoal(goal: Goal | null): goal is Goal {
+  return goal !== null;
+}
+
+function getDueDateText(goal: MidTermGoal | ShortTermGoal): string {
+  const { label } = getDaysRemaining(goal.dueDate!);
+  return `📅 ${goal.dueDate} · ${label}`;
+}
+
 export function GoalDetailPanel({
   selected,
   longTermGoals,
@@ -44,6 +61,8 @@ export function GoalDetailPanel({
   shortTermGoals,
   tasks,
   onSelectNode,
+  onEditGoal,
+  onAddGoal,
 }: GoalDetailPanelProps) {
   if (!selected) {
     return (
@@ -58,39 +77,40 @@ export function GoalDetailPanel({
     );
   }
 
-  const relatedGoals: Goal[] = [];
-
-  if (selected.type === 'long') {
-    midTermGoals
-      .filter((m) => m.longTermGoalId === selected.id)
-      .forEach((m) => relatedGoals.push(m));
-    shortTermGoals
-      .filter((s) => s.longTermGoalId === selected.id && !s.midTermGoalId)
-      .forEach((s) => relatedGoals.push(s));
-  }
-
-  if (selected.type === 'mid') {
-    const m = selected as MidTermGoal;
-    const lt = longTermGoals.find((l) => l.id === m.longTermGoalId);
-    if (lt) relatedGoals.push(lt);
-    m.relatedMidTermGoalIds.forEach((rid) => {
-      const rel = midTermGoals.find((x) => x.id === rid);
-      if (rel) relatedGoals.push(rel);
-    });
-    shortTermGoals
-      .filter((s) => s.midTermGoalId === m.id)
-      .forEach((s) => relatedGoals.push(s));
-  }
-
-  if (selected.type === 'short') {
-    const s = selected as ShortTermGoal;
-    const lt = longTermGoals.find((l) => l.id === s.longTermGoalId);
-    if (lt) relatedGoals.push(lt);
-    if (s.midTermGoalId) {
-      const mt = midTermGoals.find((m) => m.id === s.midTermGoalId);
-      if (mt) relatedGoals.push(mt);
+  const parentGoal = (() => {
+    if (selected.type === 'mid') {
+      return longTermGoals.find((goal) => goal.id === selected.longTermGoalId) ?? null;
     }
-  }
+
+    if (selected.type === 'short') {
+      const short = selected as ShortTermGoal;
+      return short.midTermGoalId
+        ? midTermGoals.find((goal) => goal.id === short.midTermGoalId) ?? null
+        : longTermGoals.find((goal) => goal.id === short.longTermGoalId) ?? null;
+    }
+
+    return null;
+  })();
+
+  const childMidGoals = selected.type === 'long'
+    ? midTermGoals.filter((goal) => goal.longTermGoalId === selected.id)
+    : [];
+
+  const childShortGoals = selected.type === 'long'
+    ? shortTermGoals.filter((goal) => goal.longTermGoalId === selected.id)
+    : selected.type === 'mid'
+      ? shortTermGoals.filter((goal) => goal.midTermGoalId === selected.id)
+      : [];
+
+  const relatedGoals = uniqueGoals(
+    [
+      ...(selected.type === 'long'
+        ? longTermGoals
+            .find((goal) => goal.id === selected.id)
+            ?.relatedLongTermGoalIds?.map((relatedId) => longTermGoals.find((goal) => goal.id === relatedId) ?? null) ?? []
+        : []),
+    ]
+  );
 
   // タスクの集計
   let relatedTasks: Task[] = [];
@@ -109,16 +129,31 @@ export function GoalDetailPanel({
   }
 
   const completedTasks = relatedTasks.filter(t => t.completed).length;
-  const accentColor = TYPE_COLOR[selected.type] || 'var(--text-muted)';
-
+  const accentColor = selected.color_code || DEFAULT_GOAL_COLOR;
+  const selectedGoal = selected as MidTermGoal | ShortTermGoal;
+  const dueDateText = 'dueDate' in selectedGoal && selectedGoal.dueDate ? getDueDateText(selectedGoal) : null;
+  const getGoalColor = (goal: Goal): string => goal.color_code || DEFAULT_GOAL_COLOR;
+  const neutralTagStyle = {
+    background: 'rgba(255,255,255,0.06)',
+    color: 'var(--text-muted)',
+  } as const;
+  const neutralDueDateStyle = {
+    marginTop: '12px',
+    padding: '10px var(--sp-3)',
+    fontSize: 13,
+    fontWeight: 700,
+    color: 'var(--text-muted)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: '8px',
+    border: '1px solid var(--border)',
+  } as const;
   return (
     <aside className="detail-panel">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
         <span
           className="tag"
           style={{
-            background: `${accentColor}1a`,
-            color: accentColor,
+            ...neutralTagStyle,
             fontSize: 11,
             fontWeight: 700,
             padding: '3px 10px',
@@ -139,34 +174,68 @@ export function GoalDetailPanel({
             {(selected as ShortTermGoal).completed ? '達成済み' : '未達成'}
           </span>
         )}
+        {selected.type === 'mid' && (
+          <span className="detail-panel__status" style={{ color: 'var(--text-muted)' }}>
+          </span>
+        )}
       </div>
 
       <div>
         <div
           className="detail-panel__title"
-          style={{ borderLeft: `3px solid ${accentColor}`, paddingLeft: 'var(--sp-3)' }}
+          style={{ borderLeft: `3px solid ${accentColor}`, paddingLeft: 'var(--sp-3)', color: accentColor }}
         >
           {selected.title}
         </div>
-        {(selected.type === 'mid' || selected.type === 'short') && (selected as MidTermGoal | ShortTermGoal).dueDate && (
-          (() => {
-            const dueDate = (selected as MidTermGoal | ShortTermGoal).dueDate!;
-            const { label } = getDaysRemaining(dueDate);
-            return (
-              <div style={{ 
-                marginTop: '12px', 
-                paddingLeft: 'var(--sp-3)',
-                fontSize: 13, 
-                fontWeight: 600,
-                color: accentColor,
-                backgroundColor: `${accentColor}15`,
-                padding: '8px var(--sp-3)',
-                borderRadius: '6px'
-              }}>
-                📅 {dueDate} · <span style={{ fontWeight: 700, fontSize: 14 }}>{label}</span>
-              </div>
-            );
-          })()
+        {dueDateText && (
+          <div style={neutralDueDateStyle}>
+            {dueDateText}
+          </div>
+        )}
+      </div>
+
+      <div
+        className="detail-panel__actions"
+        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-2)' }}
+      >
+        <button
+          className="btn-secondary"
+          style={{
+            width: '100%',
+            textAlign: 'center',
+            fontSize: 13,
+            gridColumn: selected.type === 'long' ? '1 / -1' : undefined,
+          }}
+          onClick={() => onEditGoal(selected)}
+        >
+          ✏️ 編集する
+        </button>
+        {selected.type === 'long' && (
+          <>
+            <button
+              className="btn-ghost"
+              style={{ width: '100%', textAlign: 'center', fontSize: 13 }}
+              onClick={() => onAddGoal(selected, 'mid')}
+            >
+              ＋ 中期目標
+            </button>
+            <button
+              className="btn-ghost"
+              style={{ width: '100%', textAlign: 'center', fontSize: 13 }}
+              onClick={() => onAddGoal(selected, 'short')}
+            >
+              ＋ 短期目標
+            </button>
+          </>
+        )}
+        {selected.type === 'mid' && (
+          <button
+            className="btn-ghost"
+            style={{ width: '100%', textAlign: 'center', fontSize: 13 }}
+            onClick={() => onAddGoal(selected, 'short')}
+          >
+            ＋ 短期目標
+          </button>
         )}
       </div>
 
@@ -177,30 +246,90 @@ export function GoalDetailPanel({
         </div>
       )}
 
+      <div>
+        <div className="detail-panel__section-title">関係性</div>
+        <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+          <details open>
+            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              親目標（{parentGoal ? '1件' : '0件'}）
+            </summary>
+            <div style={{ marginTop: 'var(--sp-2)' }}>
+              {parentGoal ? (
+                <div className="related-node" onClick={() => onSelectNode(parentGoal)} title={parentGoal.title}>
+                  <span className="related-node__dot" style={{ background: parentGoal.color_code || DEFAULT_GOAL_COLOR }} />
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
+                    {parentGoal.title}
+                  </span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
+                    {TYPE_LABEL[parentGoal.type]}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>親目標はありません</div>
+              )}
+            </div>
+          </details>
+
+          <details open>
+            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', marginTop: 'var(--sp-2)' }}>
+              子目標（中期 {childMidGoals.length}件 / 短期 {childShortGoals.length}件）
+            </summary>
+            <div style={{ marginTop: 'var(--sp-2)' }}>
+              {childMidGoals.length > 0 || childShortGoals.length > 0 ? (
+                <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+                  {[...childMidGoals, ...childShortGoals].map((goal) => (
+                    <div
+                      key={goal.id}
+                      className="related-node"
+                      onClick={() => onSelectNode(goal)}
+                      title={goal.title}
+                    >
+                      <span className="related-node__dot" style={{ background: getGoalColor(goal) }} />
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
+                        {goal.title}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
+                        {TYPE_LABEL[goal.type]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>子目標はありません</div>
+              )}
+            </div>
+          </details>
+        </div>
+      </div>
+
       {relatedGoals.length > 0 && (
         <div>
           <div className="detail-panel__section-title">
-            関連ノード（{relatedGoals.length}件）
+            関連目標（{relatedGoals.length}件）
           </div>
-          {relatedGoals.map((g) => (
-            <div
-              key={g.id}
-              className="related-node"
-              onClick={() => onSelectNode(g)}
-              title={g.title}
-            >
-              <span
-                className="related-node__dot"
-                style={{ background: TYPE_COLOR[g.type] }}
-              />
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
-                {g.title}
-              </span>
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
-                {TYPE_LABEL[g.type]}
-              </span>
+          <details open>
+            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              関連目標一覧を表示
+            </summary>
+            <div style={{ marginTop: 'var(--sp-2)', display: 'grid', gap: 'var(--sp-2)' }}>
+              {relatedGoals.map((g) => (
+                <div
+                  key={g.id}
+                  className="related-node"
+                  onClick={() => onSelectNode(g)}
+                  title={g.title}
+                >
+                  <span className="related-node__dot" style={{ background: getGoalColor(g) }} />
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
+                    {g.title}
+                  </span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
+                    {TYPE_LABEL[g.type]}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
+          </details>
         </div>
       )}
 
@@ -209,23 +338,11 @@ export function GoalDetailPanel({
           <div className="detail-panel__section-title">
             関連タスク（{completedTasks} / {relatedTasks.length}件完了）
           </div>
-          {selected.type !== 'short' ? (
-            <details>
-              <summary style={{ fontSize: 13, cursor: 'pointer', color: 'var(--text-muted)' }}>
-                配下のタスク一覧を表示
-              </summary>
-              <ul style={{ listStyle: 'none', margin: '8px 0 0 0', padding: 0 }}>
-                {relatedTasks.map(t => (
-                  <li key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: 13 }}>
-                    <span style={{ color: t.completed ? 'var(--color-success)' : 'var(--text-muted)' }}>{t.completed ? '✓' : '○'}</span>
-                    <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? 'var(--text-muted)' : 'inherit' }}>{t.title}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{t.date}</span>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          <details>
+            <summary style={{ fontSize: 13, cursor: 'pointer', color: 'var(--text-muted)' }}>
+              タスク一覧
+            </summary>
+            <ul style={{ listStyle: 'none', margin: '8px 0 0 0', padding: 0 }}>
               {relatedTasks.map(t => (
                 <li key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: 13 }}>
                   <span style={{ color: t.completed ? 'var(--color-success)' : 'var(--text-muted)' }}>{t.completed ? '✓' : '○'}</span>
@@ -234,18 +351,9 @@ export function GoalDetailPanel({
                 </li>
               ))}
             </ul>
-          )}
+          </details>
         </div>
       )}
-
-      <div className="detail-panel__actions">
-        <button className="btn-secondary" style={{ width: '100%', textAlign: 'center', fontSize: 13 }}>
-          ✏️ 編集する
-        </button>
-        <button className="btn-ghost" style={{ width: '100%', textAlign: 'center', fontSize: 13 }}>
-          ＋ 子目標を追加
-        </button>
-      </div>
     </aside>
   );
 }

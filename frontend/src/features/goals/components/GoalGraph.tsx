@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type {  LongTermGoal, MidTermGoal, ShortTermGoal, Goal, NodePosition  } from '../../../types';
+import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
 
 interface GoalGraphProps {
   longTermGoal: LongTermGoal;
@@ -9,11 +10,16 @@ interface GoalGraphProps {
   onSelectNode: (goal: Goal) => void;
 }
 
+// ノードの形状と大きさを定義（ノード色は goal.color_code を使用）
 const NODE_CONFIG = {
-  long:  { r: 36, color: '#e8a234', textColor: '#e8a234', fontSize: 13, fontWeight: '700' },
-  mid:   { r: 26, color: '#5ab5a0', textColor: '#5ab5a0', fontSize: 12, fontWeight: '600' },
-  short: { r: 18, color: '#9b7fd4', textColor: '#c2b3e6', fontSize: 11, fontWeight: '500' },
+  long:  { r: 36, fontSize: 13, fontWeight: '700' },
+  mid:   { r: 26, fontSize: 12, fontWeight: '600' },
+  short: { r: 18, fontSize: 11, fontWeight: '500' },
 };
+
+function getNodeColor(goal: Goal): string {
+  return goal.color_code ?? DEFAULT_GOAL_COLOR;
+}
 
 function truncateText(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
@@ -143,7 +149,7 @@ export function GoalGraph({
     setPositions((prev) => ({ ...prev, [id]: { x: svgP.x - ox, y: svgP.y - oy } }));
   }, []);
 
-  const onSvgMouseUp = useCallback((e: React.MouseEvent, clickedId?: string) => {
+  const onSvgMouseUp = useCallback((_e: React.MouseEvent, clickedId?: string) => {
     if (dragRef.current) {
       const wasDrag =
         dragRef.current.id === clickedId
@@ -154,8 +160,6 @@ export function GoalGraph({
     }
     dragRef.current = null;
   }, []);
-
-  const drawnMidEdges = new Set<string>();
 
   const edges: {
     x1: number; y1: number; x2: number; y2: number;
@@ -172,27 +176,26 @@ export function GoalGraph({
     edges.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, dashed, color, opacity });
   };
 
+  // 親ノードの色でエッジを描画
+  const ltColor = getNodeColor(longTermGoal);
+  
   midTermGoals.forEach((m) => {
-    addEdge(longTermGoal.id, m.id, false, '#e8a234', 0.5);
+    addEdge(longTermGoal.id, m.id, false, ltColor, 0.5);
   });
 
   shortTermGoals
     .filter((s) => !s.midTermGoalId)
-    .forEach((s) => addEdge(longTermGoal.id, s.id, false, '#9b7fd4', 0.4));
+    .forEach((s) => addEdge(longTermGoal.id, s.id, false, ltColor, 0.4));
 
   shortTermGoals
     .filter((s) => s.midTermGoalId)
-    .forEach((s) => addEdge(s.midTermGoalId!, s.id, false, '#5ab5a0', 0.45));
-
-  midTermGoals.forEach((m) => {
-    m.relatedMidTermGoalIds.forEach((relId) => {
-      const key = [m.id, relId].sort().join('--');
-      if (!drawnMidEdges.has(key)) {
-        drawnMidEdges.add(key);
-        addEdge(m.id, relId, true, '#5ab5a0', 0.3);
-      }
+    .forEach((s) => {
+      const midGoal = midTermGoals.find(m => m.id === s.midTermGoalId);
+      const parentColor = midGoal ? getNodeColor(midGoal) : ltColor;
+      addEdge(s.midTermGoalId!, s.id, false, parentColor, 0.45);
     });
-  });
+
+  // NOTE: same-level relationships are intentionally not drawn to keep the map readable.
 
   const allGoals: Goal[] = [
     longTermGoal,
@@ -230,9 +233,8 @@ export function GoalGraph({
             key={i}
             x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
             stroke={e.color}
-            strokeWidth={e.dashed ? 1.5 : 1.5}
+            strokeWidth={1.5}
             strokeOpacity={e.opacity}
-            strokeDasharray={e.dashed ? '5,4' : undefined}
           />
         ))}
       </g>
@@ -243,6 +245,7 @@ export function GoalGraph({
           if (!p) return null;
 
           const cfg        = NODE_CONFIG[goal.type];
+          const nodeColor  = getNodeColor(goal);
           const isSelected = goal.id === selectedId;
           const isShort    = goal.type === 'short';
           const isDone     = isShort && (goal as ShortTermGoal).completed;
@@ -266,13 +269,13 @@ export function GoalGraph({
                 <>
                   <polygon
                     points={getPolygonPoints(goal.type, cfg.r + 10)}
-                    fill={cfg.color}
+                    fill={nodeColor}
                     opacity={0.15}
                   />
                   <polygon
                     points={getPolygonPoints(goal.type, cfg.r + 6)}
                     fill="none"
-                    stroke={cfg.color}
+                    stroke={nodeColor}
                     strokeWidth={3}
                     strokeOpacity={0.8}
                   />
@@ -282,13 +285,13 @@ export function GoalGraph({
                 <>
                   <circle
                     r={cfg.r + 10}
-                    fill={cfg.color}
+                    fill={nodeColor}
                     opacity={0.15}
                   />
                   <circle
                     r={cfg.r + 6}
                     fill="none"
-                    stroke={cfg.color}
+                    stroke={nodeColor}
                     strokeWidth={3}
                     strokeOpacity={0.8}
                   />
@@ -298,15 +301,15 @@ export function GoalGraph({
               {goal.type !== 'short' ? (
                 <polygon
                   points={getPolygonPoints(goal.type, cfg.r)}
-                  fill={cfg.color}
-                  stroke={isSelected ? cfg.color : 'rgba(255,255,255,0.1)'}
+                  fill={nodeColor}
+                  stroke={isSelected ? nodeColor : 'rgba(255,255,255,0.1)'}
                   strokeWidth={isSelected ? 2 : 1}
                 />
               ) : (
                 <circle
                   r={cfg.r}
-                  fill={isDone ? '#3a3840' : cfg.color}
-                  stroke={isSelected ? cfg.color : 'rgba(255,255,255,0.1)'}
+                  fill={isDone ? '#3a3840' : nodeColor}
+                  stroke={isSelected ? nodeColor : 'rgba(255,255,255,0.1)'}
                   strokeWidth={isSelected ? 2 : 1}
                   opacity={isDone ? 0.6 : 1}
                 />
@@ -317,7 +320,7 @@ export function GoalGraph({
                   textAnchor="middle"
                   dominantBaseline="central"
                   fontSize={cfg.r * 0.7}
-                  fill={cfg.color}
+                  fill={nodeColor}
                   opacity={0.9}
                   style={{ pointerEvents: 'none' }}
                 >
@@ -331,7 +334,7 @@ export function GoalGraph({
                 fontSize={cfg.fontSize}
                 fontWeight={cfg.fontWeight}
                 fontFamily="'DM Sans', sans-serif"
-                fill={isSelected ? '#ffffff' : cfg.textColor}
+                fill={isSelected ? '#ffffff' : nodeColor}
                 y={iconYOffset}
                 style={{ pointerEvents: 'none', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
               >

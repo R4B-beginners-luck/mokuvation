@@ -1197,8 +1197,13 @@ a { text-decoration: none; color: inherit; }
 
 .goals-page__selector {
   display: flex;
+  align-items: center;
   gap: var(--sp-2);
-  flex-wrap: wrap;
+}
+
+.goals-page__lt-select {
+  min-width: 200px;
+  max-width: 320px;
 }
 
 .goal-selector-btn {

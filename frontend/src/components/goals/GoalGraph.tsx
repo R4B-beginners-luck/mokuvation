@@ -146,7 +146,7 @@ export function GoalGraph({
     setPositions((prev) => ({ ...prev, [id]: { x: svgP.x - ox, y: svgP.y - oy } }));
   }, []);
 
-  const onSvgMouseUp = useCallback((e: React.MouseEvent, clickedId?: string) => {
+  const onSvgMouseUp = useCallback((_e: React.MouseEvent, clickedId?: string) => {
     if (dragRef.current) {
       const wasDrag =
         dragRef.current.id === clickedId
@@ -160,9 +160,6 @@ export function GoalGraph({
   }, []);
 
   // ── Edge building ───────────────────────────────────────────────────────────
-
-  // Track mid<->mid pairs we've already drawn to avoid duplicates
-  const drawnMidEdges = new Set<string>();
 
   const edges: {
     x1: number; y1: number; x2: number; y2: number;
@@ -193,17 +190,6 @@ export function GoalGraph({
   shortTermGoals
     .filter((s) => s.midTermGoalId)
     .forEach((s) => addEdge(s.midTermGoalId!, s.id, false, '#5ab5a0', 0.45));
-
-  // mid <-> mid (deduplicated)
-  midTermGoals.forEach((m) => {
-    m.relatedMidTermGoalIds.forEach((relId) => {
-      const key = [m.id, relId].sort().join('--');
-      if (!drawnMidEdges.has(key)) {
-        drawnMidEdges.add(key);
-        addEdge(m.id, relId, true, '#5ab5a0', 0.3);
-      }
-    });
-  });
 
   // ── All goals for click / node rendering ────────────────────────────────────
 
