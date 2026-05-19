@@ -9,7 +9,6 @@ interface LoginFormProps {
 export function LoginForm({ onLogin }: LoginFormProps) {
   // useAuthから必要な機能を取り出す
   const { login, isLoading, error: authError } = useAuth();
-  
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState('');

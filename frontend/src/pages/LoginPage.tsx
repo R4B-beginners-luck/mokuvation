@@ -60,7 +60,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </>
         ) : (
           <>
-            <RegisterForm onSuccess={handleAuthSuccess} />
+            <RegisterForm onSuccess={() => setView('login')} />
             <div style={{ textAlign: 'center', marginTop: '16px' }}>
               <button 
                 onClick={() => setView('login')} 
