@@ -34,16 +34,19 @@ class TaskController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'goal_id' => ['required', 'uuid', 'exists:goals,id'],
+            'goal_id' => ['nullable', 'uuid', 'exists:goals,id'],
+            'user_id' => ['required', 'string'],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'scheduled_at' => ['nullable', 'date'],
         ]);
 
-        // 紐付ける対象の目標が、本当にログインユーザーのものか厳格にチェック
-        $goal = Goal::find($request->goal_id);
-        if ($goal->user_id !== Auth::id()) {
-            return response()->json(['message' => '不正な目標へのアクセスです'], 403);
+        // 目標の所有権チェックの修正（goal_idがある時だけチェックする）
+        if ($request->filled('goal_id')) {
+            $goal = Goal::find($request->goal_id);
+            if ($goal && $goal->user_id !== Auth::id()) {
+                return response()->json(['message' => '不正な目標へのアクセスです'], 403);
+            }
         }
 
         $task = Task::create(array_merge($validated, [
