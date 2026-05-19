@@ -101,6 +101,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000007-0000-0000-0000-000000000000',
                 'goal_id'      => 'bb000004-0000-0000-0000-000000000000',
+                'user_id'      => 'user002',
                 'title'        => 'ランニングシューズを買う',
                 'description'  => 'スポーツショップでフィッティングしてから購入する',
                 'scheduled_at' => '2026-05-04 11:00:00',
@@ -153,6 +154,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000011-0000-0000-0000-000000000000',
                 'goal_id'      => 'cc000002-0000-0000-0000-000000000000',
+                'user_id'      => 'user003',
                 'title'        => '英単語アプリをインストールする',
                 'description'  => 'Anki または mikan を使う',
                 'scheduled_at' => '2026-05-01 08:00:00',
