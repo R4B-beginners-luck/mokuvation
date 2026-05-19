@@ -28,7 +28,6 @@ export const taskApi = {
     return response.json();
   },
 
-  // 新規追加: 紐づけ用の目標一覧を取得する
   getGoals: async () => {
     const response = await fetch(`${API_BASE_URL}/goals`, getFetchOptions('GET'));
     if (!response.ok) throw new Error('目標の取得に失敗しました');
