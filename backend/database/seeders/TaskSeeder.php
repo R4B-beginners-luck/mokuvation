@@ -24,6 +24,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000001-0000-0000-0000-000000000000',
                 'goal_id'      => 'aa000006-0000-0000-0000-000000000000',
+                'user_id'      => 'user001',
                 'title'        => 'Laravelプロジェクトを作成する',
                 'description'  => '`composer create-project laravel/laravel` でセットアップ',
                 'scheduled_at' => '2026-05-01 19:00:00',
@@ -34,6 +35,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000002-0000-0000-0000-000000000000',
                 'goal_id'      => 'aa000006-0000-0000-0000-000000000000',
+                'user_id'      => 'user001',
                 'title'        => 'DB設計・マイグレーションを作成する',
                 'description'  => 'users / goals / tasks テーブルを設計する',
                 'scheduled_at' => '2026-05-03 19:00:00',
@@ -44,6 +46,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000003-0000-0000-0000-000000000000',
                 'goal_id'      => 'aa000006-0000-0000-0000-000000000000',
+                'user_id'      => 'user001',
                 'title'        => 'タスクCRUD APIを実装する',
                 'description'  => '作成・取得・更新・削除のエンドポイントを作る',
                 'scheduled_at' => '2026-05-10 19:00:00',
@@ -56,6 +59,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000004-0000-0000-0000-000000000000',
                 'goal_id'      => 'aa000007-0000-0000-0000-000000000000',
+                'user_id'      => 'user001',
                 'title'        => 'PHPUnit のセットアップを確認する',
                 'description'  => 'phpunit.xml の設定・テスト用DB接続を確認',
                 'scheduled_at' => '2026-06-01 19:00:00',
@@ -66,6 +70,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000005-0000-0000-0000-000000000000',
                 'goal_id'      => 'aa000007-0000-0000-0000-000000000000',
+                'user_id'      => 'user001',
                 'title'        => 'バリデーションの異常系テストを書く',
                 'description'  => 'title未入力・goal_id不正などのケースを網羅する',
                 'scheduled_at' => '2026-06-15 19:00:00',
@@ -78,6 +83,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000006-0000-0000-0000-000000000000',
                 'goal_id'      => 'aa000004-0000-0000-0000-000000000000',
+                'user_id'      => 'user001',
                 'title'        => 'Renderにデプロイする',
                 'description'  => '無料プランで本番環境を構築する',
                 'scheduled_at' => null,
@@ -95,6 +101,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000007-0000-0000-0000-000000000000',
                 'goal_id'      => 'bb000004-0000-0000-0000-000000000000',
+                'user_id'      => 'user002',
                 'title'        => 'ランニングシューズを買う',
                 'description'  => 'スポーツショップでフィッティングしてから購入する',
                 'scheduled_at' => '2026-05-04 11:00:00',
@@ -105,6 +112,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000008-0000-0000-0000-000000000000',
                 'goal_id'      => 'bb000004-0000-0000-0000-000000000000',
+                'user_id'      => 'user002',
                 'title'        => '朝のジョギング（30分）',
                 'description'  => '公園を2周する',
                 'scheduled_at' => '2026-05-05 06:30:00',
@@ -115,6 +123,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000009-0000-0000-0000-000000000000',
                 'goal_id'      => 'bb000004-0000-0000-0000-000000000000',
+                'user_id'      => 'user002',
                 'title'        => '朝のジョギング（30分）',
                 'description'  => null,
                 'scheduled_at' => '2026-05-07 06:30:00',
@@ -127,6 +136,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000010-0000-0000-0000-000000000000',
                 'goal_id'      => 'bb000002-0000-0000-0000-000000000000',
+                'user_id'      => 'user002',
                 'title'        => '食事管理アプリに毎日記録する',
                 'description'  => 'あすけん or MyFitnessPal を使って摂取カロリーを把握する',
                 'scheduled_at' => '2026-05-01 21:00:00',
@@ -144,6 +154,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000011-0000-0000-0000-000000000000',
                 'goal_id'      => 'cc000002-0000-0000-0000-000000000000',
+                'user_id'      => 'user003',
                 'title'        => '英単語アプリをインストールする',
                 'description'  => 'Anki または mikan を使う',
                 'scheduled_at' => '2026-05-01 08:00:00',
@@ -154,6 +165,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000012-0000-0000-0000-000000000000',
                 'goal_id'      => 'cc000002-0000-0000-0000-000000000000',
+                'user_id'      => 'user003',
                 'title'        => '今日の英単語30個を学習する',
                 'description'  => null,
                 'scheduled_at' => '2026-05-02 07:30:00',
@@ -164,6 +176,7 @@ class TaskSeeder extends Seeder
             [
                 'id'           => 'tt000013-0000-0000-0000-000000000000',
                 'goal_id'      => 'cc000002-0000-0000-0000-000000000000',
+                'user_id'      => 'user003',
                 'title'        => 'リスニング問題集を購入する',
                 'description'  => 'Part3・Part4 を重点的に対策できるものを選ぶ',
                 'scheduled_at' => '2026-05-03 12:00:00',

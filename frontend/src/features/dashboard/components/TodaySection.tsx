@@ -53,7 +53,18 @@ export function TodaySection({
               <div className="goal-item__body">
                 <div className="goal-item__title">{goal.title}</div>
                 <div className="goal-item__meta">
-                  {goal.goalId && <span className="tag tag--long">{getLongTitle(goal.goalId)}</span>}
+                  {/* 長期目標の表示 */}
+                  {goal.goalId && (
+                    <span className="tag tag--long">{getLongTitle(goal.goalId)}</span>
+                  )}
+
+                  {/* 修正ポイント：getMidTitle を使用して中期目標を表示 */}
+                  {/* Task型に midTermGoalId がある場合、または goalId を中期目標IDとして扱う場合 */}
+                  {goal.goalId && getMidTitle(goal.goalId) && (
+                    <span className="tag tag--mid" style={{ marginLeft: 4 }}>
+                      {getMidTitle(goal.goalId)}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

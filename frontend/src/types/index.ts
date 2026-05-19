@@ -17,6 +17,8 @@ export interface MidTermGoal {
   title: string;
   description: string;
   longTermGoalId: string;
+  /** Backendで受け取るカラーコード（例: #64B5F6） */
+  colorCode?: string;
   /** YYYY-MM-DD */
   dueDate?: string;
   color_code?: string;
@@ -32,9 +34,16 @@ export interface ShortTermGoal {
   completed: boolean;
   longTermGoalId: string;
   midTermGoalId?: string;
+  /** Backendで受け取るカラーコード（例: #64B5F6） */
+  colorCode?: string;
   /** YYYY-MM-DD */
   dueDate?: string;
   color_code?: string;
+}
+
+export interface User {
+  user_id: string;
+  user_name: string;
 }
 
 export type Goal = LongTermGoal | MidTermGoal | ShortTermGoal;

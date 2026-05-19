@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { Task } from '../types';
+import { useState, useEffect } from 'react';
+import type { Task, User } from '../types';
 import { longTermGoals, midTermGoals, TODAY } from '../data/dummy';
 import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongTermSummary, AddGoalModal } from '../features/dashboard';
 
@@ -11,10 +11,13 @@ const MOTIVATIONAL_MESSAGES = [
   '今日の積み重ねが、未来の自分をつくる。',
 ];
 
+const API_BASE_URL = 'http://localhost:8000'; 
+
 interface TopPageProps {
   tasks: Task[];
   onToggle: (id: string) => void;
   onAddTask: (goal: Task) => void;
+  user: User | null; // 🌟 追加: ユーザー情報を受け取るためのプロップ
 }
 
 function getDateLabel(): string {
@@ -23,29 +26,43 @@ function getDateLabel(): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${days[d.getDay()]}）`;
 }
 
-export function TopPage({ tasks, onToggle, onAddTask }: TopPageProps) {
+export function TopPage({ tasks, onToggle, onAddTask, user }: TopPageProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [summary, setSummary] = useState<any>(null);
+
+  useEffect(() => {
+    // サマリー取得: GET /api/dashboard/summary
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      fetch(`${API_BASE_URL}/api/dashboard/summary`, { 
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } 
+      })
+        .then(res => res.ok ? res.json() : Promise.reject(res))
+        .then(data => setSummary(data))
+        .catch(err => console.error("Summary fetch error:", err));
+    }
+  }, []);
 
   const todayGoals = tasks.filter((g) => g.date === TODAY);
   const hasGoalsToday = todayGoals.length > 0;
 
-  // Pick a deterministic motivational message based on date
   const msgIdx = new Date().getDate() % MOTIVATIONAL_MESSAGES.length;
   const message = MOTIVATIONAL_MESSAGES[msgIdx];
 
   return (
     <>
       <div className="top-page">
-        {/* Header row */}
         <div className="top-page__header">
           <div>
             <div className="top-page__date">{getDateLabel()}</div>
-            <div className="top-page__greeting">おはようございます、田中さん 👋</div>
+            <div className="top-page__greeting">
+              {/* 正しくユーザー情報が入れば、ここの「読み込み中...」が「こんにちは、〇〇さん 👋」になります */}
+              {user ? `こんにちは、${user.user_name}さん 👋` : "読み込み中..."}
+            </div>
             <div className="top-page__message">「{message}」</div>
           </div>
         </div>
 
-        {/* Main column */}
         <div className="top-page__main">
           {hasGoalsToday ? (
             <TodaySection
@@ -59,12 +76,17 @@ export function TopPage({ tasks, onToggle, onAddTask }: TopPageProps) {
             <EmptyTodayCard onOpenModal={() => setModalOpen(true)} />
           )}
 
-          <WeeklyProgressChart tasks={tasks} />
+          <WeeklyProgressChart 
+            tasks={tasks}
+            data={summary?.weeklyProgress}
+          />
         </div>
 
-        {/* Right sidebar column */}
         <div className="top-page__sidebar">
-          <StreakDisplay tasks={tasks} />
+          <StreakDisplay 
+            tasks={tasks} 
+            streakCount={summary?.currentStreak}
+          />
           <LongTermSummary
             longTermGoals={longTermGoals}
             tasks={tasks}
@@ -72,7 +94,6 @@ export function TopPage({ tasks, onToggle, onAddTask }: TopPageProps) {
         </div>
       </div>
 
-      {/* Add goal modal — opened only on user action */}
       {modalOpen && (
         <AddGoalModal
           longTermGoals={longTermGoals}

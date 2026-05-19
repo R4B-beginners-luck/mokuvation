@@ -3,6 +3,7 @@ import { TODAY } from '../../../data/dummy';
 
 interface WeeklyProgressChartProps {
   tasks: Task[];
+  data?: any; // 追加: API (GET /api/dashboard/summary) からの集計データ
 }
 
 function daysAgo(n: number): string {
@@ -28,12 +29,25 @@ const daysWithLabel = WEEK_DAYS.map(({ date }) => {
   return { date, label: WEEKDAY_JP[d.getDay()] };
 });
 
-export function WeeklyProgressChart({ tasks }: WeeklyProgressChartProps) {
+export function WeeklyProgressChart({ tasks, data }: WeeklyProgressChartProps) {
   const stats = daysWithLabel.map(({ date, label }) => {
-    const dayGoals = tasks.filter((g) => g.date === date);
-    const total = dayGoals.length;
-    const done  = dayGoals.filter((g) => g.completed).length;
-    const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+    // 1. APIデータ (data) 内に対象の日付があるか探す
+    const apiDayData = data?.find((d: any) => d.date === date);
+
+    let total, done;
+
+    if (apiDayData) {
+      // APIデータがあればそれを優先
+      total = apiDayData.total;
+      done = apiDayData.done;
+    } else {
+      // APIデータがなければ、Propsとして渡された tasks から算出（フォールバック）
+      const dayGoals = tasks.filter((t) => t.date === date);
+      total = dayGoals.length;
+      done = dayGoals.filter((t) => t.completed).length;
+    }
+
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     return { date, label, total, done, pct, isToday: date === TODAY };
   });
 
