@@ -46,7 +46,9 @@ class TaskController extends Controller
             return response()->json(['message' => '不正な目標へのアクセスです'], 403);
         }
 
-        $task = Task::create($validated);
+        $task = Task::create(array_merge($validated, [
+            'user_id' => Auth::id(),
+        ]));
 
         return response()->json($task, 201);
     }
