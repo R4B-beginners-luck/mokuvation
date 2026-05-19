@@ -1,9 +1,10 @@
-import type { Page } from '../types';
+import type { Page, User } from '../types'; // 🌟 User 型をインポート
 
 interface SidebarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onLogout: () => void;
+  user: User | null; // ─── 🌟 1. ここに user を追加！
 }
 
 const NAV_ITEMS: { page: Page; icon: string; label: string }[] = [
@@ -12,7 +13,12 @@ const NAV_ITEMS: { page: Page; icon: string; label: string }[] = [
   { page: 'goals',    icon: '🗺️',  label: '目標マップ' },
 ];
 
-export function Sidebar({ currentPage, onNavigate, onLogout }: SidebarProps) {
+// ─── 🌟 2. 引数（Destructuring）にも user をしっかり追加！
+export function Sidebar({ currentPage, onNavigate, onLogout, user }: SidebarProps) {
+  // ─── 🌟 3. user がいればその名前、いなければ「ゲスト」にする処理
+  const displayUserName = user?.user_name || 'ゲスト';
+  const avatarChar = displayUserName.charAt(0);
+
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
@@ -37,9 +43,11 @@ export function Sidebar({ currentPage, onNavigate, onLogout }: SidebarProps) {
 
       <div className="sidebar__footer">
         <div className="sidebar__user">
-          <div className="sidebar__avatar">田</div>
+          {/* ─── 🌟 4. 「田」固定をやめて、名前の最初の1文字を自動表示！ ─── */}
+          <div className="sidebar__avatar">{avatarChar}</div>
           <div>
-            <div className="sidebar__username">田中 一郎</div>
+            {/* ─── 🌟 5. 「田中 一郎」固定をやめて、ログインユーザー名を表示！ ─── */}
+            <div className="sidebar__username">{displayUserName}</div>
             <button className="btn-ghost" style={{ padding: '2px 0', fontSize: 11 }} onClick={onLogout}>
               ログアウト
             </button>

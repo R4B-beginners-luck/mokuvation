@@ -48,7 +48,8 @@
 | カラム名 | 型 | 属性 | 説明 |
 |---|---|---|---|
 | id | uuid | PRIMARY KEY | タスクID |
-| goal_id | uuid | FK → goals.id | 紐づく目標ID |
+| user_id | string | FK → users.user_id | ユーザーID（所有者） |
+| goal_id | uuid | NULLABLE, FK → goals.id | 紐づく目標ID（未設定可） |
 | title | string |  | タスクタイトル |
 | description | text | NULLABLE | タスク詳細・備考 |
 | scheduled_at | timestamp | NULLABLE | 実行予定日時 |
@@ -62,9 +63,11 @@
 | 対象カラム | 種別 |
 |---|---|
 | goal_id | INDEX |
+| user_id | INDEX |
 | is_completed | INDEX |
 
 ### 外部キー制約
 | カラム | 参照先 | 削除時の挙動 |
 |---|---|---|
+| user_id | users.user_id | CASCADE |
 | goal_id | goals.id | CASCADE |
