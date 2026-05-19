@@ -51,7 +51,6 @@ export interface ShortTermGoal {
 export interface User {
   user_id: string;
   user_name: string;
-  email: string;
 }
 
 export type Goal = LongTermGoal | MidTermGoal | ShortTermGoal;

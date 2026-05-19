@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LoginForm, RegisterForm } from '../features/auth';
 
+
 interface LoginPageProps {
   // App.tsx の handleLogin (引数なし) と整合性を合わせる
   onLogin: () => void;
@@ -15,7 +16,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
    * 引数にユーザー情報が含まれていても、App.tsx側の引数なし onLogin を
    * 安全に実行できるようにここでラップします。
    */
-  const handleAuthSuccess = (_data?: any) => {
+  const handleAuthSuccess = () => {
     // ユーザー情報の保存などは各Form側で完結している想定
     onLogin();
   };

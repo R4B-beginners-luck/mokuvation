@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import type { Task, User } from '../types';
 import { longTermGoals, midTermGoals, TODAY } from '../data/dummy';
 import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongTermSummary, AddGoalModal } from '../features/dashboard';
-import { authApi } from '../features/auth/api/authApi'; 
 
 const MOTIVATIONAL_MESSAGES = [
   '小さな一歩が、大きな目標への道になる。',
@@ -18,6 +17,7 @@ interface TopPageProps {
   tasks: Task[];
   onToggle: (id: string) => void;
   onAddTask: (goal: Task) => void;
+  user: User | null; // 🌟 追加: ユーザー情報を受け取るためのプロップ
 }
 
 function getDateLabel(): string {
@@ -26,27 +26,12 @@ function getDateLabel(): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${days[d.getDay()]}）`;
 }
 
-export function TopPage({ tasks, onToggle, onAddTask }: TopPageProps) {
+export function TopPage({ tasks, onToggle, onAddTask, user }: TopPageProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [summary, setSummary] = useState<any>(null);
 
   useEffect(() => {
-    // 1. ログインユーザー情報取得: GET /api/users/me
-    authApi.getMe().then((data: User | unknown) => {
-      // 【セキュリティチェック】届いたデータが、新しく定義したUser型（user_nameを持つオブジェクト）か検証
-      if (data && typeof data === 'object' && 'user_name' in data) {
-        
-        // 🌟 エンドポイントを叩いたデータをそのままガチッとセット！
-        setUser(data as User); 
-        return;
-      }
-      throw new Error("不適切なユーザーデータ構造です。");
-    }).catch(err => {
-      console.error("User fetch error via authApi:", err);
-      setUser(null);
-    });
-    // 2. サマリー取得: GET /api/dashboard/summary
+    // サマリー取得: GET /api/dashboard/summary
     const token = localStorage.getItem('auth_token');
     if (token) {
       fetch(`${API_BASE_URL}/api/dashboard/summary`, { 
