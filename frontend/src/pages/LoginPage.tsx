@@ -42,7 +42,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </>
         ) : (
           <>
-            <RegisterForm onSuccess={onLogin} />
+            <RegisterForm onSuccess={() => setView('login')} />
             <div style={{ textAlign: 'center', marginTop: '16px' }}>
               <button 
                 onClick={() => setView('login')} 
