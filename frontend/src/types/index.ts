@@ -6,6 +6,7 @@ export interface LongTermGoal {
   title: string;
   description: string;
   createdAt: string;
+  color_code?: string;
   /** IDs of other long-term goals that are related (bidirectional) */
   relatedLongTermGoalIds?: string[];
 }
@@ -18,12 +19,9 @@ export interface MidTermGoal {
   longTermGoalId: string;
   /** YYYY-MM-DD */
   dueDate?: string;
+  color_code?: string;
   /** IDs of other mid-term goals that are related (bidirectional) */
   relatedMidTermGoalIds: string[];
-  /** Labels assigned to this goal */
-  labelIds?: string[];
-  /** The primary label ID for this goal (used for node color in graph) */
-  primaryLabelId?: string;
 }
 
 export interface ShortTermGoal {
@@ -36,10 +34,7 @@ export interface ShortTermGoal {
   midTermGoalId?: string;
   /** YYYY-MM-DD */
   dueDate?: string;
-  /** Labels assigned to this goal */
-  labelIds?: string[];
-  /** The primary label ID for this goal (used for node color in graph) */
-  primaryLabelId?: string;
+  color_code?: string;
 }
 
 export type Goal = LongTermGoal | MidTermGoal | ShortTermGoal;
@@ -82,5 +77,5 @@ export interface GraphEdge {
 export interface Label {
   id: string | number;
   name: string;
-  color: string;
+  color_code: string;
 }

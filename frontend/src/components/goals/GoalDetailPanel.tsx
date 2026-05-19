@@ -59,11 +59,6 @@ export function GoalDetailPanel({
     // Parent long
     const lt = longTermGoals.find((l) => l.id === m.longTermGoalId);
     if (lt) relatedGoals.push(lt);
-    // Related mids
-    m.relatedMidTermGoalIds.forEach((rid) => {
-      const rel = midTermGoals.find((x) => x.id === rid);
-      if (rel) relatedGoals.push(rel);
-    });
     // Children short
     shortTermGoals
       .filter((s) => s.midTermGoalId === m.id)
@@ -127,7 +122,7 @@ export function GoalDetailPanel({
       {selected.type === 'short' && (
         <div className="detail-panel__date">
           <span>📅</span>
-          <span>{(selected as ShortTermGoal).date}</span>
+          <span>{(selected as ShortTermGoal).dueDate}</span>
         </div>
       )}
 

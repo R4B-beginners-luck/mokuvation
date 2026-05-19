@@ -20,3 +20,8 @@ export const COLOR_PALETTE = [
  * ラベルのデフォルト色（ラベルが設定されていない目標用）
  */
 export const DEFAULT_LABEL_COLOR = '#B0B0B0'; // グレー系
+
+/**
+ * 目標ノードの初期色
+ */
+export const DEFAULT_GOAL_COLOR = DEFAULT_LABEL_COLOR;

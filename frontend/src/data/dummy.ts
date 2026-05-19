@@ -1,4 +1,4 @@
-import type { LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../types';
+﻿import type { LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../types';
 import { COLOR_PALETTE } from '../const/colors';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -103,8 +103,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt1',
     dueDate: F90,
     relatedMidTermGoalIds: [],
-    labelIds: ['dev'],
-    primaryLabelId: 'dev',
+    color_code: COLOR_PALETTE[0],
   },
   {
     id: 'mt2',
@@ -115,8 +114,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt1',
     dueDate: F180,
     relatedMidTermGoalIds: [],
-    labelIds: ['embedded', 'dev'],
-    primaryLabelId: 'embedded',
+    color_code: COLOR_PALETTE[1],
   },
   {
     id: 'mt3',
@@ -127,8 +125,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt1',
     dueDate: F60,
     relatedMidTermGoalIds: [],
-    labelIds: ['dev', 'share'],
-    primaryLabelId: 'dev',
+    color_code: COLOR_PALETTE[2],
   },
   {
     id: 'mt4',
@@ -139,8 +136,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt1',
     dueDate: '',
     relatedMidTermGoalIds: [],
-    labelIds: ['share'],
-    primaryLabelId: 'share',
+    color_code: COLOR_PALETTE[3],
   },
   {
     id: 'mt5',
@@ -151,8 +147,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt1',
     dueDate: F30,
     relatedMidTermGoalIds: [],
-    labelIds: ['dev'],
-    primaryLabelId: 'dev',
+    color_code: COLOR_PALETTE[4],
   },
   // ── under lt2: 健康的な生活習慣の構築 ──────────────────────
   {
@@ -164,8 +159,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt2',
     dueDate: F90,
     relatedMidTermGoalIds: [],
-    labelIds: ['health'],
-    primaryLabelId: 'health',
+    color_code: COLOR_PALETTE[0],
   },
   {
     id: 'mt7',
@@ -176,8 +170,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt2',
     dueDate: '',
     relatedMidTermGoalIds: [],
-    labelIds: ['health', 'money'],
-    primaryLabelId: 'health',
+    color_code: COLOR_PALETTE[1],
   },
   {
     id: 'mt8',
@@ -188,8 +181,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt2',
     dueDate: F60,
     relatedMidTermGoalIds: [],
-    labelIds: ['health'],
-    primaryLabelId: 'health',
+    color_code: COLOR_PALETTE[2],
   },
   // ── under lt3: TOEIC 800点達成 ────────────────────────────
   {
@@ -201,8 +193,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt3',
     dueDate: F90,
     relatedMidTermGoalIds: [],
-    labelIds: ['eng', 'cert'],
-    primaryLabelId: 'eng',
+    color_code: COLOR_PALETTE[3],
   },
   {
     id: 'mt10',
@@ -213,8 +204,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt3',
     dueDate: F90,
     relatedMidTermGoalIds: [],
-    labelIds: ['eng', 'cert'],
-    primaryLabelId: 'eng',
+    color_code: COLOR_PALETTE[4],
   },
   {
     id: 'mt11',
@@ -225,8 +215,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt3',
     dueDate: '',
     relatedMidTermGoalIds: [],
-    labelIds: ['eng', 'cert'],
-    primaryLabelId: 'eng',
+    color_code: COLOR_PALETTE[3],
   },
   {
     id: 'mt12',
@@ -237,8 +226,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt3',
     dueDate: F120,
     relatedMidTermGoalIds: [],
-    labelIds: ['cert'],
-    primaryLabelId: 'cert',
+    color_code: COLOR_PALETTE[4],
   },
   // ── under lt4: 卒業研究・PWA家計簿アプリ完成 ────────────────
   {
@@ -250,8 +238,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt4',
     dueDate: F30,
     relatedMidTermGoalIds: [],
-    labelIds: ['research'],
-    primaryLabelId: 'research',
+    color_code: COLOR_PALETTE[0],
   },
   {
     id: 'mt14',
@@ -262,8 +249,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt4',
     dueDate: F120,
     relatedMidTermGoalIds: [],
-    labelIds: ['dev', 'research'],
-    primaryLabelId: 'dev',
+    color_code: COLOR_PALETTE[1],
   },
   {
     id: 'mt15',
@@ -274,8 +260,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt4',
     dueDate: F150,
     relatedMidTermGoalIds: [],
-    labelIds: ['research'],
-    primaryLabelId: 'research',
+    color_code: COLOR_PALETTE[2],
   },
   // ── under lt5: お金・生活管理の安定 ──────────────────────
   {
@@ -287,8 +272,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt5',
     dueDate: F60,
     relatedMidTermGoalIds: [],
-    labelIds: ['money'],
-    primaryLabelId: 'money',
+    color_code: COLOR_PALETTE[0],
   },
   {
     id: 'mt17',
@@ -299,8 +283,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt5',
     dueDate: F30,
     relatedMidTermGoalIds: [],
-    labelIds: ['money'],
-    primaryLabelId: 'money',
+    color_code: COLOR_PALETTE[1],
   },
   {
     id: 'mt18',
@@ -311,8 +294,7 @@ export const midTermGoals: MidTermGoal[] = [
     longTermGoalId: 'lt5',
     dueDate: F14,
     relatedMidTermGoalIds: [],
-    labelIds: ['money'],
-    primaryLabelId: 'money',
+    color_code: COLOR_PALETTE[2],
   },
 ];
 
@@ -329,7 +311,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt3',
     dueDate: F14,
-    labelIds: ['dev'],
+    color_code: COLOR_PALETTE[0],
   },
   {
     id: 'st2',
@@ -340,7 +322,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt1',
     dueDate: '2026-06-15',
-    labelIds: ['dev'],
+    color_code: COLOR_PALETTE[1],
   },
   {
     id: 'st3',
@@ -351,7 +333,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt1',
     dueDate: F30,
-    labelIds: ['dev'],
+    color_code: COLOR_PALETTE[2],
   },
   {
     id: 'st4',
@@ -363,7 +345,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt1',
     dueDate: '2026-07-01',
-    labelIds: ['dev'],
+    color_code: COLOR_PALETTE[3],
   },
   // ── under lt1・mt2: 組み込み基礎 ────────────────────────
   {
@@ -375,7 +357,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt2',
     dueDate: F60,
-    labelIds: ['embedded'],
+    color_code: COLOR_PALETTE[4],
   },
   {
     id: 'st6',
@@ -386,7 +368,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt2',
     dueDate: F90,
-    labelIds: ['embedded', 'dev'],
+    color_code: COLOR_PALETTE[5],
   },
   // ── under lt1・mt3: 個人開発アプリの完成 ──────────────
   {
@@ -399,7 +381,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt3',
     dueDate: F7,
-    labelIds: ['dev'],
+    color_code: COLOR_PALETTE[0],
   },
   {
     id: 'st8',
@@ -411,7 +393,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt1',
     dueDate: F45,
-    labelIds: ['dev'],
+    color_code: COLOR_PALETTE[1],
   },
   {
     id: 'st9',
@@ -422,7 +404,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt3',
     dueDate: F60,
-    labelIds: ['dev'],
+    color_code: COLOR_PALETTE[2],
   },
   // ── under lt1・mt4: 技術発信 ──────────────────────────
   {
@@ -434,7 +416,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt4',
     dueDate: '',
-    labelIds: ['share', 'dev'],
+    color_code: COLOR_PALETTE[6],
   },
   {
     id: 'st11',
@@ -446,7 +428,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt4',
     dueDate: F30,
-    labelIds: ['share', 'dev'],
+    color_code: COLOR_PALETTE[6],
   },
   {
     id: 'st12',
@@ -458,7 +440,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt1',
     midTermGoalId: 'mt5',
     dueDate: F21,
-    labelIds: ['dev'],
+    color_code: COLOR_PALETTE[4],
   },
   // ── under lt2・mt6: 運動習慣 ────────────────────────────
   {
@@ -470,7 +452,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt2',
     midTermGoalId: 'mt6',
     dueDate: '',
-    labelIds: ['health'],
+    color_code: COLOR_PALETTE[1],
   },
   {
     id: 'st14',
@@ -481,7 +463,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt2',
     midTermGoalId: 'mt6',
     dueDate: '',
-    labelIds: ['health'],
+    color_code: COLOR_PALETTE[1],
   },
   {
     id: 'st15',
@@ -492,7 +474,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt2',
     midTermGoalId: 'mt6',
     dueDate: '',
-    labelIds: ['health'],
+    color_code: COLOR_PALETTE[1],
   },
   // ── under lt2・mt7: 食事管理 ────────────────────────────
   {
@@ -504,7 +486,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt2',
     midTermGoalId: 'mt7',
     dueDate: '',
-    labelIds: ['health'],
+    color_code: COLOR_PALETTE[1],
   },
   {
     id: 'st17',
@@ -515,7 +497,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt2',
     midTermGoalId: 'mt7',
     dueDate: F30,
-    labelIds: ['health'],
+    color_code: COLOR_PALETTE[1],
   },
   // ── under lt2・mt8: 睡眠リズム ──────────────────────────
   {
@@ -527,7 +509,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt2',
     midTermGoalId: 'mt8',
     dueDate: '',
-    labelIds: ['health'],
+    color_code: COLOR_PALETTE[1],
   },
   // ── under lt3・mt9: リスニング ──────────────────────────
   {
@@ -539,7 +521,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt3',
     midTermGoalId: 'mt9',
     dueDate: '',
-    labelIds: ['eng', 'cert'],
+    color_code: COLOR_PALETTE[3],
   },
   {
     id: 'st20',
@@ -550,7 +532,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt3',
     midTermGoalId: 'mt9',
     dueDate: '',
-    labelIds: ['eng'],
+    color_code: COLOR_PALETTE[3],
   },
   // ── under lt3・mt10: リーディング ────────────────────
   {
@@ -562,7 +544,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt3',
     midTermGoalId: 'mt10',
     dueDate: '',
-    labelIds: ['cert', 'eng'],
+    color_code: COLOR_PALETTE[5],
   },
   {
     id: 'st22',
@@ -573,7 +555,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt3',
     midTermGoalId: 'mt10',
     dueDate: F60,
-    labelIds: ['cert', 'eng'],
+    color_code: COLOR_PALETTE[5],
   },
   // ── under lt3・mt11: 単語学習 ────────────────────────
   {
@@ -585,7 +567,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt3',
     midTermGoalId: 'mt11',
     dueDate: '',
-    labelIds: ['cert', 'eng'],
+    color_code: COLOR_PALETTE[5],
   },
   {
     id: 'st24',
@@ -596,7 +578,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt3',
     midTermGoalId: 'mt11',
     dueDate: '',
-    labelIds: ['cert', 'eng'],
+    color_code: COLOR_PALETTE[5],
   },
   // ── under lt3・mt12: 模試演習 ────────────────────────
   {
@@ -608,7 +590,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt3',
     midTermGoalId: 'mt12',
     dueDate: F30,
-    labelIds: ['cert'],
+    color_code: COLOR_PALETTE[5],
   },
   // ── under lt4・mt13: 既存アプリ調査 ──────────────────
   {
@@ -620,7 +602,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt4',
     midTermGoalId: 'mt13',
     dueDate: F14,
-    labelIds: ['research'],
+    color_code: COLOR_PALETTE[0],
   },
   {
     id: 'st27',
@@ -631,7 +613,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt4',
     midTermGoalId: 'mt13',
     dueDate: F21,
-    labelIds: ['research'],
+    color_code: COLOR_PALETTE[0],
   },
   // ── under lt4・mt14: PWA実装 ────────────────────────
   {
@@ -643,7 +625,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt4',
     midTermGoalId: 'mt14',
     dueDate: F60,
-    labelIds: ['dev', 'research'],
+    color_code: COLOR_PALETTE[4],
   },
   {
     id: 'st29',
@@ -654,7 +636,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt4',
     midTermGoalId: 'mt14',
     dueDate: F75,
-    labelIds: ['dev', 'research'],
+    color_code: COLOR_PALETTE[4],
   },
   // ── under lt4・mt15: 卒論作成 ────────────────────────
   {
@@ -666,7 +648,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt4',
     midTermGoalId: 'mt15',
     dueDate: F60,
-    labelIds: ['research'],
+    color_code: COLOR_PALETTE[0],
   },
   {
     id: 'st31',
@@ -677,7 +659,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt4',
     midTermGoalId: 'mt15',
     dueDate: F120,
-    labelIds: ['research'],
+    color_code: COLOR_PALETTE[0],
   },
   // ── under lt5: お金管理 ──────────────────────────────
   {
@@ -689,7 +671,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt5',
     midTermGoalId: 'mt16',
     dueDate: F3,
-    labelIds: ['money'],
+    color_code: COLOR_PALETTE[8],
   },
   {
     id: 'st33',
@@ -700,7 +682,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt5',
     midTermGoalId: 'mt18',
     dueDate: F7,
-    labelIds: ['money'],
+    color_code: COLOR_PALETTE[8],
   },
   {
     id: 'st34',
@@ -712,7 +694,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt5',
     midTermGoalId: 'mt16',
     dueDate: F30,
-    labelIds: ['money'],
+    color_code: COLOR_PALETTE[8],
   },
   {
     id: 'st35',
@@ -723,7 +705,7 @@ export const shortTermGoalsInitial: ShortTermGoal[] = [
     longTermGoalId: 'lt5',
     midTermGoalId: 'mt17',
     dueDate: F14,
-    labelIds: ['money'],
+    color_code: COLOR_PALETTE[8],
   },
 ];
 
