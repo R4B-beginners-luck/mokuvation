@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import type { Task } from '../types';
+import type { Task as CalendarTask } from '../types';
+import type { Task as ApiTask } from '../features/tasks/types';
 import { longTermGoals, midTermGoals } from '../data/dummy';
 import { CalendarGrid, DayGoalList } from '../features/calendar';
+import { TaskAddModal } from '../features/tasks';
 
 interface CalendarPageProps {
-  tasks: Task[];
+  tasks: CalendarTask[];
 }
 
 const MONTH_JP = [
@@ -16,7 +18,8 @@ export function CalendarPage({ tasks }: CalendarPageProps) {
   const now   = new Date();
   const [year,  setYear]  = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
-  const [calendarTasks, setCalendarTasks] = useState<Task[]>(tasks);
+  const [calendarTasks, setCalendarTasks] = useState<CalendarTask[]>(tasks);
+  const [isTaskAddModalOpen, setIsTaskAddModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(
     now.toISOString().split('T')[0]
   );
@@ -37,15 +40,27 @@ export function CalendarPage({ tasks }: CalendarPageProps) {
     setSelectedDate(null);
   };
 
-  const handleAddTask = (title: string) => {
+  const handleOpenTaskAddModal = () => {
     if (!selectedDate) return;
+
+    setIsTaskAddModalOpen(true);
+  };
+
+  const handleTaskAddSuccess = (newTask: ApiTask) => {
+    if (!selectedDate) return;
+
+    const scheduledDate = newTask.scheduled_at
+      ? newTask.scheduled_at.slice(0, 10)
+      : selectedDate;
 
     setCalendarTasks((prev) => [
       {
-        id: `calendar-${Date.now()}`,
-        title,
-        date: selectedDate,
-        completed: false,
+        id: `calendar-${newTask.id}`,
+        title: newTask.title,
+        description: newTask.description ?? undefined,
+        date: scheduledDate,
+        completed: newTask.is_completed,
+        goalId: newTask.goal_id ?? undefined,
       },
       ...prev,
     ]);
@@ -98,9 +113,16 @@ export function CalendarPage({ tasks }: CalendarPageProps) {
         tasks={calendarTasks}
         midTermGoals={midTermGoals}
         longTermGoals={longTermGoals}
-        onAddTask={handleAddTask}
+        onOpenTaskAddModal={handleOpenTaskAddModal}
         onDeleteTasks={handleDeleteTasks}
       />
+
+      {isTaskAddModalOpen && (
+        <TaskAddModal
+          onClose={() => setIsTaskAddModalOpen(false)}
+          onSuccess={handleTaskAddSuccess}
+        />
+      )}
     </div>
   );
 }
