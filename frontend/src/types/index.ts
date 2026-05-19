@@ -48,6 +48,11 @@ export interface ShortTermGoal {
   primaryLabelId?: string;
 }
 
+export interface User {
+  user_id: string;
+  user_name: string;
+}
+
 export type Goal = LongTermGoal | MidTermGoal | ShortTermGoal;
 
 export interface Task {

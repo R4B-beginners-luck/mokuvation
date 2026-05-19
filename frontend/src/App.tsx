@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Page, ShortTermGoal, Task } from './types';
+import type { Page, ShortTermGoal, Task, User } from './types';
 import { shortTermGoalsInitial, tasksInitial, tasksNoToday } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
@@ -13,6 +13,7 @@ export default function App() {
   const [page, setPage]           = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
 
   // ── Demo toggle: "no goals today" vs "has goals today" ──────────────────────
   const [demoNoToday, setDemoNoToday] = useState(false);
@@ -27,13 +28,19 @@ export default function App() {
       const token = localStorage.getItem('auth_token');
       if (token) {
         try {
-          await authApi.getMe();
+          // ─── 🌟【ここを修正】 getMe() が返してくれた本物のデータを変数に受ける ───
+          const userData = await authApi.getMe();
+          
+          // ─── 🌟【ここを追加】 受け取ったデータを、アプリ共通の user 引き出しに保管！ ───
+          setUser(userData); 
+
           setIsLoggedIn(true);
           setPage('top');
         } catch (error) {
           // トークンが無効な場合はログイン画面へ
           localStorage.removeItem('auth_token');
           setIsLoggedIn(false);
+          setUser(null); // 🌟 エラー時はユーザー情報も安全にクリア
         }
       }
       setIsCheckingAuth(false);
@@ -41,7 +48,6 @@ export default function App() {
     
     verifyToken();
   }, []);
-
   // Sync when demo mode changes
   const handleDemoToggle = () => {
     const next = !demoNoToday;
@@ -81,12 +87,13 @@ export default function App() {
   // ── Authenticated layout ─────────────────────────────────────────────────────
   return (
     <>
-      <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout}>
+      <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout} user={user}>
         {page === 'top' && (
           <TopPage
             tasks={tasks}
             onToggle={handleToggleTask}
             onAddTask={handleAddTask}
+            user={user}
           />
         )}
         {page === 'calendar' && (
