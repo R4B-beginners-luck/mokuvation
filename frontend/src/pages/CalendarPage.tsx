@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Task } from '../types';
 import { longTermGoals, midTermGoals } from '../data/dummy';
 import { CalendarGrid, DayGoalList } from '../features/calendar';
@@ -16,9 +16,14 @@ export function CalendarPage({ tasks }: CalendarPageProps) {
   const now   = new Date();
   const [year,  setYear]  = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
+  const [calendarTasks, setCalendarTasks] = useState<Task[]>(tasks);
   const [selectedDate, setSelectedDate] = useState<string | null>(
     now.toISOString().split('T')[0]
   );
+
+  useEffect(() => {
+    setCalendarTasks(tasks);
+  }, [tasks]);
 
   const prevMonth = () => {
     if (month === 0) { setYear((y) => y - 1); setMonth(11); }
@@ -30,6 +35,24 @@ export function CalendarPage({ tasks }: CalendarPageProps) {
     if (month === 11) { setYear((y) => y + 1); setMonth(0); }
     else              { setMonth((m) => m + 1); }
     setSelectedDate(null);
+  };
+
+  const handleAddTask = (title: string) => {
+    if (!selectedDate) return;
+
+    setCalendarTasks((prev) => [
+      {
+        id: `calendar-${Date.now()}`,
+        title,
+        date: selectedDate,
+        completed: false,
+      },
+      ...prev,
+    ]);
+  };
+
+  const handleDeleteTasks = (taskIds: string[]) => {
+    setCalendarTasks((prev) => prev.filter((task) => !taskIds.includes(task.id)));
   };
 
   return (
@@ -51,7 +74,7 @@ export function CalendarPage({ tasks }: CalendarPageProps) {
         <CalendarGrid
           year={year}
           month={month}
-          tasks={tasks}
+          tasks={calendarTasks}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
         />
@@ -72,9 +95,11 @@ export function CalendarPage({ tasks }: CalendarPageProps) {
       {/* Day detail panel */}
       <DayGoalList
         date={selectedDate}
-        tasks={tasks}
+        tasks={calendarTasks}
         midTermGoals={midTermGoals}
         longTermGoals={longTermGoals}
+        onAddTask={handleAddTask}
+        onDeleteTasks={handleDeleteTasks}
       />
     </div>
   );
