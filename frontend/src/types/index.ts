@@ -6,6 +6,8 @@ export interface LongTermGoal {
   title: string;
   description: string;
   createdAt: string;
+  /** Backendで受け取るカラーコード（例: #64B5F6） */
+  colorCode?: string;
   /** IDs of other long-term goals that are related (bidirectional) */
   relatedLongTermGoalIds?: string[];
 }
@@ -16,6 +18,8 @@ export interface MidTermGoal {
   title: string;
   description: string;
   longTermGoalId: string;
+  /** Backendで受け取るカラーコード（例: #64B5F6） */
+  colorCode?: string;
   /** YYYY-MM-DD */
   dueDate?: string;
   /** IDs of other mid-term goals that are related (bidirectional) */
@@ -34,6 +38,8 @@ export interface ShortTermGoal {
   completed: boolean;
   longTermGoalId: string;
   midTermGoalId?: string;
+  /** Backendで受け取るカラーコード（例: #64B5F6） */
+  colorCode?: string;
   /** YYYY-MM-DD */
   dueDate?: string;
   /** Labels assigned to this goal */

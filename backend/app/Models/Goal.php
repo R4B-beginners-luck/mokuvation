@@ -15,6 +15,7 @@ class Goal extends Model
         'parent_goal_id',
         'title',
         'description',
+        'color_code',
         'period_type',
         'due_at',
         'is_completed',
