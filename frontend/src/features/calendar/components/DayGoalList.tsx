@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { Task, MidTermGoal, LongTermGoal } from '../../../types';
+﻿import { useState } from 'react';
+import { TaskAddModal } from '../../tasks';
+import type { Task as CreatedTask } from '../../tasks';
+import type { Task, Goal } from '../types';
 
 interface DayGoalListProps {
   date: string | null;
   tasks: Task[];
-  midTermGoals: MidTermGoal[];
-  longTermGoals: LongTermGoal[];
-  onOpenTaskAddModal: () => void;
-  onDeleteTasks: (taskIds: string[]) => void;
+  goals: Goal[];
+  onTaskAdded?: (task: CreatedTask) => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -16,9 +16,14 @@ function formatDate(dateStr: string): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${days[d.getDay()]}）`;
 }
 
-export function DayGoalList({ date, tasks, midTermGoals, longTermGoals, onOpenTaskAddModal, onDeleteTasks }: DayGoalListProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+function extractDateFromScheduled(scheduledAt: string | null): string | null {
+  if (!scheduledAt) return null;
+  const normalized = scheduledAt.replace(' ', 'T');
+  return normalized.split('T')[0] ?? null;
+}
+
+export function DayGoalList({ date, tasks, goals, onTaskAdded }: DayGoalListProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (!date) {
     return (
@@ -30,139 +35,60 @@ export function DayGoalList({ date, tasks, midTermGoals, longTermGoals, onOpenTa
     );
   }
 
-  const dayGoals = useMemo(() => tasks.filter((g) => g.date === date), [date, tasks]);
-  const completed = dayGoals.filter((g) => g.completed).length;
+  const dayTasks = tasks.filter((task) => {
+    const taskDate = extractDateFromScheduled(task.scheduled_at);
+    return taskDate === date;
+  });
+  const completed = dayTasks.filter((t) => t.is_completed).length;
 
-  useEffect(() => {
-    setIsEditing(false);
-    setSelectedTaskIds([]);
-  }, [date]);
+  const getLinkedGoalInfo = (goalId: string | null) => {
+    if (!goalId) return { goalTitle: undefined, periodType: undefined };
 
-  useEffect(() => {
-    setSelectedTaskIds((prev) => prev.filter((taskId) => dayGoals.some((goal) => goal.id === taskId)));
-  }, [dayGoals]);
+    const goal = goals.find((g) => g.id === goalId);
+    if (!goal) return { goalTitle: undefined, periodType: undefined };
 
-  const getParentTags = (goalId?: string) => {
-    if (!goalId) return { mid: undefined, long: undefined };
-    
-    const mid = midTermGoals.find(m => m.id === goalId);
-    if (mid) {
-      const long = longTermGoals.find(l => l.id === mid.longTermGoalId);
-      return { mid: mid.title, long: long?.title };
-    }
-
-    const long = longTermGoals.find(l => l.id === goalId);
-    return { mid: undefined, long: long?.title };
-  };
-
-  const toggleEditing = () => {
-    setIsEditing((prev) => !prev);
-    setSelectedTaskIds([]);
-  };
-
-  const handleOpenTaskAddModal = () => {
-    setIsEditing(false);
-    setSelectedTaskIds([]);
-    onOpenTaskAddModal();
-  };
-
-  const toggleTaskSelection = (taskId: string) => {
-    if (!isEditing) return;
-
-    setSelectedTaskIds((prev) => (
-      prev.includes(taskId)
-        ? prev.filter((id) => id !== taskId)
-        : [...prev, taskId]
-    ));
-  };
-
-  const handleDeleteSelected = () => {
-    if (selectedTaskIds.length === 0) return;
-
-    onDeleteTasks(selectedTaskIds);
-    setSelectedTaskIds([]);
+    return { goalTitle: goal.title, periodType: goal.period_type };
   };
 
   return (
     <div className="day-detail">
-      <div className="day-detail__header">
-        <div className="day-detail__date">{formatDate(date)}</div>
-        <div className="day-detail__actions">
-          {isEditing ? (
-            <button
-              type="button"
-              className="day-detail__delete-button"
-              onClick={handleDeleteSelected}
-              disabled={selectedTaskIds.length === 0}
-              aria-label="選択したタスクを削除"
-              title="選択したタスクを削除"
-            >
-              🗑
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="day-detail__add-trigger"
-              onClick={handleOpenTaskAddModal}
-            >
-              タスク追加
-            </button>
-          )}
-          <button
-            type="button"
-            className={`day-detail__edit-button${isEditing ? ' is-active' : ''}`}
-            aria-label="この日の目標を編集"
-            title="この日の目標を編集"
-            onClick={toggleEditing}
-          >
-            ✎
-          </button>
+      <div className="day-detail__date">{formatDate(date)}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <div className="day-detail__count">
+          {dayTasks.length > 0
+            ? `${completed} / ${dayTasks.length} 件完了`
+            : 'この日のタスクなし'}
         </div>
-      </div>
-      <div className="day-detail__count">
-        {dayGoals.length > 0
-          ? `${completed} / ${dayGoals.length} 件完了`
-          : 'この日のタスクなし'}
+        <button
+          className="btn-primary"
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          style={{ padding: '6px 10px', fontSize: 12 }}
+        >
+          タスク追加
+        </button>
       </div>
 
-      {isEditing && (
-        <div className="day-detail__hint day-detail__hint--editing">編集モードではタスクを押すと削除対象として赤く選択されます。</div>
-      )}
-
-      {dayGoals.length === 0 ? (
+      {dayTasks.length === 0 ? (
         <div className="day-detail__empty">この日は目標が設定されていません</div>
       ) : (
         <ul className="day-detail__list">
-          {dayGoals.map((goal) => (
-            <li key={goal.id}>
-              <div
-                className={[
-                  'goal-item',
-                  goal.completed ? 'completed' : '',
-                  isEditing ? 'is-editing' : '',
-                  selectedTaskIds.includes(goal.id) ? 'is-selected-for-delete' : '',
-                ].filter(Boolean).join(' ')}
-                style={{ cursor: isEditing ? 'pointer' : 'default' }}
-                onClick={() => toggleTaskSelection(goal.id)}
-              >
-                <div
-                  className={[
-                    'goal-item__check',
-                    goal.completed ? 'checked' : '',
-                    isEditing && selectedTaskIds.includes(goal.id) ? 'marked-for-delete' : '',
-                  ].filter(Boolean).join(' ')}
-                >
-                  {isEditing && selectedTaskIds.includes(goal.id) ? '−' : goal.completed ? '✓' : ''}
+          {dayTasks.map((task) => (
+            <li key={task.id}>
+              <div className={`goal-item${task.is_completed ? ' completed' : ''}`} style={{ cursor: 'default' }}>
+                <div className={`goal-item__check${task.is_completed ? ' checked' : ''}`}>
+                  {task.is_completed && '✓'}
                 </div>
                 <div className="goal-item__body">
-                  <div className="goal-item__title">{goal.title}</div>
+                  <div className="goal-item__title">{task.title}</div>
                   <div className="goal-item__meta">
                     {(() => {
-                      const tags = getParentTags(goal.goalId);
+                      const info = getLinkedGoalInfo(task.goal_id);
                       return (
                         <>
-                          {(tags.long || goal.goalId) && <span className="tag tag--long">{tags.long ?? '長期目標(未設定)'}</span>}
-                          {tags.mid && <span className="tag tag--mid">{tags.mid}</span>}
+                          {info.goalTitle && (
+                            <span className="tag tag--long">{info.goalTitle}</span>
+                          )}
                         </>
                       );
                     })()}
@@ -173,6 +99,25 @@ export function DayGoalList({ date, tasks, midTermGoals, longTermGoals, onOpenTa
           ))}
         </ul>
       )}
+
+      {isModalOpen && (
+        <div className="calendar-task-add-modal">
+          <TaskAddModal
+            initialDate={date}
+            onClose={() => setIsModalOpen(false)}
+            onSuccess={(newTask) => {
+              onTaskAdded?.(newTask);
+              setIsModalOpen(false);
+            }}
+          />
+        </div>
+      )}
+
+      <style>{`
+        .calendar-task-add-modal .form-field:nth-of-type(4) {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }

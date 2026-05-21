@@ -12,6 +12,12 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 function pad2(n: number) { return String(n).padStart(2, '0'); }
 
+function extractDateFromScheduled(scheduledAt: string | null): string | null {
+  if (!scheduledAt) return null;
+  const normalized = scheduledAt.replace(' ', 'T');
+  return normalized.split('T')[0] ?? null;
+}
+
 export function CalendarGrid({
   year,
   month,
@@ -48,7 +54,7 @@ export function CalendarGrid({
 
   const statsByDate: Record<string, { total: number; done: number }> = {};
   tasks.forEach((task) => {
-    const taskDate = task.scheduled_at?.split('T')[0];
+    const taskDate = extractDateFromScheduled(task.scheduled_at);
     if (!taskDate) return;
     if (!statsByDate[taskDate]) statsByDate[taskDate] = { total: 0, done: 0 };
     statsByDate[taskDate].total++;

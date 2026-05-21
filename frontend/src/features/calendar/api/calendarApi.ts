@@ -7,8 +7,12 @@ import type { Goal, Task } from '../types';
 
 const API_BASE = 'http://localhost:8000';
 
-interface ApiResponse<T> {
-  data: T;
+function getHeaders(): HeadersInit {
+  const token = localStorage.getItem('auth_token');
+  return {
+    Accept: 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
 }
 
 /**
@@ -17,9 +21,7 @@ interface ApiResponse<T> {
 export async function fetchGoals(): Promise<Goal[]> {
   const response = await fetch(`${API_BASE}/api/goals`, {
     method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-    },
+    headers: getHeaders(),
     credentials: 'include',
   });
 
@@ -27,8 +29,7 @@ export async function fetchGoals(): Promise<Goal[]> {
     throw new Error(`Failed to fetch goals: ${response.statusText}`);
   }
 
-  const result: ApiResponse<Goal[]> = await response.json();
-  return result.data;
+  return response.json() as Promise<Goal[]>;
 }
 
 /**
@@ -37,9 +38,7 @@ export async function fetchGoals(): Promise<Goal[]> {
 export async function fetchTasks(): Promise<Task[]> {
   const response = await fetch(`${API_BASE}/api/tasks`, {
     method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-    },
+    headers: getHeaders(),
     credentials: 'include',
   });
 
@@ -47,8 +46,7 @@ export async function fetchTasks(): Promise<Task[]> {
     throw new Error(`Failed to fetch tasks: ${response.statusText}`);
   }
 
-  const result: ApiResponse<Task[]> = await response.json();
-  return result.data;
+  return response.json() as Promise<Task[]>;
 }
 
 /**
