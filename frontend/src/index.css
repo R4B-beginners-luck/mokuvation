@@ -435,6 +435,30 @@ a { text-decoration: none; color: inherit; }
 
 .btn-secondary:hover { background: var(--bg-hover); border-color: rgba(240,236,224,0.15); }
 
+.btn-danger {
+  background: #d64545;
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--r-md);
+  border: none;
+  cursor: pointer;
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.btn-danger:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.15);
+}
+
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
