@@ -4,17 +4,27 @@ import { taskApi } from '../api/taskApi';
 import type { Task } from '../types';
 
 interface TaskAddModalProps {
-  goalId?: string | null; 
+  goalId?: string | null;
+  initialDate?: string;
   onClose: () => void;
   onSuccess: (newTask: Task) => void;
 }
 
-export function TaskAddModal({ goalId = null, onClose, onSuccess }: TaskAddModalProps) {
+export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }: TaskAddModalProps) {
   const { addTask, isLoading, error } = useTaskMutations();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [scheduledAt, setScheduledAt] = useState('');
+  
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    if (initialDate) return initialDate;
+    
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
   
   const [selectedGoalId, setSelectedGoalId] = useState<string>(goalId || '');
   const [goals, setGoals] = useState<any[]>([]);
