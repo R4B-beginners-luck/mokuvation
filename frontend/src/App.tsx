@@ -55,14 +55,25 @@ export default function App() {
     setTasks(next ? tasksNoToday : tasksInitial);
   };
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    setPage('top');
+  const handleLogin = async () => {
+    try {
+      const userData = await authApi.getMe();
+      setUser(userData);
+      setIsLoggedIn(true);
+      setPage('top');
+    } catch (error) {
+      console.error('ログイン後のユーザー情報取得に失敗しました', error);
+      localStorage.removeItem('auth_token');
+      setIsLoggedIn(false);
+      setUser(null);
+      setPage('login');
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
     setIsLoggedIn(false);
+    setUser(null);
     setPage('login');
   };
 
