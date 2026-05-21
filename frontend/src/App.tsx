@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Page, ShortTermGoal, Task } from './types';
-import { shortTermGoalsInitial, tasksInitial, tasksNoToday } from './data/dummy';
+import { shortTermGoalsInitial, tasksInitial } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
 import { TopPage }     from './pages/TopPage';
@@ -11,19 +11,9 @@ export default function App() {
   const [page, setPage]           = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // ── Demo toggle: "no goals today" vs "has goals today" ──────────────────────
-  const [demoNoToday, setDemoNoToday] = useState(false);
-
   // ── Short-term goals: lifted state (can be toggled / added) ─────────────────
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const [tasks, setTasks] = useState<Task[]>(tasksInitial);
-
-  // Sync when demo mode changes
-  const handleDemoToggle = () => {
-    const next = !demoNoToday;
-    setDemoNoToday(next);
-    setTasks(next ? tasksNoToday : tasksInitial);
-  };
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -67,15 +57,6 @@ export default function App() {
           <GoalsPage shortTermGoals={shortTermGoals} tasks={tasks} />
         )}
       </Layout>
-
-      {/* Demo state toggle button */}
-      <button
-        className="demo-toggle"
-        onClick={handleDemoToggle}
-        title="今日の目標あり/なし を切り替えるデモ用ボタン"
-      >
-        {demoNoToday ? '📭 今日の目標なし（デモ）' : '📬 今日の目標あり（デモ）'}
-      </button>
     </>
   );
 }

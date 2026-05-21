@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../types';
 import { longTermGoals as longTermGoalsInitial, midTermGoals as midTermGoalsInitial } from '../data/dummy';
 import { GoalGraph, GoalDetailPanel } from '../features/goals';
@@ -29,6 +29,30 @@ function applyColorCode<T extends { color_code?: string }>(
   return item;
 }
 
+/** デモ表示用: 達成済みなしモードでは達成済み短期目標のノードを非表示 */
+function applyCompletedDemoView(
+  goals: ShortTermGoal[],
+  showCompleted: boolean
+): ShortTermGoal[] {
+  if (showCompleted) return goals;
+  return goals.filter((goal) => !goal.completed);
+}
+
+function resolveGoalFromState(
+  goal: Goal,
+  shortTermGoals: ShortTermGoal[],
+  midTermGoals: MidTermGoal[],
+  longTermGoals: LongTermGoal[]
+): Goal {
+  if (goal.type === 'short') {
+    return shortTermGoals.find((item) => item.id === goal.id) ?? goal;
+  }
+  if (goal.type === 'mid') {
+    return midTermGoals.find((item) => item.id === goal.id) ?? goal;
+  }
+  return longTermGoals.find((item) => item.id === goal.id) ?? goal;
+}
+
 function applyMidTermGoalId(
   item: ShortTermGoal,
   midTermGoalId: string | null | undefined
@@ -48,17 +72,38 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [activeLtId, setActiveLtId]   = useState(longTermGoalsInitial[0]?.id ?? '');
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalAction, setGoalAction] = useState<GoalActionState | null>(null);
+  const [demoShowCompleted, setDemoShowCompleted] = useState(true);
+
+  const shortTermGoalsForDisplay = useMemo(
+    () => applyCompletedDemoView(shortTermGoalsState, demoShowCompleted),
+    [shortTermGoalsState, demoShowCompleted]
+  );
 
   const activeLt    = longTermGoals.find((l) => l.id === activeLtId)!;
   const activeMids  = midTermGoals.filter((m) => m.longTermGoalId === activeLtId);
-  const activeShorts = shortTermGoalsState.filter((s) => s.longTermGoalId === activeLtId);
+  const activeShorts = shortTermGoalsForDisplay.filter((s) => s.longTermGoalId === activeLtId);
+
+  const handleDemoCompletedToggle = () => {
+    const next = !demoShowCompleted;
+    setDemoShowCompleted(next);
+    setSelectedGoal((prev) => {
+      if (!prev || prev.type !== 'short') return prev;
+      const source = shortTermGoalsState.find((item) => item.id === prev.id);
+      if (!source) return prev;
+      if (!next && source.completed) return null;
+      return source;
+    });
+  };
 
   const handleSelectNode = (goal: Goal) => {
     setSelectedGoal(goal);
   };
 
   const handleEditGoal = (goal: Goal) => {
-    setGoalAction({ mode: 'edit', goal });
+    setGoalAction({
+      mode: 'edit',
+      goal: resolveGoalFromState(goal, shortTermGoalsState, midTermGoals, longTermGoals),
+    });
   };
 
   const handleAddGoal = (goal: Goal, presetGoalType?: 'mid' | 'short') => {
@@ -112,7 +157,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
                 title: payload.title,
                 description: payload.description,
                 dueDate: payload.dueDate,
-                longTermGoalId: payload.longTermGoalId,
+                longTermGoalId: payload.longTermGoalId as string,
               }, payload.color_code)
             : item
         )));
@@ -120,6 +165,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       }
 
       if (goal.type === 'short' && payload.longTermGoalId) {
+        const longTermGoalId = payload.longTermGoalId;
         setShortTermGoals((prev) => prev.map((item) => {
           if (item.id !== goal.id) return item;
           const updated = applyColorCode({
@@ -128,11 +174,11 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
             description: payload.description,
             dueDate: payload.dueDate,
             completed: payload.completed ?? item.completed,
-            longTermGoalId: payload.longTermGoalId,
+            longTermGoalId,
           }, payload.color_code);
           return applyMidTermGoalId(updated, payload.midTermGoalId);
         }));
-        setActiveLtId(payload.longTermGoalId);
+        setActiveLtId(longTermGoalId);
       }
 
       setSelectedGoal((prev) => {
@@ -154,7 +200,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           }, payload.color_code);
         }
         if (goal.type === 'short' && payload.longTermGoalId) {
-          const updated = applyColorCode({
+          const updated = applyColorCode<ShortTermGoal>({
             ...goal,
             title: payload.title,
             description: payload.description,
@@ -171,7 +217,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     }
 
     if (goalAction.mode === 'add-long' || payload.goalType === 'long') {
-      const newGoal: LongTermGoal = applyColorCode({
+      const newGoal: LongTermGoal = applyColorCode<LongTermGoal>({
         id: `lt_${Date.now()}`,
         type: 'long',
         title: payload.title,
@@ -186,7 +232,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     }
 
     if (payload.goalType === 'mid' && payload.longTermGoalId) {
-      const newGoal: MidTermGoal = applyColorCode({
+      const newGoal: MidTermGoal = applyColorCode<MidTermGoal>({
         id: `mt_${Date.now()}`,
         type: 'mid',
         title: payload.title,
@@ -293,12 +339,21 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         selected={selectedGoal}
         longTermGoals={longTermGoals}
         midTermGoals={midTermGoals}
-        shortTermGoals={shortTermGoalsState}
+        shortTermGoals={shortTermGoalsForDisplay}
         tasks={tasks}
         onSelectNode={handleSelectNode}
         onEditGoal={handleEditGoal}
         onAddGoal={handleAddGoal}
       />
+
+      <button
+        type="button"
+        className="demo-toggle goals-demo-toggle"
+        onClick={handleDemoCompletedToggle}
+        title="達成済みの短期目標ノードの表示/非表示を切り替えるデモ用ボタン"
+      >
+        {demoShowCompleted ? '✅ 達成済みの目標あり（デモ）' : '○ 達成済みの目標なし（デモ）'}
+      </button>
 
       {goalAction && (
         <GoalActionModal

@@ -1419,8 +1419,9 @@ a { text-decoration: none; color: inherit; }
 .mb-3 { margin-bottom: var(--sp-3); }
 .mb-4 { margin-bottom: var(--sp-4); }
 
-/* Demo toggle */
-.demo-toggle {
+/* Demo toggle（目標マップ画面のみ） */
+.demo-toggle,
+.goals-demo-toggle {
   position: fixed;
   bottom: 20px;
   right: 20px;
