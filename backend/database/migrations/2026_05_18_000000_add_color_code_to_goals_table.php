@@ -8,7 +8,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('goals', function (Blueprint $table) {
-            $table->string('color_code', 7)->nullable()->after('description')->comment('目標のカラーコード（#RRGGBB）');
+            // カラーパレットのインデックス(0-11)を格納する整数カラムに変更
+            $table->unsignedTinyInteger('color_code')->nullable()->after('description')->comment('目標のカラーパレットインデックス（0-11）');
         });
     }
 

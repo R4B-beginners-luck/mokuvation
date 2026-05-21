@@ -14,8 +14,8 @@ export type GoalActionPayload = {
   goalType?: Goal['type'];
   longTermGoalId?: string;
   midTermGoalId?: string | null;
-  /** string=パレット色, null=デフォルト色（color_code をクリア） */
-  color_code?: string | null;
+  /** number=パレットインデックス(0-11), null=デフォルト色（color_code をクリア） */
+  color_code?: number | null;
 };
 
 interface GoalActionModalProps {
@@ -34,9 +34,12 @@ function getActionTitle(mode: GoalActionMode): string {
   return '目標を追加';
 }
 
-function getInitialPaletteIndex(colorCode?: string): number | null {
-  if (!colorCode) return null;
-  const index = COLOR_PALETTE.indexOf(colorCode);
+function getInitialPaletteIndex(colorCode?: string | number): number | null {
+  if (colorCode === undefined || colorCode === null) return null;
+  if (typeof colorCode === 'number') {
+    return Number.isInteger(colorCode) ? colorCode : null;
+  }
+  const index = COLOR_PALETTE.indexOf(String(colorCode));
   return index >= 0 ? index : null;
 }
 
@@ -108,9 +111,9 @@ export function GoalActionModal({
     }
   };
 
-  const resolveColorCode = (): string | null => {
+  const resolveColorCode = (): number | null => {
     if (selectedPaletteIndex === null) return null;
-    return COLOR_PALETTE[selectedPaletteIndex];
+    return selectedPaletteIndex;
   };
 
   const resolveLongTermGoalId = (): string | undefined => {
