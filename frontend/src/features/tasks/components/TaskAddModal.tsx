@@ -4,23 +4,31 @@ import { taskApi } from '../api/taskApi';
 import type { Task } from '../types';
 
 interface TaskAddModalProps {
-  goalId?: string | null; 
+  goalId?: string | null;
+  initialDate?: string;
   onClose: () => void;
   onSuccess: (newTask: Task) => void;
 }
 
-export function TaskAddModal({ goalId = null, onClose, onSuccess }: TaskAddModalProps) {
+export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }: TaskAddModalProps) {
   const { addTask, isLoading, error } = useTaskMutations();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [scheduledAt, setScheduledAt] = useState('');
   
-  // 追加: 目標の選択状態と、APIから取得した目標リストの管理
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    if (initialDate) return initialDate;
+    
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+  
   const [selectedGoalId, setSelectedGoalId] = useState<string>(goalId || '');
   const [goals, setGoals] = useState<any[]>([]);
 
-  // 追加: モーダルが開かれたときに目標一覧を取得
   useEffect(() => {
     const fetchGoals = async () => {
       try {
@@ -38,7 +46,6 @@ export function TaskAddModal({ goalId = null, onClose, onSuccess }: TaskAddModal
     if (!title.trim()) return;
 
     const payload = {
-      // 修正: プルダウンで選択されたIDを使用（空文字ならnullとして送信）
       goal_id: selectedGoalId || null,
       title,
       description: description || undefined,
@@ -62,7 +69,14 @@ export function TaskAddModal({ goalId = null, onClose, onSuccess }: TaskAddModal
     <div style={overlayStyle} onClick={onClose}>
       <div 
         className="card" 
-        style={{ width: '100%', maxWidth: '400px', padding: '24px', backgroundColor: 'var(--bg-primary)' }}
+        style={{ 
+          width: '100%', 
+          maxWidth: '400px', 
+          padding: '24px', 
+          backgroundColor: '#1f1e24',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          borderRadius: '8px'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>タスクの追加</h2>
@@ -104,9 +118,9 @@ export function TaskAddModal({ goalId = null, onClose, onSuccess }: TaskAddModal
           </div>
 
           <div className="form-field">
-            <label>実行予定日時</label>
+            <label>実行予定日</label>
             <input 
-              className="form-input" type="datetime-local" 
+              className="form-input" type="date" 
               value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
               disabled={isLoading}
             />
@@ -115,10 +129,10 @@ export function TaskAddModal({ goalId = null, onClose, onSuccess }: TaskAddModal
           {error && <p style={{ color: 'var(--accent-coral)', fontSize: '12px' }}>{error}</p>}
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: '12px' }} disabled={isLoading}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: '12px', color: 'var(--text-primary)' }} disabled={isLoading}>
               キャンセル
             </button>
-            <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={isLoading}>
+            <button type="submit" className="btn-primary" style={{ flex: 1, color: 'var(--text-primary)' }} disabled={isLoading}>
               {isLoading ? '追加中...' : '追加する'}
             </button>
           </div>
