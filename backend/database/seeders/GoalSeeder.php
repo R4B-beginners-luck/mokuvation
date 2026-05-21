@@ -23,7 +23,7 @@ class GoalSeeder extends Seeder
                 'parent_goal_id' => null,
                 'title'          => 'フリーランスエンジニアとして独立する',
                 'description'    => '会社に依存せず、自分の技術で生計を立てる',
-                'color_code'     => '#64B5F6',
+                'color_code'     => '2',
                 'period_type'    => 'long',
                 'due_at'         => '2032-12-31 23:59:59',
                 'is_completed'   => false,
@@ -167,8 +167,9 @@ class GoalSeeder extends Seeder
             ],
         ];
 
+        // デフォルトはカラーパレット上のインデックス（例: 4 = 青系）
         $goals = array_map(
-            fn (array $goal) => $goal + ['color_code' => '#64B5F6'],
+            fn (array $goal) => $goal + ['color_code' => 4],
             $goals
         );
 

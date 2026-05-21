@@ -25,6 +25,7 @@ class Goal extends Model
     protected $casts = [
         'is_completed' => 'boolean', // DBの0/1をbooleanとして扱う
         'due_at' => 'datetime',      // 日付文字列をCarbonインスタンスとして扱う
+        'color_code' => 'integer',   // カラーパレットのインデックス
     ];
 
     // 2. リレーション：目標は1人のユーザーに属する（多対1）

@@ -28,6 +28,7 @@
 | created_at | timestamp | timestamps() | 作成日時 |
 | updated_at | timestamp | timestamps() | 更新日時 |
 | deleted_at | timestamp | softDeletes() | 削除日時（論理削除） |
+| color_code | integer | NULLABLE | 目標カラーコード(インデックス) |
 
 ### インデックス
 | 対象カラム | 種別 |
