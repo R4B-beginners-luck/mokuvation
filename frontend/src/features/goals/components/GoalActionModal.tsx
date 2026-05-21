@@ -318,7 +318,7 @@ export function GoalActionModal({
                 title: title.trim(),
                 description: description.trim(),
                 dueDate: canSetDueDate && dueDate ? dueDate : undefined,
-                completed: isEditMode && isShort ? completed : undefined,
+                completed: isEditMode ? completed : undefined,
                 goalType: resolveGoalType(),
                 longTermGoalId: resolveLongTermGoalId(),
                 midTermGoalId: resolveMidTermGoalId(),

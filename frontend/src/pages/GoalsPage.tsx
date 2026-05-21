@@ -135,6 +135,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [longTermGoals, setLongTermGoals] = useState<LongTermGoal[]>([]);
   const [midTermGoals, setMidTermGoals] = useState<MidTermGoal[]>([]);
   const [shortTermGoalsState, setShortTermGoals] = useState<ShortTermGoal[]>(shortTermGoals);
+  const [showCompletedGoals, setShowCompletedGoals] = useState(true);
   const [activeLtId, setActiveLtId] = useState('');
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalAction, setGoalAction] = useState<GoalActionState | null>(null);
@@ -147,10 +148,26 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const activeMids  = midTermGoals.filter((m) => m.longTermGoalId === activeLt?.id);
   const activeShorts = shortTermGoalsState.filter((s) => s.longTermGoalId === activeLt?.id);
 
+  useEffect(() => {
+    const stored = localStorage.getItem('goals-show-completed');
+    setShowCompletedGoals(stored === null ? true : stored === 'true');
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('goals-show-completed', String(showCompletedGoals));
+  }, [showCompletedGoals]);
+
+  useEffect(() => {
+    if (!showCompletedGoals && selectedGoal?.completed) {
+      setSelectedGoal(null);
+    }
+  }, [showCompletedGoals, selectedGoal]);
+
   const loadGoals = async (preferredActiveLtId?: string) => {
     setIsLoadingGoals(true);
     setGoalLoadError(null);
-
+    setShowCompletedGoals(showCompletedGoals);
+    
     try {
       const goals = await goalApi.getAll();
       const { longTermGoals, midTermGoals, shortTermGoals } = buildGoalTree(goals);
