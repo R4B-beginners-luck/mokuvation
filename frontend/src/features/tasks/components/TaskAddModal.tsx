@@ -29,6 +29,13 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
   const [selectedGoalId, setSelectedGoalId] = useState<string>(goalId || '');
   const [goals, setGoals] = useState<any[]>([]);
 
+  // 修正箇所: 親から渡される initialDate の変更を検知して State を更新する
+  useEffect(() => {
+    if (initialDate) {
+      setScheduledAt(initialDate);
+    }
+  }, [initialDate]);
+
   useEffect(() => {
     const fetchGoals = async () => {
       try {
