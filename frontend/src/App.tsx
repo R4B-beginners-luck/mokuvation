@@ -15,9 +15,6 @@ export default function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
 
-  // ── Demo toggle: "no goals today" vs "has goals today" ──────────────────────
-  const [demoNoToday, setDemoNoToday] = useState(false);
-
   // ── Short-term goals: lifted state (can be toggled / added) ─────────────────
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const [tasks, setTasks] = useState<Task[]>(tasksInitial);
@@ -114,15 +111,6 @@ export default function App() {
           <GoalsPage shortTermGoals={shortTermGoals} tasks={tasks} />
         )}
       </Layout>
-
-      {/* Demo state toggle button */}
-      <button
-        className="demo-toggle"
-        onClick={handleDemoToggle}
-        title="今日の目標あり/なし を切り替えるデモ用ボタン"
-      >
-        {demoNoToday ? '📭 今日の目標なし（デモ）' : '📬 今日の目標あり（デモ）'}
-      </button>
     </>
   );
 }

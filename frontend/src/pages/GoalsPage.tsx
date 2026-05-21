@@ -42,6 +42,30 @@ function applyColorCode<T extends { color_code?: string }>(
   return item;
 }
 
+/** デモ表示用: 達成済みなしモードでは達成済み短期目標のノードを非表示 */
+function applyCompletedDemoView(
+  goals: ShortTermGoal[],
+  showCompleted: boolean
+): ShortTermGoal[] {
+  if (showCompleted) return goals;
+  return goals.filter((goal) => !goal.completed);
+}
+
+function resolveGoalFromState(
+  goal: Goal,
+  shortTermGoals: ShortTermGoal[],
+  midTermGoals: MidTermGoal[],
+  longTermGoals: LongTermGoal[]
+): Goal {
+  if (goal.type === 'short') {
+    return shortTermGoals.find((item) => item.id === goal.id) ?? goal;
+  }
+  if (goal.type === 'mid') {
+    return midTermGoals.find((item) => item.id === goal.id) ?? goal;
+  }
+  return longTermGoals.find((item) => item.id === goal.id) ?? goal;
+}
+
 function applyMidTermGoalId(
   item: ShortTermGoal,
   midTermGoalId: string | null | undefined
@@ -183,7 +207,10 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   };
 
   const handleEditGoal = (goal: Goal) => {
-    setGoalAction({ mode: 'edit', goal });
+    setGoalAction({
+      mode: 'edit',
+      goal: resolveGoalFromState(goal, shortTermGoalsState, midTermGoals, longTermGoals),
+    });
   };
 
   const handleAddGoal = (goal: Goal, presetGoalType?: 'mid' | 'short') => {
@@ -426,12 +453,21 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         selected={selectedGoal}
         longTermGoals={longTermGoals}
         midTermGoals={midTermGoals}
-        shortTermGoals={shortTermGoalsState}
+        shortTermGoals={shortTermGoalsForDisplay}
         tasks={tasks}
         onSelectNode={handleSelectNode}
         onEditGoal={handleEditGoal}
         onAddGoal={handleAddGoal}
       />
+
+      <button
+        type="button"
+        className="demo-toggle goals-demo-toggle"
+        onClick={handleDemoCompletedToggle}
+        title="達成済みの短期目標ノードの表示/非表示を切り替えるデモ用ボタン"
+      >
+        {demoShowCompleted ? '✅ 達成済みの目標あり（デモ）' : '○ 達成済みの目標なし（デモ）'}
+      </button>
 
       {goalAction && (
         <GoalActionModal
