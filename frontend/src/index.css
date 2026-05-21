@@ -644,6 +644,9 @@ a { text-decoration: none; color: inherit; }
 
 .goal-item.completed { opacity: 0.55; }
 .goal-item.completed .goal-item__title { text-decoration: line-through; color: var(--text-muted); }
+.goal-item.completed:hover {
+  opacity: 1 !important;
+}
 
 .goal-item__check {
   width: 20px;
@@ -1432,3 +1435,48 @@ a { text-decoration: none; color: inherit; }
 }
 
 .demo-toggle:hover { background: var(--bg-hover); }
+
+.goal-item[data-tooltip] {
+  position: relative;
+}
+
+/* 1. 通常時（マウスが乗っていないとき）の吹き出し */
+.goal-item[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 105%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(30, 30, 30, 0.95);
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  width: max-content;
+  max-width: 250px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 9999;
+  
+  opacity: 0; 
+  pointer-events: none;
+  
+  /* ─── 変更ポイント ─── */
+  /* ここではディレイを一切設定しません（デフォルトの0秒）。 */
+  /* これにより、マウスが離れた瞬間、一瞬で非表示（opacity: 0）に切り替わります。 */
+  transition: opacity 0s, transform 0s; 
+}
+
+/* 2. マウスが乗ったとき（ホバー時）の吹き出し */
+.goal-item[data-tooltip]:hover::after {
+  /* ─── 修正ポイント：!important をつけて、完了タスクの薄さを強制上書き ─── */
+  opacity: 1 !important; 
+  
+  transform: translateX(-50%) translateY(-4px);
+  
+  /* ホバーしたときだけ表示アニメーションを2秒遅らせる設定 */
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition-delay: 0.5s; 
+}

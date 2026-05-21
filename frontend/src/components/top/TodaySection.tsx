@@ -18,7 +18,7 @@ export function TodaySection({
   const completed = goals.filter((g) => g.completed).length;
 
   const getMidTitle = (id?: string) =>
-    id ? midTermGoals.find((m) => m.id === id)?.title : undefined;
+    id ? (midTermGoals.find((m) => m.id === id)?.title ?? '') : '';
 
   const getLongTitle = (id: string) =>
     longTermGoals.find((l) => l.id === id)?.title ?? '';
@@ -42,27 +42,42 @@ export function TodaySection({
       </div>
 
       <ul className="today-goals__list">
-        {goals.map((goal) => (
-          <li key={goal.id}>
-            <div
-              className={`goal-item${goal.completed ? ' completed' : ''}`}
-              onClick={() => onToggle(goal.id)}
-            >
-              <div className={`goal-item__check${goal.completed ? ' checked' : ''}`}>
-                {goal.completed && '✓'}
-              </div>
-              <div className="goal-item__body">
-                <div className="goal-item__title">{goal.title}</div>
-                <div className="goal-item__meta">
-                  <span className="tag tag--long">{getLongTitle(goal.longTermGoalId)}</span>
-                  {goal.midTermGoalId && (
-                    <span className="tag tag--mid">{getMidTitle(goal.midTermGoalId)}</span>
-                  )}
+        {goals.map((goal) => {
+          const longTitle = goal.goalId ? getLongTitle(goal.goalId) : '';
+          const midTitle = goal.goalId ? getMidTitle(goal.goalId) : '';
+          
+          // 表示したい項目を組み立て
+          const tooltipText = [
+            `【タスク名】 ${goal.title}`,
+            `【日付】 ${goal.date ?? '未設定'}`,
+            longTitle ? `【長期目標】 ${longTitle}` : '',
+            midTitle ? `【中期目標】 ${midTitle}` : '',
+            goal.description ? `【説明】 ${goal.description}` : ''
+          ]
+            .filter(Boolean)
+            .join('\n');
+            
+          return (
+            <li key={goal.id}>
+              <div
+                className={`goal-item${goal.completed ? ' completed' : ''}`}
+                onClick={() => onToggle(goal.id)}
+                data-tooltip={tooltipText} // CSSで読み取るための属性
+              >
+                <div className={`goal-item__check${goal.completed ? ' checked' : ''}`}>
+                  {goal.completed && '✓'}
+                </div>
+                <div className="goal-item__body">
+                  <div className="goal-item__title">{goal.title}</div>
+                  <div className="goal-item__meta">
+                    {longTitle && <span className="tag tag--long">{longTitle}</span>}
+                    {midTitle && <span className="tag tag--mid">{midTitle}</span>}
+                  </div>
                 </div>
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
 
       <button className="today-goals__add-btn" onClick={onOpenModal}>
