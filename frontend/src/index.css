@@ -1124,17 +1124,24 @@ a { text-decoration: none; color: inherit; }
 }
 
 .calendar-day__dots {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -35%);
   display: flex;
-  gap: 2px;
+  gap: 3px;
   flex-wrap: wrap;
   justify-content: center;
-  max-width: 28px;
+  max-width: 36px;
+  pointer-events: none;
 }
 
 .calendar-day__dot {
-  width: 5px; height: 5px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--accent-teal);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
 
 .calendar-day__dot--completed { background: var(--accent-gold); }
