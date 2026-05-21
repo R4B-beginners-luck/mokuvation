@@ -1,27 +1,76 @@
-import { useState } from 'react';
-import type { Page, ShortTermGoal, Task } from './types';
-import { shortTermGoalsInitial, tasksInitial } from './data/dummy';
+import { useState, useEffect } from 'react';
+import type { Page, ShortTermGoal, Task, User } from './types';
+import { shortTermGoalsInitial, tasksInitial, tasksNoToday } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
+import { LoadingPage } from './pages/LoadingPage';
 import { TopPage }     from './pages/TopPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GoalsPage }   from './pages/GoalsPage';
+import { authApi } from './features/auth/api/authApi';
 
 export default function App() {
   const [page, setPage]           = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
 
   // ── Short-term goals: lifted state (can be toggled / added) ─────────────────
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const [tasks, setTasks] = useState<Task[]>(tasksInitial);
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    setPage('top');
+  // ── トークン検証による自動ログイン ──────────────────────────────────────────
+  useEffect(() => {
+    const verifyToken = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          // ─── 🌟【ここを修正】 getMe() が返してくれた本物のデータを変数に受ける ───
+          const userData = await authApi.getMe();
+          
+          // ─── 🌟【ここを追加】 受け取ったデータを、アプリ共通の user 引き出しに保管！ ───
+          setUser(userData); 
+
+          setIsLoggedIn(true);
+          setPage('top');
+        } catch (error) {
+          // トークンが無効な場合はログイン画面へ
+          localStorage.removeItem('auth_token');
+          setIsLoggedIn(false);
+          setUser(null); // 🌟 エラー時はユーザー情報も安全にクリア
+        }
+      }
+      setIsCheckingAuth(false);
+    };
+    
+    verifyToken();
+  }, []);
+  // Sync when demo mode changes
+  const handleDemoToggle = () => {
+    const next = !demoNoToday;
+    setDemoNoToday(next);
+    setTasks(next ? tasksNoToday : tasksInitial);
+  };
+
+  const handleLogin = async () => {
+    try {
+      const userData = await authApi.getMe();
+      setUser(userData);
+      setIsLoggedIn(true);
+      setPage('top');
+    } catch (error) {
+      console.error('ログイン後のユーザー情報取得に失敗しました', error);
+      localStorage.removeItem('auth_token');
+      setIsLoggedIn(false);
+      setUser(null);
+      setPage('login');
+    }
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('auth_token');
     setIsLoggedIn(false);
+    setUser(null);
     setPage('login');
   };
 
@@ -35,6 +84,10 @@ export default function App() {
   };
 
   // ── Login screen (no sidebar) ────────────────────────────────────────────────
+  if (isCheckingAuth) {
+    return <LoadingPage />;
+  }
+
   if (!isLoggedIn) {
     return <LoginPage onLogin={handleLogin} />;
   }
@@ -42,12 +95,13 @@ export default function App() {
   // ── Authenticated layout ─────────────────────────────────────────────────────
   return (
     <>
-      <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout}>
+      <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout} user={user}>
         {page === 'top' && (
           <TopPage
             tasks={tasks}
             onToggle={handleToggleTask}
             onAddTask={handleAddTask}
+            user={user}
           />
         )}
         {page === 'calendar' && (

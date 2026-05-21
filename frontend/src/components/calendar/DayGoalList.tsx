@@ -44,7 +44,17 @@ export function DayGoalList({ date, tasks, midTermGoals, longTermGoals }: DayGoa
 
   return (
     <div className="day-detail">
-      <div className="day-detail__date">{formatDate(date)}</div>
+      <div className="day-detail__header">
+        <div className="day-detail__date">{formatDate(date)}</div>
+        <button
+          type="button"
+          className="day-detail__edit-button"
+          aria-label="この日の目標を編集"
+          title="この日の目標を編集"
+        >
+          ✎
+        </button>
+      </div>
       <div className="day-detail__count">
         {dayGoals.length > 0
           ? `${completed} / ${dayGoals.length} 件完了`

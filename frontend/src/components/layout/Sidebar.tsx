@@ -1,9 +1,10 @@
-import type { Page } from '../../types';
+import type { Page, User } from '../../types';
 
 interface SidebarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onLogout: () => void;
+  user: User | null;
 }
 
 const NAV_ITEMS: { page: Page; icon: string; label: string }[] = [
@@ -12,7 +13,10 @@ const NAV_ITEMS: { page: Page; icon: string; label: string }[] = [
   { page: 'goals',    icon: '🗺️',  label: '目標マップ' },
 ];
 
-export function Sidebar({ currentPage, onNavigate, onLogout }: SidebarProps) {
+export function Sidebar({ currentPage, onNavigate, onLogout,user }: SidebarProps) {
+  const displayUserName = user?.user_name || 'ゲスト';
+  const avatarChar = displayUserName.charAt(0);
+
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
@@ -37,9 +41,9 @@ export function Sidebar({ currentPage, onNavigate, onLogout }: SidebarProps) {
 
       <div className="sidebar__footer">
         <div className="sidebar__user">
-          <div className="sidebar__avatar">田</div>
+          <div className="sidebar__avatar">{avatarChar}</div>
           <div>
-            <div className="sidebar__username">田中 一郎</div>
+            <div className="sidebar__username">{displayUserName}</div>
             <button className="btn-ghost" style={{ padding: '2px 0', fontSize: 11 }} onClick={onLogout}>
               ログアウト
             </button>
