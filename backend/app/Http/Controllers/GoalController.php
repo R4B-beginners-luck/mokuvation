@@ -88,8 +88,18 @@ class GoalController extends Controller
             return response()->json(['message' => 'アクセス権限がありません'], 403);
         }
 
-        $goal->delete();
+        $this->deleteGoalRecursively($goal);
 
         return response()->json(null, 204);
+    }
+
+    private function deleteGoalRecursively(Goal $goal): void
+    {
+        foreach ($goal->children as $child) {
+            $this->deleteGoalRecursively($child);
+        }
+
+        $goal->tasks()->delete();
+        $goal->delete();
     }
 }

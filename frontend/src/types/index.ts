@@ -6,6 +6,7 @@ export interface LongTermGoal {
   title: string;
   description: string;
   createdAt: string;
+  completed?: boolean;
   color_code?: string;
   /** IDs of other long-term goals that are related (bidirectional) */
   relatedLongTermGoalIds?: string[];
@@ -19,6 +20,7 @@ export interface MidTermGoal {
   longTermGoalId: string;
   /** YYYY-MM-DD */
   dueDate?: string;
+  completed?: boolean;
   color_code?: string;
   /** IDs of other mid-term goals that are related (bidirectional) */
   relatedMidTermGoalIds: string[];

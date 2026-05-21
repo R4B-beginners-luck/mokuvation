@@ -162,20 +162,16 @@ export function GoalDetailPanel({
         >
           {TYPE_LABEL[selected.type]}
         </span>
-        {selected.type === 'short' && (
+        {selected.completed !== undefined && (
           <span
             className="detail-panel__status"
-            style={{ color: (selected as ShortTermGoal).completed ? 'var(--color-success)' : 'var(--text-muted)' }}
+            style={{ color: selected.completed ? 'var(--color-success)' : 'var(--text-muted)' }}
           >
             <span
               className="status-dot"
-              style={{ background: (selected as ShortTermGoal).completed ? 'var(--color-success)' : 'var(--accent-gold)' }}
+              style={{ background: selected.completed ? 'var(--color-success)' : 'var(--accent-gold)' }}
             />
-            {(selected as ShortTermGoal).completed ? '達成済み' : '未達成'}
-          </span>
-        )}
-        {selected.type === 'mid' && (
-          <span className="detail-panel__status" style={{ color: 'var(--text-muted)' }}>
+            {selected.completed ? '達成済み' : '未達成'}
           </span>
         )}
       </div>
