@@ -57,9 +57,26 @@ export function DayGoalList({ date, tasks, midTermGoals, longTermGoals }: DayGoa
         <ul className="day-detail__list">
           {dayGoals.map((goal) => {
             const { mid, long } = getParentTags(goal.goalId);
+            
+            // ─── 修正ポイント：ツールチップ用テキストの組み立て ───
+            const tooltipText = [
+              `【タスク名】 ${goal.title}`,
+              `【日付】 ${goal.date ?? '未設定'}`,
+              long ? `【長期目標】 ${long}` : '',
+              mid ? `【中期目標】 ${mid}` : '',
+              goal.description ? `【説明】 ${goal.description}` : ''
+            ]
+              .filter(Boolean)
+              .join('\n');
+
             return (
               <li key={goal.id}>
-                <div className={`goal-item${goal.completed ? ' completed' : ''}`} style={{ cursor: 'default' }}>
+                {/* ★ data-tooltip={tooltipText} を付与 */}
+                <div 
+                  className={`goal-item${goal.completed ? ' completed' : ''}`} 
+                  style={{ cursor: 'default' }}
+                  data-tooltip={tooltipText} 
+                >
                   <div className={`goal-item__check${goal.completed ? ' checked' : ''}`}>
                     {goal.completed && '✓'}
                   </div>

@@ -1,4 +1,4 @@
-import type { Task, MidTermGoal, LongTermGoal } from '../../../types';
+import type { Task, MidTermGoal, LongTermGoal } from '../../types';
 
 interface DayGoalListProps {
   date: string | null;
@@ -18,24 +18,26 @@ export function DayGoalList({ date, tasks, midTermGoals, longTermGoals }: DayGoa
     return (
       <div className="day-detail">
         <div className="day-detail__empty">
-          📅<br />日付を選択してください
+          👆<br />日付を選択してください
         </div>
       </div>
     );
   }
 
-  const dayGoals   = tasks.filter((g) => g.date === date);
-  const completed  = dayGoals.filter((g) => g.completed).length;
+  const dayGoals   = tasks.filter((t) => t.date === date);
+  const completed  = dayGoals.filter((t) => t.completed).length;
 
   const getParentTags = (goalId?: string) => {
     if (!goalId) return { mid: undefined, long: undefined };
     
+    // Check if goalId refers to a MidTermGoal
     const mid = midTermGoals.find(m => m.id === goalId);
     if (mid) {
       const long = longTermGoals.find(l => l.id === mid.longTermGoalId);
       return { mid: mid.title, long: long?.title };
     }
 
+    // Check if goalId refers to a LongTermGoal directly
     const long = longTermGoals.find(l => l.id === goalId);
     return { mid: undefined, long: long?.title };
   };
@@ -50,32 +52,45 @@ export function DayGoalList({ date, tasks, midTermGoals, longTermGoals }: DayGoa
       </div>
 
       {dayGoals.length === 0 ? (
-        <div className="day-detail__empty">この日は目標が設定されていません</div>
+        <div className="day-detail__empty">この日はタスクが設定されていません</div>
       ) : (
         <ul className="day-detail__list">
-          {dayGoals.map((goal) => (
-            <li key={goal.id}>
-              <div className={`goal-item${goal.completed ? ' completed' : ''}`} style={{ cursor: 'default' }}>
-                <div className={`goal-item__check${goal.completed ? ' checked' : ''}`}>
-                  {goal.completed && '✓'}
-                </div>
-                <div className="goal-item__body">
-                  <div className="goal-item__title">{goal.title}</div>
-                  <div className="goal-item__meta">
-                    {(() => {
-                      const tags = getParentTags(goal.goalId);
-                      return (
-                        <>
-                          {(tags.long || goal.goalId) && <span className="tag tag--long">{tags.long ?? '長期目標(未設定)'}</span>}
-                          {tags.mid && <span className="tag tag--mid">{tags.mid}</span>}
-                        </>
-                      );
-                    })()}
+          {dayGoals.map((goal) => {
+            const { mid, long } = getParentTags(goal.goalId);
+            
+            // ─── 修正ポイント：ツールチップ用テキストの組み立て ───
+            const tooltipText = [
+              `【タスク名】 ${goal.title}`,
+              `【日付】 ${goal.date ?? '未設定'}`,
+              long ? `【長期目標】 ${long}` : '',
+              mid ? `【中期目標】 ${mid}` : '',
+              goal.description ? `【説明】 ${goal.description}` : ''
+            ]
+              .filter(Boolean)
+              .join('\n');
+
+            return (
+              <li key={goal.id}>
+                {/* ★ data-tooltip={tooltipText} を付与 */}
+                <div 
+                  className={`goal-item${goal.completed ? ' completed' : ''}`} 
+                  style={{ cursor: 'default' }}
+                  data-tooltip={tooltipText} 
+                >
+                  <div className={`goal-item__check${goal.completed ? ' checked' : ''}`}>
+                    {goal.completed && '✓'}
+                  </div>
+                  <div className="goal-item__body">
+                    <div className="goal-item__title">{goal.title}</div>
+                    <div className="goal-item__meta">
+                      {long && <span className="tag tag--long">{long}</span>}
+                      {mid && <span className="tag tag--mid">{mid}</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
