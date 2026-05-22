@@ -17,6 +17,7 @@ interface TopPageProps {
   tasks: Task[];
   onToggle: (id: string) => void;
   onAddTask: (goal: Task) => void;
+  onDeleteTask: (taskId: string) => void;
   user: User | null; // 🌟 追加: ユーザー情報を受け取るためのプロップ
 }
 
@@ -26,7 +27,7 @@ function getDateLabel(): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${days[d.getDay()]}）`;
 }
 
-export function TopPage({ tasks, onToggle, onAddTask, user }: TopPageProps) {
+export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopPageProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
 
@@ -71,6 +72,8 @@ export function TopPage({ tasks, onToggle, onAddTask, user }: TopPageProps) {
               longTermGoals={longTermGoals}
               onToggle={onToggle}
               onOpenModal={() => setModalOpen(true)}
+              onAddTask={onAddTask}
+              onDeleteTask={onDeleteTask} // ダミー関数（削除機能は未実装のため）
             />
           ) : (
             <EmptyTodayCard onOpenModal={() => setModalOpen(true)} />
