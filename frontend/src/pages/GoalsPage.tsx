@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../types';
 import { GoalGraph, GoalDetailPanel } from '../features/goals';
 import { GoalActionModal, type GoalActionMode, type GoalActionPayload } from '../features/goals/components/GoalActionModal';
-import { goalApi, type BackendGoal } from '../features/goals/api/goalApi';
+import { goalApi, type BackendGoal, type CreateGoalPayload, type UpdateGoalPayload } from '../features/goals/api/goalApi';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { COLOR_PALETTE } from '../const/colors';
 
 type GoalActionState = {
@@ -40,6 +41,30 @@ function applyColorCode<T extends { color_code?: string }>(
   }
 
   return item;
+}
+
+/** デモ表示用: 達成済みなしモードでは達成済み短期目標のノードを非表示 */
+function applyCompletedDemoView(
+  goals: ShortTermGoal[],
+  showCompleted: boolean
+): ShortTermGoal[] {
+  if (showCompleted) return goals;
+  return goals.filter((goal) => !goal.completed);
+}
+
+function resolveGoalFromState(
+  goal: Goal,
+  shortTermGoals: ShortTermGoal[],
+  midTermGoals: MidTermGoal[],
+  longTermGoals: LongTermGoal[]
+): Goal {
+  if (goal.type === 'short') {
+    return shortTermGoals.find((item) => item.id === goal.id) ?? goal;
+  }
+  if (goal.type === 'mid') {
+    return midTermGoals.find((item) => item.id === goal.id) ?? goal;
+  }
+  return longTermGoals.find((item) => item.id === goal.id) ?? goal;
 }
 
 function applyMidTermGoalId(
@@ -87,6 +112,7 @@ function buildGoalTree(goals: BackendGoal[]) {
       title: goal.title,
       description: goal.description ?? '',
       createdAt: formatDateString(goal.created_at) ?? '',
+      completed: goal.is_completed,
       color_code: typeof goal.color_code === 'number' ? COLOR_PALETTE[goal.color_code] : goal.color_code ?? undefined,
     }));
 
@@ -99,6 +125,7 @@ function buildGoalTree(goals: BackendGoal[]) {
       description: goal.description ?? '',
       longTermGoalId: findRootLongId(goal),
       dueDate: formatDateString(goal.due_at),
+      completed: goal.is_completed,
       color_code: typeof goal.color_code === 'number' ? COLOR_PALETTE[goal.color_code] : goal.color_code ?? undefined,
       relatedMidTermGoalIds: [],
     }));
@@ -132,10 +159,13 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [longTermGoals, setLongTermGoals] = useState<LongTermGoal[]>([]);
   const [midTermGoals, setMidTermGoals] = useState<MidTermGoal[]>([]);
   const [shortTermGoalsState, setShortTermGoals] = useState<ShortTermGoal[]>(shortTermGoals);
+  const [showCompletedGoals, setShowCompletedGoals] = useState(true);
   const [activeLtId, setActiveLtId] = useState('');
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalAction, setGoalAction] = useState<GoalActionState | null>(null);
   const [isLoadingGoals, setIsLoadingGoals] = useState(true);
+  const [isSavingGoal, setIsSavingGoal] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [goalLoadError, setGoalLoadError] = useState<string | null>(null);
 
   const activeLt    = longTermGoals.find((l) => l.id === activeLtId) ?? longTermGoals[0] ?? null;
@@ -143,33 +173,43 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const activeShorts = shortTermGoalsState.filter((s) => s.longTermGoalId === activeLt?.id);
 
   useEffect(() => {
-    let isMounted = true;
+    const stored = localStorage.getItem('goals-show-completed');
+    setShowCompletedGoals(stored === null ? true : stored === 'true');
+  }, []);
 
-    const loadGoals = async () => {
-      setIsLoadingGoals(true);
-      setGoalLoadError(null);
+  useEffect(() => {
+    localStorage.setItem('goals-show-completed', String(showCompletedGoals));
+  }, [showCompletedGoals]);
 
-      try {
-        const goals = await goalApi.getAll();
-        if (!isMounted) return;
+  useEffect(() => {
+    if (!showCompletedGoals && selectedGoal?.completed) {
+      setSelectedGoal(null);
+    }
+  }, [showCompletedGoals, selectedGoal]);
 
-        const { longTermGoals, midTermGoals, shortTermGoals } = buildGoalTree(goals);
-        setLongTermGoals(longTermGoals);
-        setMidTermGoals(midTermGoals);
-        setShortTermGoals(shortTermGoals);
-      } catch (error) {
-        if (!isMounted) return;
-        setGoalLoadError('目標の読み込みに失敗しました。');
-      } finally {
-        if (!isMounted) return;
-        setIsLoadingGoals(false);
+  const loadGoals = async (preferredActiveLtId?: string) => {
+    setIsLoadingGoals(true);
+    setGoalLoadError(null);
+    setShowCompletedGoals(showCompletedGoals);
+    
+    try {
+      const goals = await goalApi.getAll();
+      const { longTermGoals, midTermGoals, shortTermGoals } = buildGoalTree(goals);
+      setLongTermGoals(longTermGoals);
+      setMidTermGoals(midTermGoals);
+      setShortTermGoals(shortTermGoals);
+      if (preferredActiveLtId && longTermGoals.some((lt) => lt.id === preferredActiveLtId)) {
+        setActiveLtId(preferredActiveLtId);
       }
-    };
+    } catch (error) {
+      setGoalLoadError('目標の読み込みに失敗しました。');
+    } finally {
+      setIsLoadingGoals(false);
+    }
+  };
 
+  useEffect(() => {
     loadGoals();
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   useEffect(() => {
@@ -183,7 +223,10 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   };
 
   const handleEditGoal = (goal: Goal) => {
-    setGoalAction({ mode: 'edit', goal });
+    setGoalAction({
+      mode: 'edit',
+      goal: resolveGoalFromState(goal, shortTermGoalsState, midTermGoals, longTermGoals),
+    });
   };
 
   const handleAddGoal = (goal: Goal, presetGoalType?: 'mid' | 'short') => {
@@ -211,142 +254,94 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setSelectedGoal(null);
   };
 
-  const handleSaveGoalAction = (payload: GoalActionPayload) => {
+  const handleDeleteGoal = () => {
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteConfirmOpen(false);
+  };
+
+  const handleConfirmDeleteGoal = async () => {
     if (!goalAction) return;
 
-    const { mode, goal } = goalAction;
+    setIsSavingGoal(true);
+    try {
+      const { goal } = goalAction;
+      await goalApi.delete(goal.id);
 
-    if (mode === 'edit') {
-      if (goal.type === 'long') {
-        setLongTermGoals((prev) => prev.map((item) => (
-          item.id === goal.id
-            ? applyColorCode<LongTermGoal>({
-                ...item,
-                title: payload.title,
-                description: payload.description,
-              }, payload.color_code)
-            : item
-        )));
-      }
+      const preferredActiveLtId = goal.type === 'long'
+        ? undefined
+        : (goal as MidTermGoal | ShortTermGoal).longTermGoalId;
 
-      if (goal.type === 'mid' && payload.longTermGoalId) {
-        const longTermGoalId = payload.longTermGoalId;
-        setMidTermGoals((prev) => prev.map((item) => (
-          item.id === goal.id
-            ? applyColorCode<MidTermGoal>({
-                ...item,
-                title: payload.title,
-                description: payload.description,
-                dueDate: payload.dueDate,
-                longTermGoalId,
-              }, payload.color_code)
-            : item
-        )));
-        setActiveLtId(longTermGoalId);
-      }
-
-      if (goal.type === 'short' && payload.longTermGoalId) {
-        const longTermGoalId = payload.longTermGoalId;
-        setShortTermGoals((prev) => prev.map((item) => {
-          if (item.id !== goal.id) return item;
-          const updated = applyColorCode<ShortTermGoal>({
-            ...item,
-            title: payload.title,
-            description: payload.description,
-            dueDate: payload.dueDate,
-            completed: payload.completed ?? item.completed,
-            longTermGoalId,
-          }, payload.color_code);
-          return applyMidTermGoalId(updated, payload.midTermGoalId);
-        }));
-        setActiveLtId(longTermGoalId);
-      }
-
-      setSelectedGoal((prev) => {
-        if (prev?.id !== goal.id) return prev;
-        if (goal.type === 'long') {
-          return applyColorCode<LongTermGoal>({
-            ...goal,
-            title: payload.title,
-            description: payload.description,
-          }, payload.color_code);
-        }
-        if (goal.type === 'mid' && payload.longTermGoalId) {
-          return applyColorCode<MidTermGoal>({
-            ...goal,
-            title: payload.title,
-            description: payload.description,
-            dueDate: payload.dueDate,
-            longTermGoalId: payload.longTermGoalId,
-          }, payload.color_code);
-        }
-        if (goal.type === 'short' && payload.longTermGoalId) {
-          const updated = applyColorCode<ShortTermGoal>({
-            ...goal,
-            title: payload.title,
-            description: payload.description,
-            dueDate: payload.dueDate,
-            completed: payload.completed ?? goal.completed,
-            longTermGoalId: payload.longTermGoalId,
-          }, payload.color_code);
-          return applyMidTermGoalId(updated, payload.midTermGoalId);
-        }
-        return prev;
-      });
+      await loadGoals(preferredActiveLtId);
+      setSelectedGoal(null);
       setGoalAction(null);
-      return;
+      setIsDeleteConfirmOpen(false);
+    } catch (error) {
+      console.error('Goal delete failed', error);
+      setGoalLoadError('目標の削除に失敗しました。再度お試しください。');
+    } finally {
+      setIsSavingGoal(false);
     }
+  };
 
-    if (goalAction.mode === 'add-long' || payload.goalType === 'long') {
-      const newGoal: LongTermGoal = applyColorCode<LongTermGoal>({
-        id: `lt_${Date.now()}`,
-        type: 'long',
-        title: payload.title,
-        description: payload.description,
-        createdAt: new Date().toISOString().slice(0, 10),
-      }, payload.color_code);
-      setLongTermGoals((prev) => [...prev, newGoal]);
-      setSelectedGoal(newGoal);
-      setActiveLtId(newGoal.id);
-      setGoalAction(null);
-      return;
-    }
+  const handleSaveGoalAction = async (payload: GoalActionPayload) => {
+    if (!goalAction) return;
 
-    if (payload.goalType === 'mid' && payload.longTermGoalId) {
-      const newGoal: MidTermGoal = applyColorCode<MidTermGoal>({
-        id: `mt_${Date.now()}`,
-        type: 'mid',
-        title: payload.title,
-        description: payload.description,
-        longTermGoalId: payload.longTermGoalId,
-        dueDate: payload.dueDate,
-        relatedMidTermGoalIds: [],
-      }, payload.color_code);
-      setMidTermGoals((prev) => [...prev, newGoal]);
-      setSelectedGoal(newGoal);
-      setActiveLtId(payload.longTermGoalId);
-    }
+    setIsSavingGoal(true);
+    try {
+      const { mode, goal } = goalAction;
 
-    if (payload.goalType === 'short' && payload.longTermGoalId) {
-      const base: ShortTermGoal = {
-        id: `st_${Date.now()}`,
-        type: 'short',
+      if (mode === 'edit') {
+        const updatePayload: UpdateGoalPayload = {
+          title: payload.title,
+          description: payload.description ?? null,
+          due_at: payload.dueDate ?? null,
+          is_completed: payload.completed,
+          color_code: payload.color_code ?? null,
+        };
+        await goalApi.update(goal.id, updatePayload);
+
+        const preferredActiveLtId = goal.type === 'long'
+          ? goal.id
+          : payload.longTermGoalId ?? (goal as MidTermGoal | ShortTermGoal).longTermGoalId;
+
+        await loadGoals(preferredActiveLtId);
+        setSelectedGoal(null);
+        setGoalAction(null);
+        return;
+      }
+
+      const createPayload: CreateGoalPayload = {
         title: payload.title,
-        description: payload.description,
-        completed: false,
-        longTermGoalId: payload.longTermGoalId,
-        dueDate: payload.dueDate,
+        description: payload.description ?? null,
+        period_type: mode === 'add-long' || payload.goalType === 'long'
+          ? 'long'
+          : payload.goalType === 'mid'
+            ? 'middle'
+            : 'short',
+        due_at: payload.dueDate ?? null,
+        parent_goal_id: payload.goalType === 'short'
+          ? payload.midTermGoalId ?? payload.longTermGoalId ?? undefined
+          : payload.longTermGoalId ?? undefined,
+        color_code: payload.color_code ?? null,
       };
-      const withMid = payload.midTermGoalId
-        ? { ...base, midTermGoalId: payload.midTermGoalId }
-        : base;
-      const newGoal = applyColorCode<ShortTermGoal>(withMid, payload.color_code);
-      setShortTermGoals((prev) => [...prev, newGoal]);
-      setSelectedGoal(newGoal);
-      setActiveLtId(payload.longTermGoalId);
-    }
+      const createdGoal = await goalApi.create(createPayload);
 
-    setGoalAction(null);
+      const preferredActiveLtId = createdGoal.period_type === 'long'
+        ? createdGoal.id
+        : payload.longTermGoalId;
+
+      await loadGoals(preferredActiveLtId);
+      setSelectedGoal(null);
+      setGoalAction(null);
+    } catch (error) {
+      console.error('Goal save failed', error);
+      setGoalLoadError('目標の保存に失敗しました。再度お試しください。');
+    } finally {
+      setIsSavingGoal(false);
+    }
   };
 
   return (
@@ -426,24 +421,48 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         selected={selectedGoal}
         longTermGoals={longTermGoals}
         midTermGoals={midTermGoals}
-        shortTermGoals={shortTermGoalsState}
+        shortTermGoals={shortTermGoalsForDisplay}
         tasks={tasks}
         onSelectNode={handleSelectNode}
         onEditGoal={handleEditGoal}
         onAddGoal={handleAddGoal}
       />
 
+      <button
+        type="button"
+        className="demo-toggle goals-demo-toggle"
+        onClick={handleDemoCompletedToggle}
+        title="達成済みの短期目標ノードの表示/非表示を切り替えるデモ用ボタン"
+      >
+        {demoShowCompleted ? '✅ 達成済みの目標あり（デモ）' : '○ 達成済みの目標なし（デモ）'}
+      </button>
+
       {goalAction && (
-        <GoalActionModal
-          key={`${goalAction.mode}-${goalAction.goal.id}-${goalAction.presetGoalType ?? ''}`}
-          mode={goalAction.mode}
-          goal={goalAction.goal}
-          longTermGoals={longTermGoals}
-          midTermGoals={midTermGoals}
-          presetGoalType={goalAction.presetGoalType}
-          onClose={() => setGoalAction(null)}
-          onSave={handleSaveGoalAction}
-        />
+        <>
+          <GoalActionModal
+            key={`${goalAction.mode}-${goalAction.goal.id}-${goalAction.presetGoalType ?? ''}`}
+            mode={goalAction.mode}
+            goal={goalAction.goal}
+            longTermGoals={longTermGoals}
+            midTermGoals={midTermGoals}
+            presetGoalType={goalAction.presetGoalType}
+            onClose={() => setGoalAction(null)}
+            onSave={handleSaveGoalAction}
+            onDelete={handleDeleteGoal}
+            isSaving={isSavingGoal}
+          />
+          {isDeleteConfirmOpen && (
+            <ConfirmationModal
+              title="目標の削除確認"
+              description="この目標とその配下の目標およびタスクをすべて削除します。よろしいですか？"
+              confirmLabel="削除する"
+              cancelLabel="キャンセル"
+              onConfirm={handleConfirmDeleteGoal}
+              onCancel={handleCancelDelete}
+              isLoading={isSavingGoal}
+            />
+          )}
+        </>
       )}
     </div>
   );

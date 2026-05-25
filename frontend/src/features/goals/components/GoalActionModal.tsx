@@ -26,6 +26,8 @@ interface GoalActionModalProps {
   presetGoalType?: 'mid' | 'short';
   onClose: () => void;
   onSave: (payload: GoalActionPayload) => void;
+  onDelete?: () => void;
+  isSaving?: boolean;
 }
 
 function getActionTitle(mode: GoalActionMode): string {
@@ -51,6 +53,8 @@ export function GoalActionModal({
   presetGoalType,
   onClose,
   onSave,
+  onDelete,
+  isSaving = false,
 }: GoalActionModalProps) {
   const isEditMode = mode === 'edit';
   const isAddMode = mode === 'add-goal' || mode === 'add-long';
@@ -81,7 +85,7 @@ export function GoalActionModal({
   const [dueDate, setDueDate] = useState(
     isEditMode && (isMid || isShort) ? (goal as MidTermGoal | ShortTermGoal).dueDate ?? TODAY : TODAY
   );
-  const [completed, setCompleted] = useState(isEditMode && isShort ? (goal as ShortTermGoal).completed : false);
+  const [completed, setCompleted] = useState(isEditMode ? (goal.completed ?? false) : false);
 
   const showLongTermSelect =
     (!isEditMode && goalType !== 'long') || (isEditMode && (isMid || isShort));
@@ -278,19 +282,35 @@ export function GoalActionModal({
           </div>
         )}
 
-        {isEditMode && isShort && (
-          <label className="form-field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {isEditMode && (
+          <label
+            className="form-field"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              background: 'rgba(232, 162, 52, 0.06)',
+              border: '1px solid rgba(232, 162, 52, 0.15)',
+              borderRadius: 'var(--r-md)',
+              padding: '12px 14px',
+            }}
+          >
             <input
               type="checkbox"
               checked={completed}
               onChange={(e) => setCompleted(e.target.checked)}
             />
-            <span>達成済み</span>
+            <div style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontWeight: 700 }}>達成済みフラグ</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                選択した目標を達成済みにできます。長期・中期・短期すべて対応します。
+              </span>
+            </div>
           </label>
         )}
 
-        <div className="modal__actions">
-          <button className="btn-secondary" onClick={onClose}>キャンセル</button>
+        <div className="modal__actions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'center' }}>
+          <button className="btn-secondary" onClick={onClose} disabled={isSaving}>キャンセル</button>
           <button
             className="btn-primary"
             onClick={() => {
@@ -298,19 +318,41 @@ export function GoalActionModal({
                 title: title.trim(),
                 description: description.trim(),
                 dueDate: canSetDueDate && dueDate ? dueDate : undefined,
-                completed: isEditMode && isShort ? completed : undefined,
+                completed: isEditMode ? completed : undefined,
                 goalType: resolveGoalType(),
                 longTermGoalId: resolveLongTermGoalId(),
                 midTermGoalId: resolveMidTermGoalId(),
                 color_code: resolveColorCode(),
               });
             }}
-            disabled={saveDisabled}
-            style={{ opacity: saveDisabled ? 0.5 : 1, cursor: saveDisabled ? 'default' : 'pointer' }}
+            disabled={saveDisabled || isSaving}
+            style={{ opacity: saveDisabled || isSaving ? 0.5 : 1, cursor: saveDisabled || isSaving ? 'default' : 'pointer' }}
           >
-            {isEditMode ? '保存する' : '追加する'}
+            {isSaving ? '保存中…' : isEditMode ? '保存する' : '追加する'}
           </button>
         </div>
+        {isEditMode && (
+          <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+            <button
+              className="btn-danger"
+              onClick={onDelete}
+              disabled={isSaving}
+              aria-label="目標を削除"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 13,
+              }}
+            >
+              <span aria-hidden="true">🗑️</span>
+              <span>この目標を削除</span>
+            </button>
+          </div>
+        )}
       </div>
     </Modal>
   );
