@@ -282,33 +282,6 @@ export function GoalActionModal({
           </div>
         )}
 
-        {isEditMode && (
-          <label
-            className="form-field"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              background: 'rgba(232, 162, 52, 0.06)',
-              border: '1px solid rgba(232, 162, 52, 0.15)',
-              borderRadius: 'var(--r-md)',
-              padding: '12px 14px',
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={completed}
-              onChange={(e) => setCompleted(e.target.checked)}
-            />
-            <div style={{ display: 'grid', gap: 4 }}>
-              <span style={{ fontWeight: 700 }}>達成済みフラグ</span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                選択した目標を達成済みにできます。長期・中期・短期すべて対応します。
-              </span>
-            </div>
-          </label>
-        )}
-
         <div className="modal__actions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'center' }}>
           <button className="btn-secondary" onClick={onClose} disabled={isSaving}>キャンセル</button>
           <button

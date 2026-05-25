@@ -299,6 +299,24 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setDemoShowCompleted((prev) => !prev);
   };
 
+  const handleToggleCompleted = async (goal: Goal) => {
+    setIsSavingGoal(true);
+    try {
+      const updatedGoal = await goalApi.update(goal.id, { is_completed: !goal.completed });
+      const preferredActiveLtId = goal.type === 'long'
+        ? goal.id
+        : (goal as MidTermGoal | ShortTermGoal).longTermGoalId;
+
+      await loadGoals(preferredActiveLtId);
+      setSelectedGoal({ ...goal, completed: updatedGoal.is_completed } as Goal);
+    } catch (error) {
+      console.error('Goal completion toggle failed', error);
+      setGoalLoadError('達成状態の更新に失敗しました。再度お試しください。');
+    } finally {
+      setIsSavingGoal(false);
+    }
+  };
+
   const handleCancelDelete = () => {
     setIsDeleteConfirmOpen(false);
   };
@@ -476,6 +494,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         onSelectNode={handleSelectNode}
         onEditGoal={handleEditGoal}
         onAddGoal={handleAddGoal}
+        onToggleCompleted={handleToggleCompleted}
+        isSaving={isSavingGoal}
       />
 
       {goalAction && (
