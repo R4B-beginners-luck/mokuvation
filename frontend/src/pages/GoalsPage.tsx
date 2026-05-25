@@ -363,6 +363,15 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         <div className="goals-page__header">
           <h1 className="goals-page__title">🗺️ 目標マップ</h1>
           <div className="goals-page__selector">
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ whiteSpace: 'nowrap', fontSize: 13 }}
+              onClick={handleDemoCompletedToggle}
+              title="達成済みの短期目標の表示/非表示を切り替え"
+            >
+              {demoShowCompleted ? '達成済み目標の非表示' : '達成済み目標の表示'}
+            </button>
             <select
               id="goals-page-lt-select"
               className="form-select goals-page__lt-select"
@@ -439,15 +448,6 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         onEditGoal={handleEditGoal}
         onAddGoal={handleAddGoal}
       />
-
-      <button
-        type="button"
-        className="demo-toggle goals-demo-toggle"
-        onClick={handleDemoCompletedToggle}
-        title="達成済みの短期目標ノードの表示/非表示を切り替えるデモ用ボタン"
-      >
-        {demoShowCompleted ? '✅ 達成済みの目標あり（デモ）' : '○ 達成済みの目標なし（デモ）'}
-      </button>
 
       {goalAction && (
         <>
