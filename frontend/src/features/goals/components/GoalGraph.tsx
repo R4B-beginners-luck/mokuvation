@@ -247,8 +247,7 @@ export function GoalGraph({
           const cfg        = NODE_CONFIG[goal.type];
           const nodeColor  = getNodeColor(goal);
           const isSelected = goal.id === selectedId;
-          const isShort    = goal.type === 'short';
-          const isDone     = isShort && (goal as ShortTermGoal).completed;
+          const isDone     = goal.completed;
 
           const maxLen = goal.type === 'long' ? 14 : goal.type === 'mid' ? 12 : 10;
           const displayTitle = truncateText(goal.title, maxLen);
@@ -301,9 +300,10 @@ export function GoalGraph({
               {goal.type !== 'short' ? (
                 <polygon
                   points={getPolygonPoints(goal.type, cfg.r)}
-                  fill={nodeColor}
+                  fill={isDone ? '#3a3840' : nodeColor}
                   stroke={isSelected ? nodeColor : 'rgba(255,255,255,0.1)'}
                   strokeWidth={isSelected ? 2 : 1}
+                  opacity={isDone ? 0.6 : 1}
                 />
               ) : (
                 <circle
