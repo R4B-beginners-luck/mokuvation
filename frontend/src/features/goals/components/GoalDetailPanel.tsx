@@ -10,6 +10,8 @@ interface GoalDetailPanelProps {
   onSelectNode: (goal: Goal) => void;
   onEditGoal: (goal: Goal) => void;
   onAddGoal: (goal: Goal, presetGoalType?: 'mid' | 'short') => void;
+  onToggleCompleted: (goal: Goal) => void;
+  isSaving?: boolean;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -63,6 +65,8 @@ export function GoalDetailPanel({
   onSelectNode,
   onEditGoal,
   onAddGoal,
+  onToggleCompleted,
+  isSaving,
 }: GoalDetailPanelProps) {
   if (!selected) {
     return (
@@ -200,7 +204,20 @@ export function GoalDetailPanel({
             width: '100%',
             textAlign: 'center',
             fontSize: 13,
-            gridColumn: selected.type === 'long' ? '1 / -1' : undefined,
+            gridColumn: '1 / -1',
+          }}
+          onClick={() => onToggleCompleted(selected)}
+          disabled={isSaving}
+        >
+          {selected.completed ? '✅ 未達成に戻す' : '✔️ 達成済みにする'}
+        </button>
+        <button
+          className="btn-secondary"
+          style={{
+            width: '100%',
+            textAlign: 'center',
+            fontSize: 13,
+            gridColumn: '1 / -1',
           }}
           onClick={() => onEditGoal(selected)}
         >

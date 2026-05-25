@@ -1,4 +1,4 @@
-import type { Task } from '../../../types';
+import type { Task } from '../types';
 
 interface CalendarGridProps {
   year: number;
@@ -11,6 +11,12 @@ interface CalendarGridProps {
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 function pad2(n: number) { return String(n).padStart(2, '0'); }
+
+function extractDateFromScheduled(scheduledAt: string | null): string | null {
+  if (!scheduledAt) return null;
+  const normalized = scheduledAt.replace(' ', 'T');
+  return normalized.split('T')[0] ?? null;
+}
 
 export function CalendarGrid({
   year,
@@ -47,10 +53,12 @@ export function CalendarGrid({
   }
 
   const statsByDate: Record<string, { total: number; done: number }> = {};
-  tasks.forEach((g) => {
-    if (!statsByDate[g.date]) statsByDate[g.date] = { total: 0, done: 0 };
-    statsByDate[g.date].total++;
-    if (g.completed) statsByDate[g.date].done++;
+  tasks.forEach((task) => {
+    const taskDate = extractDateFromScheduled(task.scheduled_at);
+    if (!taskDate) return;
+    if (!statsByDate[taskDate]) statsByDate[taskDate] = { total: 0, done: 0 };
+    statsByDate[taskDate].total++;
+    if (task.is_completed) statsByDate[taskDate].done++;
   });
 
   return (

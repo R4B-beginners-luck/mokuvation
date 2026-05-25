@@ -11,14 +11,12 @@ class TaskController extends Controller
 {
     /**
      * タスク一覧表示
-     * ログインユーザーの目標に紐づくタスクのみを取得。
+     * ログインユーザーのタスクを直接取得（目標に紐づかないタスクも含む）。
      */
     public function index(Request $request)
     {
-        // ログインユーザーが所有するすべての目標IDを取得
-        $userGoalIds = Auth::user()->goals()->pluck('id');
-
-        $query = Task::whereIn('goal_id', $userGoalIds);
+        // 修正: ログインユーザーのタスクを直接検索する（goal_idの有無は問わない）
+        $query = Task::where('user_id', Auth::id());
 
         // フロントから ?goal_id=xxx で特定の目標のタスクのみに絞り込む機能
         if ($request->has('goal_id')) {
@@ -41,7 +39,12 @@ class TaskController extends Controller
             'scheduled_at' => ['nullable', 'date'],
         ]);
 
-        // 目標の所有権チェックの修正（goal_idがある時だけチェックする）
+        // セキュリティ対策: フロントから送信されたuser_idが本当にログイン中のユーザーか検証
+        if ($validated['user_id'] !== Auth::id()) {
+            return response()->json(['message' => '不正なユーザーIDです'], 403);
+        }
+
+        // 目標が指定されている場合は、その目標の所有権をチェック
         if ($request->filled('goal_id')) {
             $goal = Goal::find($request->goal_id);
             if ($goal && $goal->user_id !== Auth::id()) {
@@ -49,9 +52,7 @@ class TaskController extends Controller
             }
         }
 
-        $task = Task::create(array_merge($validated, [
-            'user_id' => Auth::id(),
-        ]));
+        $task = Task::create($validated);
 
         return response()->json($task, 201);
     }
@@ -61,8 +62,8 @@ class TaskController extends Controller
      */
     public function show(Task $task)
     {
-        // タスク -> 目標 -> ユーザーID の順で所有権を確認
-        if ($task->goal->user_id !== Auth::id()) {
+        // 修正: Taskテーブルが直接持つ user_id を使って権限チェックを行う
+        if ($task->user_id !== Auth::id()) {
             return response()->json(['message' => 'アクセス権限がありません'], 403);
         }
 
@@ -74,7 +75,8 @@ class TaskController extends Controller
      */
     public function update(Request $request, Task $task)
     {
-        if ($task->goal->user_id !== Auth::id()) {
+        // 修正: Taskテーブルが直接持つ user_id を使って権限チェックを行う
+        if ($task->user_id !== Auth::id()) {
             return response()->json(['message' => 'アクセス権限がありません'], 403);
         }
 
@@ -104,7 +106,8 @@ class TaskController extends Controller
      */
     public function destroy(Task $task)
     {
-        if ($task->goal->user_id !== Auth::id()) {
+        // 修正: Taskテーブルが直接持つ user_id を使って権限チェックを行う
+        if ($task->user_id !== Auth::id()) {
             return response()->json(['message' => 'アクセス権限がありません'], 403);
         }
 
