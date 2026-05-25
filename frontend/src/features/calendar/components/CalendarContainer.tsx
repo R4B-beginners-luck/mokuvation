@@ -38,6 +38,10 @@ export function CalendarContainer() {
     setCalendarTasks((prev) => [mappedTask, ...prev]);
   };
 
+  const handleTaskDeleted = (taskId: string) => {
+    setCalendarTasks((prev) => prev.filter((task) => task.id !== taskId));
+  };
+
   const prevMonth = () => {
     if (month === 0) {
       setYear((y) => y - 1);
@@ -164,6 +168,7 @@ export function CalendarContainer() {
         tasks={calendarTasks}
         goals={goals}
         onTaskAdded={handleTaskAdded}
+        onTaskDeleted={handleTaskDeleted}
       />
     </div>
   );
