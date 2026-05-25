@@ -169,9 +169,28 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [goalLoadError, setGoalLoadError] = useState<string | null>(null);
 
-  const activeLt    = longTermGoals.find((l) => l.id === activeLtId) ?? longTermGoals[0] ?? null;
-  const shortTermGoalsForDisplay = applyCompletedDemoView(shortTermGoalsState, demoShowCompleted);
-  const activeMids  = midTermGoals.filter((m) => m.longTermGoalId === activeLt?.id);
+  const activeLt = longTermGoals.find((l) => l.id === activeLtId) ?? longTermGoals[0] ?? null;
+  const hiddenLongTermIds = new Set(longTermGoals.filter((l) => l.completed).map((l) => l.id));
+  const hiddenMidTermIds = new Set(
+    midTermGoals
+      .filter((m) => m.completed || hiddenLongTermIds.has(m.longTermGoalId))
+      .map((m) => m.id)
+  );
+  const hiddenShortTermIds = new Set(
+    shortTermGoalsState
+      .filter((s) => s.completed || hiddenLongTermIds.has(s.longTermGoalId) || (s.midTermGoalId ? hiddenMidTermIds.has(s.midTermGoalId) : false))
+      .map((s) => s.id)
+  );
+
+  const displayMidTermGoals = demoShowCompleted
+    ? midTermGoals
+    : midTermGoals.filter((m) => !hiddenMidTermIds.has(m.id));
+
+  const shortTermGoalsForDisplay = demoShowCompleted
+    ? shortTermGoalsState
+    : shortTermGoalsState.filter((s) => !hiddenShortTermIds.has(s.id));
+
+  const activeMids = displayMidTermGoals.filter((m) => m.longTermGoalId === activeLt?.id);
   const activeShorts = shortTermGoalsForDisplay.filter((s) => s.longTermGoalId === activeLt?.id);
 
   useEffect(() => {
@@ -190,10 +209,20 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   }, [showCompletedGoals, selectedGoal]);
 
   useEffect(() => {
-    if (!demoShowCompleted && selectedGoal?.type === 'short' && selectedGoal.completed) {
-      setSelectedGoal(null);
+    if (!demoShowCompleted && selectedGoal) {
+      const selectedIsHidden = selectedGoal.type === 'short'
+        ? hiddenShortTermIds.has(selectedGoal.id)
+        : selectedGoal.type === 'mid'
+          ? hiddenMidTermIds.has(selectedGoal.id)
+          : selectedGoal.type === 'long'
+            ? hiddenLongTermIds.has(selectedGoal.id)
+            : false;
+
+      if (selectedIsHidden) {
+        setSelectedGoal(null);
+      }
     }
-  }, [demoShowCompleted, selectedGoal]);
+  }, [demoShowCompleted, selectedGoal, hiddenLongTermIds, hiddenMidTermIds, hiddenShortTermIds]);
 
   const loadGoals = async (preferredActiveLtId?: string) => {
     setIsLoadingGoals(true);
@@ -370,7 +399,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               onClick={handleDemoCompletedToggle}
               title="達成済みの短期目標の表示/非表示を切り替え"
             >
-              {demoShowCompleted ? '達成済み目標の非表示' : '達成済み目標の表示'}
+              {demoShowCompleted ? '達成済み目標の非表示' : '達成済み短期を表示'}
             </button>
             <select
               id="goals-page-lt-select"
@@ -441,7 +470,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       <GoalDetailPanel
         selected={selectedGoal}
         longTermGoals={longTermGoals}
-        midTermGoals={midTermGoals}
+        midTermGoals={displayMidTermGoals}
         shortTermGoals={shortTermGoalsForDisplay}
         tasks={tasks}
         onSelectNode={handleSelectNode}
