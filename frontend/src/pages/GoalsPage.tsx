@@ -160,6 +160,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [midTermGoals, setMidTermGoals] = useState<MidTermGoal[]>([]);
   const [shortTermGoalsState, setShortTermGoals] = useState<ShortTermGoal[]>(shortTermGoals);
   const [showCompletedGoals, setShowCompletedGoals] = useState(true);
+  const [demoShowCompleted, setDemoShowCompleted] = useState(true);
   const [activeLtId, setActiveLtId] = useState('');
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalAction, setGoalAction] = useState<GoalActionState | null>(null);
@@ -169,8 +170,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [goalLoadError, setGoalLoadError] = useState<string | null>(null);
 
   const activeLt    = longTermGoals.find((l) => l.id === activeLtId) ?? longTermGoals[0] ?? null;
+  const shortTermGoalsForDisplay = applyCompletedDemoView(shortTermGoalsState, demoShowCompleted);
   const activeMids  = midTermGoals.filter((m) => m.longTermGoalId === activeLt?.id);
-  const activeShorts = shortTermGoalsState.filter((s) => s.longTermGoalId === activeLt?.id);
+  const activeShorts = shortTermGoalsForDisplay.filter((s) => s.longTermGoalId === activeLt?.id);
 
   useEffect(() => {
     const stored = localStorage.getItem('goals-show-completed');
@@ -186,6 +188,12 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       setSelectedGoal(null);
     }
   }, [showCompletedGoals, selectedGoal]);
+
+  useEffect(() => {
+    if (!demoShowCompleted && selectedGoal?.type === 'short' && selectedGoal.completed) {
+      setSelectedGoal(null);
+    }
+  }, [demoShowCompleted, selectedGoal]);
 
   const loadGoals = async (preferredActiveLtId?: string) => {
     setIsLoadingGoals(true);
@@ -256,6 +264,10 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
 
   const handleDeleteGoal = () => {
     setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDemoCompletedToggle = () => {
+    setDemoShowCompleted((prev) => !prev);
   };
 
   const handleCancelDelete = () => {
