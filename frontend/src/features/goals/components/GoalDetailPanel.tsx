@@ -20,7 +20,9 @@ const TYPE_LABEL: Record<string, string> = {
   short: '短期目標',
 };
 
-function getDaysRemaining(dueDate: string): { days: number; label: string } {
+type DueDateTone = 'neutral' | 'week' | 'soon' | 'today' | 'overdue';
+
+function getDueDateMeta(dueDate: string): { label: string; tone: DueDateTone } {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const due = new Date(dueDate);
@@ -28,12 +30,22 @@ function getDaysRemaining(dueDate: string): { days: number; label: string } {
   const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   
   if (diff < 0) {
-    return { days: Math.abs(diff), label: `${Math.abs(diff)}日超過` };
-  } else if (diff === 0) {
-    return { days: 0, label: '今日まで' };
-  } else {
-    return { days: diff, label: `あと${diff}日` };
+    return { label: `${Math.abs(diff)}日超過`, tone: 'overdue' };
   }
+
+  if (diff === 0) {
+    return { label: '今日まで', tone: 'today' };
+  }
+
+  if (diff <= 3) {
+    return { label: `あと${diff}日`, tone: 'soon' };
+  }
+
+  if (diff <= 7) {
+    return { label: `あと${diff}日`, tone: 'week' };
+  }
+
+  return { label: `あと${diff}日`, tone: 'neutral' };
 }
 
 function uniqueGoals(goals: Array<Goal | null>): Goal[] {
@@ -51,9 +63,9 @@ function isGoal(goal: Goal | null): goal is Goal {
   return goal !== null;
 }
 
-function getDueDateText(goal: MidTermGoal | ShortTermGoal): string {
-  const { label } = getDaysRemaining(goal.dueDate!);
-  return `📅 ${goal.dueDate} · ${label}`;
+function getDueDateText(goal: MidTermGoal | ShortTermGoal): { text: string; tone: DueDateTone } {
+  const { label, tone } = getDueDateMeta(goal.dueDate!);
+  return { text: `📅 ${goal.dueDate} · ${label}`, tone };
 }
 
 export function GoalDetailPanel({
@@ -135,21 +147,11 @@ export function GoalDetailPanel({
   const completedTasks = relatedTasks.filter(t => t.completed).length;
   const accentColor = selected.color_code || DEFAULT_GOAL_COLOR;
   const selectedGoal = selected as MidTermGoal | ShortTermGoal;
-  const dueDateText = 'dueDate' in selectedGoal && selectedGoal.dueDate ? getDueDateText(selectedGoal) : null;
+  const dueDateInfo = 'dueDate' in selectedGoal && selectedGoal.dueDate ? getDueDateText(selectedGoal) : null;
   const getGoalColor = (goal: Goal): string => goal.color_code || DEFAULT_GOAL_COLOR;
   const neutralTagStyle = {
-    background: 'rgba(255,255,255,0.06)',
-    color: 'var(--text-muted)',
-  } as const;
-  const neutralDueDateStyle = {
-    marginTop: '12px',
-    padding: '10px var(--sp-3)',
-    fontSize: 13,
-    fontWeight: 700,
-    color: 'var(--text-muted)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: '8px',
-    border: '1px solid var(--border)',
+    background: 'rgba(255,255,255,0.08)',
+    color: 'var(--text-secondary)',
   } as const;
   return (
     <aside className="detail-panel">
@@ -158,9 +160,9 @@ export function GoalDetailPanel({
           className="tag"
           style={{
             ...neutralTagStyle,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: 700,
-            padding: '3px 10px',
+            padding: '4px 11px',
             borderRadius: 'var(--r-full)',
           }}
         >
@@ -187,9 +189,11 @@ export function GoalDetailPanel({
         >
           {selected.title}
         </div>
-        {dueDateText && (
-          <div style={neutralDueDateStyle}>
-            {dueDateText}
+        {dueDateInfo && (
+          <div
+            className={`detail-panel__due-date detail-panel__due-date--${dueDateInfo.tone}`}
+          >
+            {dueDateInfo.text}
           </div>
         )}
       </div>
@@ -263,33 +267,33 @@ export function GoalDetailPanel({
         <div className="detail-panel__section-title">関係性</div>
         <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
           <details open>
-            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <summary className="detail-panel__summary">
               親目標（{parentGoal ? '1件' : '0件'}）
             </summary>
-            <div style={{ marginTop: 'var(--sp-2)' }}>
+            <div className="detail-panel__goal-list" style={{ marginTop: 'var(--sp-2)' }}>
               {parentGoal ? (
                 <div className="related-node" onClick={() => onSelectNode(parentGoal)} title={parentGoal.title}>
                   <span className="related-node__dot" style={{ background: parentGoal.color_code || DEFAULT_GOAL_COLOR }} />
-                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
+                  <span className="related-node__title">
                     {parentGoal.title}
                   </span>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
+                  <span className="related-node__type">
                     {TYPE_LABEL[parentGoal.type]}
                   </span>
                 </div>
               ) : (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>親目標はありません</div>
+                <div className="detail-panel__empty-copy">親目標はありません</div>
               )}
             </div>
           </details>
 
           <details open>
-            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', marginTop: 'var(--sp-2)' }}>
+            <summary className="detail-panel__summary" style={{ marginTop: 'var(--sp-2)' }}>
               子目標（中期 {childMidGoals.length}件 / 短期 {childShortGoals.length}件）
             </summary>
-            <div style={{ marginTop: 'var(--sp-2)' }}>
+            <div className="detail-panel__goal-list" style={{ marginTop: 'var(--sp-2)' }}>
               {childMidGoals.length > 0 || childShortGoals.length > 0 ? (
-                <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+                <div className="detail-panel__goal-list">
                   {[...childMidGoals, ...childShortGoals].map((goal) => (
                     <div
                       key={goal.id}
@@ -298,17 +302,17 @@ export function GoalDetailPanel({
                       title={goal.title}
                     >
                       <span className="related-node__dot" style={{ background: getGoalColor(goal) }} />
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
+                      <span className="related-node__title">
                         {goal.title}
                       </span>
-                      <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
+                      <span className="related-node__type">
                         {TYPE_LABEL[goal.type]}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>子目標はありません</div>
+                <div className="detail-panel__empty-copy">子目標はありません</div>
               )}
             </div>
           </details>
@@ -321,10 +325,10 @@ export function GoalDetailPanel({
             関連目標（{relatedGoals.length}件）
           </div>
           <details open>
-            <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
+            <summary className="detail-panel__summary">
               関連目標一覧を表示
             </summary>
-            <div style={{ marginTop: 'var(--sp-2)', display: 'grid', gap: 'var(--sp-2)' }}>
+            <div className="detail-panel__goal-list" style={{ marginTop: 'var(--sp-2)' }}>
               {relatedGoals.map((g) => (
                 <div
                   key={g.id}
@@ -333,10 +337,10 @@ export function GoalDetailPanel({
                   title={g.title}
                 >
                   <span className="related-node__dot" style={{ background: getGoalColor(g) }} />
-                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
+                  <span className="related-node__title">
                     {g.title}
                   </span>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
+                  <span className="related-node__type">
                     {TYPE_LABEL[g.type]}
                   </span>
                 </div>
@@ -352,15 +356,15 @@ export function GoalDetailPanel({
             関連タスク（{completedTasks} / {relatedTasks.length}件完了）
           </div>
           <details>
-            <summary style={{ fontSize: 13, cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <summary className="detail-panel__summary">
               タスク一覧
             </summary>
             <ul style={{ listStyle: 'none', margin: '8px 0 0 0', padding: 0 }}>
               {relatedTasks.map(t => (
-                <li key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: 13 }}>
+                <li key={t.id} className="detail-panel__task-item">
                   <span style={{ color: t.completed ? 'var(--color-success)' : 'var(--text-muted)' }}>{t.completed ? '✓' : '○'}</span>
                   <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? 'var(--text-muted)' : 'inherit' }}>{t.title}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{t.date}</span>
+                  <span className="detail-panel__task-date">{t.date}</span>
                 </li>
               ))}
             </ul>
