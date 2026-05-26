@@ -105,7 +105,7 @@ export default function App() {
           />
         )}
         {page === 'calendar' && (
-          <CalendarPage tasks={tasks} />
+          <CalendarPage />
         )}
         {page === 'goals' && (
           <GoalsPage shortTermGoals={shortTermGoals} tasks={tasks} />
