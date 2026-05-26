@@ -8,6 +8,7 @@ import { TopPage }     from './pages/TopPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GoalsPage }   from './pages/GoalsPage';
 import { authApi } from './features/auth/api/authApi';
+import { taskApi } from './features/tasks/api/taskApi';
 
 export default function App() {
   const [page, setPage]           = useState<Page>('login');
@@ -15,9 +16,51 @@ export default function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
 
-  // ── Short-term goals: lifted state (can be toggled / added) ─────────────────
+  // ── Short-term goals: lifted state ─────────────────────────────────────────
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
-  const [tasks, setTasks] = useState<Task[]>(tasksInitial);
+  
+  // 🌟【修正】初期状態のタスクは空配列（[]）にして、DBから読み込ませる
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  // 📅【追加】日本時間の「今日」を YYYY-MM-DD で取得する共通関数
+  const getJstTodayStr = (): string => {
+    const jstDate = new Date(Date.now() + ((new Date().getTimezoneOffset() + 540) * 60 * 1000));
+    return jstDate.getFullYear() + '-' + 
+           String(jstDate.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(jstDate.getDate()).padStart(2, '0');
+  };
+
+  // 🔄【追加】DBからタスクを全件取得して共通ステートにセットする関数
+  const fetchAndSetTasks = async () => {
+    try {
+      const dbTasks = await taskApi.getTasks();
+      const todayStr = getJstTodayStr();
+
+      const formattedTasks: Task[] = dbTasks.map((t: any) => {
+        // どんな形式（ISO文字列やタイムスタンプ）が来ても、先頭10文字（YYYY-MM-DD）を確実に切り出す
+        const taskDate = t.scheduled_at ? String(t.scheduled_at).substring(0, 10) : todayStr;
+        
+        return {
+          id: String(t.id),
+          title: t.title,
+          goalId: t.goal_id ? String(t.goal_id) : undefined,
+          completed: Boolean(t.is_completed ?? t.completed), // どちらのキー名で来ても対応
+          date: taskDate
+        };
+      });
+
+      setTasks(formattedTasks);
+    } catch (err) {
+      console.error('タスクデータのロードに失敗しました:', err);
+    }
+  };
+
+  // 🔑【追加】ログイン状態（isLoggedIn）が確定したら、自動でタスクを取りに行く処理
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchAndSetTasks();
+    }
+  }, [isLoggedIn]);
 
   // ── トークン検証による自動ログイン ──────────────────────────────────────────
   useEffect(() => {
@@ -25,19 +68,14 @@ export default function App() {
       const token = localStorage.getItem('auth_token');
       if (token) {
         try {
-          // ─── 🌟【ここを修正】 getMe() が返してくれた本物のデータを変数に受ける ───
           const userData = await authApi.getMe();
-          
-          // ─── 🌟【ここを追加】 受け取ったデータを、アプリ共通の user 引き出しに保管！ ───
           setUser(userData); 
-
-          setIsLoggedIn(true);
+          setIsLoggedIn(true); // ➔ ここが true になると、上の useEffect が自動で発火してタスクを読み込みます
           setPage('top');
         } catch (error) {
-          // トークンが無効な場合はログイン画面へ
           localStorage.removeItem('auth_token');
           setIsLoggedIn(false);
-          setUser(null); // 🌟 エラー時はユーザー情報も安全にクリア
+          setUser(null); 
         }
       }
       setIsCheckingAuth(false);
@@ -45,12 +83,6 @@ export default function App() {
     
     verifyToken();
   }, []);
-  // Sync when demo mode changes
-  const handleDemoToggle = () => {
-    const next = !demoNoToday;
-    setDemoNoToday(next);
-    setTasks(next ? tasksNoToday : tasksInitial);
-  };
 
   const handleLogin = async () => {
     try {
@@ -74,13 +106,24 @@ export default function App() {
     setPage('login');
   };
 
-  const handleToggleTask = (id: string) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+  // 🚀【修正】タスクのトグル（完了・未完了切り替え）
+  const handleToggleTask = async (id: string) => {
+    // 画面表示を即座に切り替える（ノーリロード）
+    setTasks((prev) => 
+      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
     );
   };
 
+  // 🚀【修正】タスクの追加ハンドラー
   const handleAddTask = (task: Task) => {
+    // 新しいタスクを配列の先頭に即座に追加（ノーリロード）
     setTasks((prev) => [task, ...prev]);
+  };
+
+  // 🚀【追加】タスクの削除ハンドラー
+  const handleDeleteTask = (taskId: string) => {
+    // 削除されたタスク以外のものを残してステートを即座に更新（ノーリロード）
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
   };
 
   // ── Login screen (no sidebar) ────────────────────────────────────────────────
@@ -101,6 +144,7 @@ export default function App() {
             tasks={tasks}
             onToggle={handleToggleTask}
             onAddTask={handleAddTask}
+            onDeleteTask={handleDeleteTask} // 🌟【追加】削除ハンドラーをTopPageへ渡す
             user={user}
           />
         )}
