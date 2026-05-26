@@ -115,6 +115,16 @@ function buildGoalTree(goals: BackendGoal[]) {
   return { longTermGoals, midTermGoals, shortTermGoals };
 }
 
+function updateGoalCompleted<T extends Goal>(
+  goals: T[],
+  goalId: string,
+  completed: boolean
+): T[] {
+  return goals.map((goal) => (
+    goal.id === goalId ? { ...goal, completed } : goal
+  )) as T[];
+}
+
 export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [longTermGoals, setLongTermGoals] = useState<LongTermGoal[]>([]);
   const [midTermGoals, setMidTermGoals] = useState<MidTermGoal[]>([]);
@@ -199,9 +209,11 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     return () => window.clearInterval(timer);
   }, [isLoadingGoals]);
 
-  const loadGoals = async (preferredActiveLtId?: string) => {
-    setLoadingProgress(16);
-    setIsLoadingGoals(true);
+  const loadGoals = async (preferredActiveLtId?: string, showLoadingUI = false) => {
+    if (showLoadingUI) {
+      setLoadingProgress(16);
+      setIsLoadingGoals(true);
+    }
     setGoalLoadError(null);
     setShowCompletedGoals(showCompletedGoals);
     
@@ -217,14 +229,16 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     } catch (error) {
       setGoalLoadError('目標の読み込みに失敗しました。');
     } finally {
-      setLoadingProgress(100);
-      await new Promise((resolve) => window.setTimeout(resolve, 90));
-      setIsLoadingGoals(false);
+      if (showLoadingUI) {
+        setLoadingProgress(100);
+        await new Promise((resolve) => window.setTimeout(resolve, 90));
+        setIsLoadingGoals(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadGoals();
+    loadGoals(undefined, true);
   }, []);
 
   useEffect(() => {
@@ -278,16 +292,51 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   };
 
   const handleToggleCompleted = async (goal: Goal) => {
+    const nextCompleted = !goal.completed;
+    setGoalLoadError(null);
     setIsSavingGoal(true);
-    try {
-      const updatedGoal = await goalApi.update(goal.id, { is_completed: !goal.completed });
-      const preferredActiveLtId = goal.type === 'long'
-        ? goal.id
-        : (goal as MidTermGoal | ShortTermGoal).longTermGoalId;
 
-      await loadGoals(preferredActiveLtId);
-      setSelectedGoal({ ...goal, completed: updatedGoal.is_completed } as Goal);
+    if (goal.type === 'long') {
+      setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, nextCompleted));
+    } else if (goal.type === 'mid') {
+      setMidTermGoals((prev) => updateGoalCompleted(prev, goal.id, nextCompleted));
+    } else {
+      setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, nextCompleted));
+    }
+
+    setSelectedGoal((prev) => (
+      prev?.id === goal.id ? { ...prev, completed: nextCompleted } as Goal : prev
+    ));
+
+    try {
+      const updatedGoal = await goalApi.update(goal.id, { is_completed: nextCompleted });
+
+      if (updatedGoal.is_completed !== nextCompleted) {
+        if (goal.type === 'long') {
+          setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+        } else if (goal.type === 'mid') {
+          setMidTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+        } else {
+          setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+        }
+
+        setSelectedGoal((prev) => (
+          prev?.id === goal.id ? { ...prev, completed: updatedGoal.is_completed } as Goal : prev
+        ));
+      }
     } catch (error) {
+      if (goal.type === 'long') {
+        setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, goal.completed ?? false));
+      } else if (goal.type === 'mid') {
+        setMidTermGoals((prev) => updateGoalCompleted(prev, goal.id, goal.completed ?? false));
+      } else {
+        setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, goal.completed));
+      }
+
+      setSelectedGoal((prev) => (
+        prev?.id === goal.id ? { ...prev, completed: goal.completed } as Goal : prev
+      ));
+
       console.error('Goal completion toggle failed', error);
       setGoalLoadError('達成状態の更新に失敗しました。再度お試しください。');
     } finally {
