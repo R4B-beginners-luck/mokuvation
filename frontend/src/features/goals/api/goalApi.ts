@@ -1,4 +1,5 @@
 const API_BASE_URL = 'http://localhost:8000/api';
+let inFlightGoalsRequest: Promise<BackendGoal[]> | null = null;
 
 const getFetchOptions = (method: string, body?: any): RequestInit => {
   const token = localStorage.getItem('auth_token');
@@ -52,12 +53,24 @@ export type UpdateGoalPayload = Partial<{
 
 export const goalApi = {
   getAll: async (): Promise<BackendGoal[]> => {
-    const response = await fetch(`${API_BASE_URL}/goals`, getFetchOptions('GET'));
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw { status: response.status, data: errorData };
+    if (inFlightGoalsRequest) {
+      return inFlightGoalsRequest;
     }
-    return response.json();
+
+    inFlightGoalsRequest = (async () => {
+      const response = await fetch(`${API_BASE_URL}/goals`, getFetchOptions('GET'));
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw { status: response.status, data: errorData };
+      }
+      return response.json();
+    })();
+
+    try {
+      return await inFlightGoalsRequest;
+    } finally {
+      inFlightGoalsRequest = null;
+    }
   },
 
   create: async (payload: CreateGoalPayload): Promise<BackendGoal> => {
