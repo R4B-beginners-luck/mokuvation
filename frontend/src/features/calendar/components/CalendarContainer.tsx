@@ -15,6 +15,13 @@ const MONTH_JP = [
   '7月', '8月', '9月', '10月', '11月', '12月',
 ];
 
+function getCalendarLoadingLabel(progress: number): string {
+  if (progress < 30) return 'カレンダーデータを取得しています';
+  if (progress < 60) return '目標とタスクを整理しています';
+  if (progress < 90) return 'カレンダーを描画しています';
+  return '表示の最終調整をしています';
+}
+
 export function CalendarContainer() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -25,10 +32,34 @@ export function CalendarContainer() {
 
   const { goals, tasks, loading, error } = useCalendarData();
   const [calendarTasks, setCalendarTasks] = useState<Task[]>([]);
+  const [loadingProgress, setLoadingProgress] = useState(16);
 
   useEffect(() => {
     setCalendarTasks(tasks);
   }, [tasks]);
+
+  useEffect(() => {
+    if (!loading) return undefined;
+
+    const timer = window.setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 94) return prev;
+        const step = prev < 45 ? 10 : prev < 75 ? 6 : 3;
+        return Math.min(prev + step, 94);
+      });
+    }, 120);
+
+    return () => window.clearInterval(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    if (loading) {
+      setLoadingProgress(16);
+      return;
+    }
+
+    setLoadingProgress(100);
+  }, [loading]);
 
   const handleTaskAdded = (newTask: CreatedTask) => {
     const mappedTask: Task = {
@@ -65,8 +96,22 @@ export function CalendarContainer() {
   if (loading) {
     return (
       <div className="calendar-page">
-        <div style={{ padding: '40px', textAlign: 'center' }}>
-          読み込み中...
+        <div className="calendar-page__loading" role="status" aria-live="polite">
+          <div className="calendar-page__loading-card">
+            <div className="calendar-page__loading-header">
+              <div className="calendar-page__loading-title">カレンダーを読み込み中です...</div>
+              <div className="calendar-page__loading-percent">{loadingProgress}%</div>
+            </div>
+            <div className="calendar-page__loading-bar">
+              <div
+                className="calendar-page__loading-bar-fill"
+                style={{ width: `${loadingProgress}%` }}
+              />
+            </div>
+            <div className="calendar-page__loading-subtext">
+              {getCalendarLoadingLabel(loadingProgress)}
+            </div>
+          </div>
         </div>
       </div>
     );
