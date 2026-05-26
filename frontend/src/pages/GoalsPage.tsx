@@ -17,39 +17,11 @@ interface GoalsPageProps {
   tasks: Task[];
 }
 
-function applyColorCode<T extends { color_code?: string }>(
-  item: T,
-  colorCode: string | number | null | undefined
-): T {
-  // colorCode: number -> palette index, string -> hex color, null -> clear
-  if (colorCode === null) {
-    const { color_code: _removed, ...rest } = item;
-    return rest as T;
-  }
-
-  if (typeof colorCode === 'number') {
-    const resolved = COLOR_PALETTE[colorCode] ?? null;
-    if (resolved === null) {
-      const { color_code: _removed, ...rest } = item;
-      return rest as T;
-    }
-    return { ...item, color_code: resolved } as T;
-  }
-
-  if (colorCode) {
-    return { ...item, color_code: colorCode } as T;
-  }
-
-  return item;
-}
-
-/** デモ表示用: 達成済みなしモードでは達成済み短期目標のノードを非表示 */
-function applyCompletedDemoView(
-  goals: ShortTermGoal[],
-  showCompleted: boolean
-): ShortTermGoal[] {
-  if (showCompleted) return goals;
-  return goals.filter((goal) => !goal.completed);
+function getLoadingProgressLabel(progress: number): string {
+  if (progress < 30) return '長期目標を取得しています';
+  if (progress < 60) return '中期・短期目標を整理しています';
+  if (progress < 90) return '目標マップを組み立てています';
+  return '表示の最終調整をしています';
 }
 
 function resolveGoalFromState(
@@ -65,18 +37,6 @@ function resolveGoalFromState(
     return midTermGoals.find((item) => item.id === goal.id) ?? goal;
   }
   return longTermGoals.find((item) => item.id === goal.id) ?? goal;
-}
-
-function applyMidTermGoalId(
-  item: ShortTermGoal,
-  midTermGoalId: string | null | undefined
-): ShortTermGoal {
-  if (midTermGoalId === undefined) return item;
-  if (midTermGoalId === null) {
-    const { midTermGoalId: _removed, ...rest } = item;
-    return rest;
-  }
-  return { ...item, midTermGoalId };
 }
 
 function formatDateString(value?: string | null): string | undefined {
@@ -165,6 +125,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalAction, setGoalAction] = useState<GoalActionState | null>(null);
   const [isLoadingGoals, setIsLoadingGoals] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(16);
   const [isSavingGoal, setIsSavingGoal] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [goalLoadError, setGoalLoadError] = useState<string | null>(null);
@@ -224,7 +185,22 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     }
   }, [demoShowCompleted, selectedGoal, hiddenLongTermIds, hiddenMidTermIds, hiddenShortTermIds]);
 
+  useEffect(() => {
+    if (!isLoadingGoals) return undefined;
+
+    const timer = window.setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 94) return prev;
+        const step = prev < 45 ? 10 : prev < 75 ? 6 : 3;
+        return Math.min(prev + step, 94);
+      });
+    }, 120);
+
+    return () => window.clearInterval(timer);
+  }, [isLoadingGoals]);
+
   const loadGoals = async (preferredActiveLtId?: string) => {
+    setLoadingProgress(16);
     setIsLoadingGoals(true);
     setGoalLoadError(null);
     setShowCompletedGoals(showCompletedGoals);
@@ -241,6 +217,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     } catch (error) {
       setGoalLoadError('目標の読み込みに失敗しました。');
     } finally {
+      setLoadingProgress(100);
+      await new Promise((resolve) => window.setTimeout(resolve, 90));
       setIsLoadingGoals(false);
     }
   };
@@ -445,7 +423,23 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
 
         <div className="graph-canvas-wrap">
           {isLoadingGoals ? (
-            <div className="goals-page__loading">目標を読み込み中です...</div>
+            <div className="goals-page__loading" role="status" aria-live="polite">
+              <div className="goals-page__loading-card">
+                <div className="goals-page__loading-header">
+                  <div className="goals-page__loading-title">目標を読み込み中です...</div>
+                  <div className="goals-page__loading-percent">{loadingProgress}%</div>
+                </div>
+                <div className="goals-page__loading-bar">
+                  <div
+                    className="goals-page__loading-bar-fill"
+                    style={{ width: `${loadingProgress}%` }}
+                  />
+                </div>
+                <div className="goals-page__loading-subtext">
+                  {getLoadingProgressLabel(loadingProgress)}
+                </div>
+              </div>
+            </div>
           ) : goalLoadError ? (
             <div className="goals-page__error">{goalLoadError}</div>
           ) : activeLt ? (
