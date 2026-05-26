@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Page, ShortTermGoal, Task, User } from './types';
-import { shortTermGoalsInitial, tasksInitial, tasksNoToday } from './data/dummy';
+import { shortTermGoalsInitial, tasksInitial } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
 import { LoadingPage } from './pages/LoadingPage';
@@ -149,7 +149,7 @@ export default function App() {
           />
         )}
         {page === 'calendar' && (
-          <CalendarPage tasks={tasks} />
+          <CalendarPage />
         )}
         {page === 'goals' && (
           <GoalsPage shortTermGoals={shortTermGoals} tasks={tasks} />
