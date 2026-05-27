@@ -108,10 +108,27 @@ export default function App() {
 
   // 🚀【修正】タスクのトグル（完了・未完了切り替え）
   const handleToggleTask = async (id: string) => {
-    // 画面表示を即座に切り替える（ノーリロード）
-    setTasks((prev) => 
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+    const targetTask = tasks.find((t) => t.id === id);
+    if (!targetTask) return;
+
+    const nextCompleted = !targetTask.completed;
+
+    // 1) 画面を先に更新するならこれ
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: nextCompleted } : t))
     );
+
+    try {
+      const updatedTask = await taskApi.update(id, { is_completed: nextCompleted });
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, completed: updatedTask.is_completed } : t))
+      );
+    } catch (error) {
+      console.error('タスク更新に失敗しました', error);
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, completed: !nextCompleted } : t))
+      );
+    }
   };
 
   // 🚀【修正】タスクの追加ハンドラー
