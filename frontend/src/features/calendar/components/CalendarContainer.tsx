@@ -147,20 +147,12 @@ export function CalendarContainer() {
 
       {/* Calendar grid */}
       <div>
-        <CalendarGrid
-          year={year}
-          month={month}
-          tasks={calendarTasks}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
-
         {/* Legend */}
         <div
           style={{
             display: 'flex',
             gap: 'var(--sp-4)',
-            marginTop: 'var(--sp-3)',
+            marginBottom: 'var(--sp-3)',
             paddingLeft: 'var(--sp-2)',
           }}
         >
@@ -205,6 +197,14 @@ export function CalendarContainer() {
             一部達成
           </span>
         </div>
+
+        <CalendarGrid
+          year={year}
+          month={month}
+          tasks={calendarTasks}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
       </div>
 
       {/* Day detail panel */}
