@@ -64,9 +64,13 @@ export function CalendarGrid({
   return (
     <div className="calendar-grid">
       <div className="calendar-grid__weekdays">
-        {WEEKDAYS.map((d) => (
-          <div key={d} className="calendar-grid__weekday">{d}</div>
-        ))}
+        {WEEKDAYS.map((d, index) => {
+          const color = index === 0 ? '#ef4444' : index === 6 ? '#3b82f6' : '#fff';
+
+          return (
+            <div key={d} className="calendar-grid__weekday" style={{ color }}>{d}</div>
+          );
+        })}
       </div>
       <div className="calendar-grid__days">
         {cells.map(({ date, inMonth, day }) => {
