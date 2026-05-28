@@ -149,6 +149,12 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
             const isSelected = selectedTaskIds.includes(task.id);
             const info = getLinkedGoalInfo(task.goal_id);
             const isLongTermGoal = info.periodType === 'long';
+            const goalTagClassName =
+              info.periodType === 'short'
+                ? 'tag tag--short'
+                : info.periodType === 'middle'
+                  ? 'tag tag--mid'
+                  : 'tag tag--long';
 
             return (
               <li key={task.id}>
@@ -193,7 +199,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
                     <div className="goal-item__meta">
                       {info.goalTitle && (
                         <span
-                          className="tag tag--long"
+                          className={goalTagClassName}
                           style={isLongTermGoal
                             ? {
                                 display: 'inline-block',
