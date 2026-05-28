@@ -162,7 +162,7 @@ export function CalendarContainer() {
               alignItems: 'center',
               gap: 6,
               fontSize: 11,
-              color: 'var(--text-muted)',
+              color: '#fff',
             }}
           >
             <span
@@ -182,7 +182,7 @@ export function CalendarContainer() {
               alignItems: 'center',
               gap: 6,
               fontSize: 11,
-              color: 'var(--text-muted)',
+              color: '#fff',
             }}
           >
             <span
