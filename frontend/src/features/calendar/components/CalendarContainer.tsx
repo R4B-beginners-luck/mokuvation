@@ -131,7 +131,7 @@ export function CalendarContainer() {
     <div className="calendar-page">
       {/* Page header */}
       <div className="calendar-page__header">
-        <h1 className="calendar-page__title">📅 振り返り</h1>
+        <h1 className="calendar-page__title">📅 カレンダー</h1>
         <div className="calendar-nav">
           <button className="btn-icon" onClick={prevMonth} title="前の月">
             ‹
