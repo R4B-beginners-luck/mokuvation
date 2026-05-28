@@ -69,4 +69,13 @@ export const taskApi = {
       throw { status: response.status, data: errorData };
     }
   },
+
+  update: async (taskId: string, payload: Partial<{ is_completed: boolean }>): Promise<Task> => {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, getFetchOptions('PATCH', payload));
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw { status: response.status, data: errorData };
+    }
+    return response.json() as Promise<Task>;
+  },
 };
