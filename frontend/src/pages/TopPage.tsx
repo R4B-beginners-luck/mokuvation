@@ -46,12 +46,7 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
   const [loadingProgress, setLoadingProgress] = useState(16);
   const [taskLoadError, setTaskLoadError] = useState<string | null>(null);
 
-  // 🔄 1. 親（props.tasks）が変わったらローカルStateも同期
-  useEffect(() => {
-    setLocalTasks(tasks);
-  }, [tasks]);
-
-  // 🔄 2. 【再現】バーを16%〜94%までじわじわ伸ばすタイマー制御
+  // バーを16%〜94%までじわじわ伸ばすタイマー制御
   useEffect(() => {
     if (!isLoadingTasks) return undefined;
 
@@ -66,7 +61,7 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
     return () => window.clearInterval(timer);
   }, [isLoadingTasks]);
 
-  // 🔄 3. 他画面から戻ったときにAPIから並列で最新データをフェッチする主処理
+  // 他画面から戻ったときにAPIから並列で最新データをフェッチする主処理
   useEffect(() => {
     let mounted = true;
     const loadDashboardData = async () => {
@@ -121,7 +116,7 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
     return () => { mounted = false; };
   }, []);
 
-  // 🌟 4. UIの即時反映を実現するラッパー関数群
+  // 🌟 UIの即時反映を実現するラッパー関数群
   const handleToggleWrapper = (id: string) => {
     setLocalTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
     onToggle(id);
