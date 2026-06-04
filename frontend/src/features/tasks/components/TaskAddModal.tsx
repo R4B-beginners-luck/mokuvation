@@ -1,0 +1,150 @@
+import { useState, useEffect } from 'react';
+import { useTaskMutations } from '../hooks/useTaskMutations';
+import { taskApi } from '../api/taskApi';
+import type { Task } from '../types';
+
+interface TaskAddModalProps {
+  goalId?: string | null;
+  initialDate?: string;
+  onClose: () => void;
+  onSuccess: (newTask: Task) => void;
+}
+
+export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }: TaskAddModalProps) {
+  const { addTask, isLoading, error } = useTaskMutations();
+  
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  
+  const [scheduledAt, setScheduledAt] = useState(() => {
+    if (initialDate) return initialDate;
+    
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+  
+  const [selectedGoalId, setSelectedGoalId] = useState<string>(goalId || '');
+  const [goals, setGoals] = useState<any[]>([]);
+
+  // 修正箇所: 親から渡される initialDate の変更を検知して State を更新する
+  useEffect(() => {
+    if (initialDate) {
+      setScheduledAt(initialDate);
+    }
+  }, [initialDate]);
+
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        const data = await taskApi.getGoals();
+        setGoals(data);
+      } catch (err) {
+        console.error('目標一覧の取得に失敗しました', err);
+      }
+    };
+    fetchGoals();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    const payload = {
+      goal_id: selectedGoalId || null,
+      title,
+      description: description || undefined,
+      scheduled_at: scheduledAt || undefined,
+    };
+
+    const newTask = await addTask(payload);
+    if (newTask) {
+      onSuccess(newTask);
+      onClose();
+    }
+  };
+
+  const overlayStyle: React.CSSProperties = {
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1000,
+    display: 'flex', alignItems: 'center', justifyContent: 'center'
+  };
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div 
+        className="card" 
+        style={{ 
+          width: '100%', 
+          maxWidth: '400px', 
+          padding: '24px', 
+          backgroundColor: '#1f1e24',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          borderRadius: '8px'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>タスクの追加</h2>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="form-field">
+            <label>紐づける目標（任意）</label>
+            <select 
+              className="form-input" 
+              value={selectedGoalId} 
+              onChange={(e) => setSelectedGoalId(e.target.value)}
+              disabled={isLoading}
+            >
+              <option value="">-- 指定なし（単独タスク） --</option>
+              {goals.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label>タイトル <span style={{ color: 'red' }}>*</span></label>
+            <input 
+              className="form-input" type="text" 
+              value={title} onChange={(e) => setTitle(e.target.value)}
+              required autoFocus disabled={isLoading}
+            />
+          </div>
+
+          <div className="form-field">
+            <label>詳細・備考</label>
+            <textarea 
+              className="form-input" rows={3}
+              value={description} onChange={(e) => setDescription(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="form-field">
+            <label>実行予定日</label>
+            <input 
+              className="form-input" type="date" 
+              value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
+
+          {error && <p style={{ color: 'var(--accent-coral)', fontSize: '12px' }}>{error}</p>}
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: '12px', color: 'var(--text-primary)' }} disabled={isLoading}>
+              キャンセル
+            </button>
+            <button type="submit" className="btn-primary" style={{ flex: 1, color: 'var(--text-primary)' }} disabled={isLoading}>
+              {isLoading ? '追加中...' : '追加する'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

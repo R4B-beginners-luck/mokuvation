@@ -9,7 +9,7 @@ return new class extends Migration {
         Schema::create('goals', function (Blueprint $table) {
             $table->uuid('id')->primary()->comment('目標ID');
 
-            $table->uuid('user_id')->comment('ユーザーID（所有者）');
+            $table->string('user_id')->comment('ユーザーID（所有者）');
             $table->uuid('parent_goal_id')->nullable()->comment('親目標ID（階層構造）');
             
             $table->string('title')->comment('目標タイトル');
@@ -17,6 +17,7 @@ return new class extends Migration {
 
             $table->string('period_type')->comment('期間区分（short:短期 / middle:中期 / long:長期）');
             $table->timestamp('due_at')->nullable()->comment('期限日時');
+            $table->boolean('is_completed')->default(false)->comment('達成フラグ');
 
             $table->timestamp('created_at')->nullable()->comment('作成日時');
             $table->timestamp('updated_at')->nullable()->comment('更新日時');

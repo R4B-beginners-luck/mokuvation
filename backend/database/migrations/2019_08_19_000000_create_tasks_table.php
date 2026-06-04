@@ -10,7 +10,7 @@ return new class extends Migration {
         Schema::create('tasks', function (Blueprint $table) {
             $table->uuid('id')->primary()->comment('タスクID');
 
-            $table->uuid('goal_id')->comment('目標ID（紐づく目標）');
+            $table->uuid('goal_id')->nullable()->comment('目標ID（紐づく目標、未設定可）');
 
             $table->string('title')->comment('タスクタイトル');
             $table->text('description')->nullable()->comment('タスク詳細・備考');
@@ -23,12 +23,18 @@ return new class extends Migration {
             $table->timestamp('updated_at')->nullable()->comment('更新日時');
             $table->timestamp('deleted_at')->nullable()->comment('削除日時（論理削除）');
 
+            $table->uuid('user_id')->comment('ユーザーID');
+            $table->foreign('user_id')
+                ->references('user_id')
+                ->on('users')
+                ->cascadeOnDelete();
             $table->foreign('goal_id')
                 ->references('id')
                 ->on('goals')
                 ->cascadeOnDelete();
 
             $table->index('goal_id');
+            $table->index('user_id');
             $table->index('is_completed');
         });
     }
