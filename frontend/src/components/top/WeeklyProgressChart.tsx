@@ -30,7 +30,7 @@ const daysWithLabel = WEEK_DAYS.map(({ date }) => {
 
 export function WeeklyProgressChart({ shortTermGoals }: WeeklyProgressChartProps) {
   const stats = daysWithLabel.map(({ date, label }) => {
-    const dayGoals = shortTermGoals.filter((g) => g.date === date);
+    const dayGoals = shortTermGoals.filter((g) => g.dueDate === date);
     const total = dayGoals.length;
     const done  = dayGoals.filter((g) => g.completed).length;
     const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
