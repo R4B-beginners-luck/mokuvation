@@ -510,6 +510,21 @@ a { text-decoration: none; color: inherit; }
   min-height: 100vh;
 }
 
+@media (max-width: 1024px) {
+  .top-page {
+    grid-template-columns: 1fr;
+    padding: var(--sp-5) var(--sp-6);
+    gap: var(--sp-5);
+  }
+}
+
+@media (max-width: 768px) {
+  .top-page {
+    padding: var(--sp-4) var(--sp-4);
+    gap: var(--sp-4);
+  }
+}
+
 .top-page__header {
   grid-column: 1 / -1;
   display: flex;
@@ -517,6 +532,14 @@ a { text-decoration: none; color: inherit; }
   justify-content: space-between;
   padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 768px) {
+  .top-page__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-2);
+  }
 }
 
 .top-page__date {
@@ -533,6 +556,12 @@ a { text-decoration: none; color: inherit; }
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+@media (max-width: 768px) {
+  .top-page__greeting {
+    font-size: 18px;
+  }
 }
 
 .top-page__message {
@@ -559,6 +588,12 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: var(--sp-5);
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding: var(--sp-4);
+  }
 }
 
 .card__title {
@@ -738,6 +773,28 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+@media (max-width: 768px) {
+  .today-goals__list {
+    max-height: 200px;
+  }
+}
+
+.today-goals__list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.today-goals__list::-webkit-scrollbar-thumb {
+  background: rgba(160, 160, 160, 0.35);
+  border-radius: 999px;
+}
+
+.today-goals__list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .today-goals__add-btn {
@@ -765,14 +822,63 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* Weekly progress chart */
+/* Weekly progress chart */
 .weekly-chart {
   display: flex;
   align-items: flex-end;
   gap: var(--sp-2);
-  height: 80px;
-  padding-bottom: var(--sp-4);
+  /* ─── グラフ（バー）が表示されるエリアの高さだけを指定 ─── */
+  height: 60px; 
+  padding-bottom: 0;
+  position: relative;
+  /* ─── タイトル（過去7日間）との間に適度なスキマを作る ─── */
+  margin-top: var(--sp-4); 
+  /* ─── 曜日との間にスキマを作る（重要：下側に余白を伸ばす） ─── */
+  margin-bottom: var(--sp-6); 
+
+  /* ─── 横目盛線（グリッド）：60px の中に 20px 刻みで綺麗に 3本 引く ─── */
+  background-image: linear-gradient(
+    to top,
+    var(--border) 0px,
+    var(--border) 1px,
+    transparent 1px,
+    transparent 100%
+  );
+  background-size: 100% 20px;
+  background-repeat: repeat-y;
+  background-position: left bottom;
 }
 
+@media (max-width: 768px) {
+  .weekly-chart {
+    height: 50px;
+    margin-bottom: var(--sp-5);
+  }
+}
+
+.weekly-chart__bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.weekly-chart__label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  
+  /* ─── 曜日をグラフの枠外（下）に完全に押し出す設定 ─── */
+  position: absolute;
+  bottom: -20px; /* グラフの底から 20px 下に強制配置 */
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
 .weekly-chart__bar-wrap {
   flex: 1;
   display: flex;
