@@ -19,7 +19,7 @@ export function TaskDeleteConfirm({ taskId, onClose, onSuccess }: TaskDeleteConf
 
   const overlayStyle: React.CSSProperties = {
     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)', zIndex: 1000,
     display: 'flex', alignItems: 'center', justifyContent: 'center'
   };
 
@@ -27,7 +27,7 @@ export function TaskDeleteConfirm({ taskId, onClose, onSuccess }: TaskDeleteConf
     <div style={overlayStyle} onClick={onClose}>
       <div 
         className="card" 
-        style={{ width: '100%', maxWidth: '320px', padding: '24px', backgroundColor: 'var(--bg-primary)', textAlign: 'center' }}
+        style={{ width: '100%', maxWidth: '320px', padding: '24px', backgroundColor: 'var(--bg-surface)', textAlign: 'center', opacity: 1 }}
         onClick={(e) => e.stopPropagation()}
       >
         <h3 style={{ fontSize: '16px', marginBottom: '12px', color: 'var(--accent-coral)' }}>タスクの削除</h3>
@@ -38,12 +38,12 @@ export function TaskDeleteConfirm({ taskId, onClose, onSuccess }: TaskDeleteConf
         {error && <p style={{ color: 'var(--accent-coral)', fontSize: '12px', marginBottom: '12px' }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button type="button" onClick={onClose} style={{ flex: 1, padding: '10px' }} disabled={isLoading}>
+          <button type="button" onClick={onClose} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }} disabled={isLoading}>
             キャンセル
           </button>
           <button 
             type="button" onClick={handleDelete} 
-            style={{ flex: 1, padding: '10px', backgroundColor: 'var(--accent-coral)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+            style={{ flex: 1, padding: '10px', backgroundColor: 'var(--accent-coral)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}
             disabled={isLoading}
           >
             {isLoading ? '削除中...' : '削除する'}
