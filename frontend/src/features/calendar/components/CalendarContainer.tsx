@@ -131,7 +131,7 @@ export function CalendarContainer() {
     <div className="calendar-page">
       {/* Page header */}
       <div className="calendar-page__header">
-        <h1 className="calendar-page__title">📅 振り返り</h1>
+        <h1 className="calendar-page__title">📅 カレンダー</h1>
         <div className="calendar-nav">
           <button className="btn-icon" onClick={prevMonth} title="前の月">
             ‹
@@ -147,20 +147,12 @@ export function CalendarContainer() {
 
       {/* Calendar grid */}
       <div>
-        <CalendarGrid
-          year={year}
-          month={month}
-          tasks={calendarTasks}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
-
         {/* Legend */}
         <div
           style={{
             display: 'flex',
             gap: 'var(--sp-4)',
-            marginTop: 'var(--sp-3)',
+            marginBottom: 'var(--sp-3)',
             paddingLeft: 'var(--sp-2)',
           }}
         >
@@ -170,7 +162,7 @@ export function CalendarContainer() {
               alignItems: 'center',
               gap: 6,
               fontSize: 11,
-              color: 'var(--text-muted)',
+              color: '#fff',
             }}
           >
             <span
@@ -190,7 +182,7 @@ export function CalendarContainer() {
               alignItems: 'center',
               gap: 6,
               fontSize: 11,
-              color: 'var(--text-muted)',
+              color: '#fff',
             }}
           >
             <span
@@ -205,6 +197,14 @@ export function CalendarContainer() {
             一部達成
           </span>
         </div>
+
+        <CalendarGrid
+          year={year}
+          month={month}
+          tasks={calendarTasks}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
       </div>
 
       {/* Day detail panel */}

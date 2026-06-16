@@ -37,13 +37,12 @@ export function TaskDeleteConfirm({ taskId, onClose, onSuccess }: TaskDeleteConf
 
         {error && <p style={{ color: 'var(--accent-coral)', fontSize: '12px', marginBottom: '12px' }}>{error}</p>}
 
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button type="button" onClick={onClose} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }} disabled={isLoading}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <button type="button" className="btn-secondary" onClick={onClose} disabled={isLoading}>
             キャンセル
           </button>
           <button 
-            type="button" onClick={handleDelete} 
-            style={{ flex: 1, padding: '10px', backgroundColor: 'var(--accent-coral)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}
+            type="button" className="btn-danger" onClick={handleDelete}
             disabled={isLoading}
           >
             {isLoading ? '削除中...' : '削除する'}

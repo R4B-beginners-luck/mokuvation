@@ -147,6 +147,14 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
         <ul className="day-detail__list">
           {dayTasks.map((task) => {
             const isSelected = selectedTaskIds.includes(task.id);
+            const info = getLinkedGoalInfo(task.goal_id);
+            const isLongTermGoal = info.periodType === 'long';
+            const goalTagClassName =
+              info.periodType === 'short'
+                ? 'tag tag--short'
+                : info.periodType === 'middle'
+                  ? 'tag tag--mid'
+                  : 'tag tag--long';
 
             return (
               <li key={task.id}>
@@ -189,17 +197,22 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
                   <div className="goal-item__body">
                     <div className="goal-item__title">{task.title}</div>
                     <div className="goal-item__meta">
-                      {(() => {
-                        const info = getLinkedGoalInfo(task.goal_id);
-
-                        return (
-                          <>
-                            {info.goalTitle && (
-                              <span className="tag tag--long">{info.goalTitle}</span>
-                            )}
-                          </>
-                        );
-                      })()}
+                      {info.goalTitle && (
+                        <span
+                          className={goalTagClassName}
+                          style={isLongTermGoal
+                            ? {
+                                display: 'inline-block',
+                                whiteSpace: 'normal',
+                                overflowWrap: 'anywhere',
+                                wordBreak: 'break-word',
+                                maxWidth: '100%',
+                              }
+                            : undefined}
+                        >
+                          {info.goalTitle}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
