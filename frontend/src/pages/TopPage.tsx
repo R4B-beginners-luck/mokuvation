@@ -12,7 +12,7 @@ const MOTIVATIONAL_MESSAGES = [
   '今日の積み重ねが、未来の自分をつくる。',
 ];
 
-const API_BASE_URL = 'http://localhost:8000'; 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 interface TopPageProps {
   tasks: Task[];
