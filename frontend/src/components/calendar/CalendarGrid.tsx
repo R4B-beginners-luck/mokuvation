@@ -12,6 +12,25 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 function pad2(n: number) { return String(n).padStart(2, '0'); }
 
+type ProgressLevel = 0 | 1 | 2 | 3 | 4;
+
+function getProgressLevel(
+  total: number,
+  done: number
+): ProgressLevel {
+  if (total === 0 || done === 0) {
+    return 0;
+  }
+
+  const completionRate = done / total;
+
+  if (completionRate <= 0.25) return 1;
+  if (completionRate <= 0.5) return 2;
+  if (completionRate <= 0.75) return 3;
+
+  return 4;
+}
+
 export function CalendarGrid({
   year,
   month,
@@ -72,6 +91,10 @@ export function CalendarGrid({
           const dotCount = Math.min(stats?.total ?? 0, 3);
           const allDone  = stats ? stats.done === stats.total : false;
 
+          const progressLevel = stats
+          ? getProgressLevel(stats.total, stats.done)
+          : 0;
+
           return (
             <div
               key={date}
@@ -80,6 +103,9 @@ export function CalendarGrid({
                 !inMonth ? 'other-month' : '',
                 isToday   ? 'today'    : '',
                 isSel     ? 'selected' : '',
+                progressLevel > 0
+                ? `calendar-day--progress-${progressLevel}`
+                : '',
               ].filter(Boolean).join(' ')}
               onClick={() => inMonth && onSelectDate(date)}
             >
