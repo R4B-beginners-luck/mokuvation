@@ -1306,7 +1306,7 @@ a { text-decoration: none; color: inherit; }
 .calendar-day.other-month { opacity: 0.25; pointer-events: none; }
 
 .calendar-day.selected {
-  /* background: rgba(232,162,52,0.1); */
+  /* background: rgba(232,162,52,0.1); こいつがいると色が変わらないためいったんコメントアウトします*/
   border-color: var(--border-accent);
   outline: 1px solid #d99a2b;
   outline-offset: -1px;
