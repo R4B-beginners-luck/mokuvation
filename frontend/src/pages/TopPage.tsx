@@ -144,7 +144,7 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
     const today = new Date();
     const sunday = new Date(today);
     sunday.setDate(today.getDate() - today.getDay());
-    const labels = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    const labels = ['日', '月', '火', '水', '木', '金', '土'];
     return Array.from({ length: 7 }).map((_, i) => {
       const dt = new Date(sunday);
       dt.setDate(sunday.getDate() + i);

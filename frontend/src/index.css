@@ -582,7 +582,9 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid rgba(155,127,212,0.12);
   border-radius: 12px;
   min-width: 380px;
-  max-width: 620px;
+  max-width: 100%; /* 💡 最大幅の制限を解除 */
+  flex: 1;         /* 💡 ヘッダーの空きスペースいっぱいに広げる */
+  margin-left: var(--sp-8); /* 💡 左側の挨拶文との間に余裕を持たせる */
 }
 
 .week-check-map__left {
@@ -609,6 +611,8 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;                        /* 💡 横に広げる */
+  justify-content: space-between; /* 💡 曜日を等間隔に配置 */
 }
 
 .week-check-map__day {
@@ -616,6 +620,7 @@ a { text-decoration: none; color: inherit; }
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  flex: 1;                        /* 💡 横に広げる */
   min-width: 30px;
 }
 
@@ -636,6 +641,17 @@ a { text-decoration: none; color: inherit; }
   font-size: 13px;
   color: var(--text-primary);
   background: transparent;
+}
+
+.week-check-map__day.is-completed .week-check-map__dot {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #102513;
+}
+
+.week-check-map__day.is-today .week-check-map__dot {
+  box-shadow: 0 0 0 2px rgba(232,162,52,0.12);
+  border-color: var(--accent-gold);
 }
 
 .week-check-map__day.is-completed .week-check-map__dot {
