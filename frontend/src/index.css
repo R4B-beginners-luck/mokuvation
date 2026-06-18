@@ -1306,8 +1306,10 @@ a { text-decoration: none; color: inherit; }
 .calendar-day.other-month { opacity: 0.25; pointer-events: none; }
 
 .calendar-day.selected {
-  background: rgba(232,162,52,0.1);
+  /* background: rgba(232,162,52,0.1); こいつがいると色が変わらないためいったんコメントアウトします*/
   border-color: var(--border-accent);
+  outline: 1px solid #d99a2b;
+  outline-offset: -1px;
 }
 
 .calendar-day.today .calendar-day__num {
@@ -1319,6 +1321,26 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.calendar-day--progress-1 {
+  background-color: rgba(46, 160, 67, 0.18);
+}
+
+.calendar-day--progress-2 {
+  background-color: rgba(46, 160, 67, 0.32);
+}
+
+.calendar-day--progress-3 {
+  background-color: rgba(46, 160, 67, 0.48);
+}
+
+.calendar-day--progress-4 {
+  background-color: rgba(46, 160, 67, 0.68);
+}
+
+.calendar-day--progress-5 {
+  background-color: rgba(46, 160, 67, 0.88);
 }
 
 .calendar-day__num {
@@ -1988,3 +2010,4 @@ a { text-decoration: none; color: inherit; }
 }
 
 .demo-toggle:hover { background: var(--bg-hover); }
+

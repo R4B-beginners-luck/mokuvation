@@ -12,6 +12,18 @@ const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 function pad2(n: number) { return String(n).padStart(2, '0'); }
 
+type ProgressLevel = 0 | 1 | 2 | 3 | 4 | 5;
+
+function getProgressLevel(total: number, done: number): ProgressLevel {
+  if (total === 0 || done === 0) return 0;
+  const completionRate = done / total;
+  if (completionRate === 1) return 5;  // 100% 完了
+  if (completionRate >= 0.75) return 4; // 75%～99%
+  if (completionRate >= 0.5) return 3;  // 50%～74%
+  if (completionRate >= 0.25) return 2; // 25%～49%
+  return 1; // 1%～24%
+}
+
 function extractDateFromScheduled(scheduledAt: string | null): string | null {
   if (!scheduledAt) return null;
   const normalized = scheduledAt.replace(' ', 'T');
@@ -80,6 +92,10 @@ export function CalendarGrid({
           const dotCount = Math.min(stats?.total ?? 0, 3);
           const allDone  = stats ? stats.done === stats.total : false;
 
+          const progressLevel = stats
+            ? getProgressLevel(stats.total, stats.done)
+            : 0;
+
           return (
             <div
               key={date}
@@ -88,6 +104,7 @@ export function CalendarGrid({
                 !inMonth ? 'other-month' : '',
                 isToday   ? 'today'    : '',
                 isSel     ? 'selected' : '',
+                progressLevel > 0 ? `calendar-day--progress-${progressLevel}` : '',
               ].filter(Boolean).join(' ')}
               onClick={() => inMonth && onSelectDate(date)}
             >
