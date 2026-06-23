@@ -138,6 +138,24 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
   const msgIdx = new Date().getDate() % MOTIVATIONAL_MESSAGES.length;
   const message = MOTIVATIONAL_MESSAGES[msgIdx];
 
+  // 先週日曜始まりで当週の日付配列を作成（yyyy-mm-dd）
+  const formatISO = (d: Date) => d.toISOString().slice(0, 10);
+  const getWeekDays = () => {
+    const today = new Date();
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - today.getDay());
+    const labels = ['日', '月', '火', '水', '木', '金', '土'];
+    return Array.from({ length: 7 }).map((_, i) => {
+      const dt = new Date(sunday);
+      dt.setDate(sunday.getDate() + i);
+      const iso = formatISO(dt);
+      return { date: iso, label: labels[i], isToday: iso === formatISO(new Date()) };
+    });
+  };
+
+  const completedDates = new Set(localTasks.filter(t => t.completed).map(t => t.date));
+  const weekDays = getWeekDays();
+
   return (
     <>
       {/* 🌟 目標マップ画面（GoalsPage）と完全に同一のCSS設計をしたロードカード構造 */}
@@ -166,13 +184,48 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
       ) : (
         /* 通常の画面描画エリア */
         <div className="top-page animate-fade-in">
-          <div className="top-page__header">
+          
+          {/* 🌟 変更点：ヘッダー部分をFlexboxにして、右側にStreakDisplayを引っ越し */}
+          <div className="top-page__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px' }}>
             <div>
               <div className="top-page__date">{getDateLabel()}</div>
               <div className="top-page__greeting">
-                {user ? `こんにちは、${user.user_name}さん 👋` : "読み込み中..."}
+                {user ? `こんにちは、${user.user_name}さん` : "読み込み中..."}
               </div>
               <div className="top-page__message">「{message}」</div>
+            </div>
+
+            {/* 中央：今週の達成マップ */}
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+              <div className="week-check-map card">
+                <div className="week-check-map__left">
+                  <div className="week-check-map__title">達成マップ</div>
+                  <div className="week-check-map__desc">今週の達成状況</div>
+                </div>
+
+                <div className="week-check-map__checks">
+                  {weekDays.map((d) => {
+                    const completed = completedDates.has(d.date);
+                    return (
+                      <div
+                        key={d.date}
+                        className={`week-check-map__day ${completed ? 'is-completed' : ''} ${d.isToday ? 'is-today' : ''}`}
+                      >
+                        <div className="week-check-map__weekday">{d.label}</div>
+                        <div className="week-check-map__dot">{completed ? '✓' : ''}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* サイドバーから移動してきた継続状況の表示コンテナ */}
+            <div style={{ flexShrink: 0, width: '340px' }}>
+              <StreakDisplay 
+                tasks={localTasks} 
+                streakCount={summary?.currentStreak}
+              />
             </div>
           </div>
 
@@ -198,10 +251,7 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
           </div>
 
           <div className="top-page__sidebar">
-            <StreakDisplay 
-              tasks={localTasks} 
-              streakCount={summary?.currentStreak}
-            />
+            {/* 🌟 変更点：StreakDisplay をここから削除し、長期目標のみを表示 */}
             <LongTermSummary
               longTermGoals={longTermGoals}
               tasks={localTasks}
