@@ -874,14 +874,14 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  max-height: 280px;
+  max-height: 400px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
 @media (max-width: 768px) {
   .today-goals__list {
-    max-height: 200px;
+    max-height: 300px;
   }
 }
 
