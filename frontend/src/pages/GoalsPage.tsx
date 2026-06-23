@@ -503,6 +503,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               shortTermGoals={activeShorts}
               selectedId={selectedGoal?.id ?? null}
               onSelectNode={handleSelectNode}
+              onToggleCompleted={handleToggleCompleted}
               onEditGoal={handleEditGoal}
               onAddGoal={handleAddGoal}
               onDeleteGoal={handleDeleteGoalFromMap}

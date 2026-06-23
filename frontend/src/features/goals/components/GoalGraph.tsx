@@ -10,6 +10,7 @@ interface GoalGraphProps {
   onSelectNode: (goal: Goal) => void;
   onEditGoal: (goal: Goal) => void;
   onAddGoal: (goal: Goal, presetGoalType?: 'mid' | 'short') => void;
+  onToggleCompleted: (goal: Goal) => void;
   onDeleteGoal: (goal: Goal) => void;
 }
 
@@ -109,6 +110,7 @@ export function GoalGraph({
   onSelectNode,
   onEditGoal,
   onAddGoal,
+  onToggleCompleted,
   onDeleteGoal,
 }: GoalGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -421,6 +423,19 @@ export function GoalGraph({
               {truncateText(contextMenu.goal.title, 20)}
             </span>
           </div>
+
+          
+          
+          <button
+            type="button"
+            className="goal-graph-context-menu__item goal-graph-context-menu__item--danger"
+            onClick={() => {
+              onToggleCompleted(contextMenu.goal);
+              closeContextMenu();
+            }}
+          >
+            {contextMenu.goal.completed ? '↩️ 未達成に戻す' : '✅ 達成にする'}
+          </button>
 
           <button
             type="button"
