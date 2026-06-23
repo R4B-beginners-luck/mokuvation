@@ -44,7 +44,7 @@ export function StreakDisplay({ tasks, streakCount }: StreakDisplayProps) {
         <div className="streak-stat">
           {/* 修正ポイント：計算結果ではなく displayStreak を表示 */}
           <div className="streak-stat__number" style={{ color: 'var(--accent-gold)' }}>
-            🔥 {displayStreak}
+            {displayStreak}
           </div>
           <div className="streak-stat__label">連続達成日数</div>
         </div>
