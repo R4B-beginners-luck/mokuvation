@@ -11,6 +11,7 @@ interface AddGoalModalProps {
 }
 
 export function AddGoalModal({ longTermGoals, midTermGoals, onAdd, onClose }: AddGoalModalProps) {
+  const id = crypto.randomUUID();
   const [title, setTitle]           = useState('');
   const [date, setDate]             = useState(TODAY);
   const [longTermId, setLongTermId] = useState(longTermGoals[0]?.id ?? '');
@@ -22,11 +23,11 @@ export function AddGoalModal({ longTermGoals, midTermGoals, onAdd, onClose }: Ad
   const handleSubmit = () => {
     if (!title.trim()) return;
     const newGoal: ShortTermGoal = {
-      id: `st_${Date.now()}`,
+      id: id,
       type: 'short',
       title: title.trim(),
       description: description.trim(),
-      date,
+      dueDate: date,
       completed: false,
       longTermGoalId: longTermId,
       midTermGoalId: midTermId || undefined,

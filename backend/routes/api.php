@@ -26,6 +26,11 @@ use App\Http\Controllers\DashboardController;
  */
 Route::post('/auth/register', [AuthController::class, 'register']); // 新規ユーザー作成
 Route::post('/auth/login', [AuthController::class, 'login']);       // ログイン（トークン発行）
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok'
+    ]);
+});
 
 /**
  * --------------------------------------------------------------------------

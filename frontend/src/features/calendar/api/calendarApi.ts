@@ -5,7 +5,7 @@
 
 import type { Goal, Task } from '../types';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL;
 
 function getHeaders(): HeadersInit {
   const token = localStorage.getItem('auth_token');

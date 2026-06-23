@@ -1,57 +1,53 @@
 import type { Task } from '../../../types';
-import { TODAY } from '../../../data/dummy';
 
 interface WeeklyProgressChartProps {
   tasks: Task[];
   data?: any; // 追加: API (GET /api/dashboard/summary) からの集計データ
 }
 
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().split('T')[0];
+const WEEKDAY_JP = ['日', '月', '火', '水', '木', '金', '土'];
+
+function getLocalDateString(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-const WEEK_DAYS = [
-  { date: daysAgo(6), label: '月' },
-  { date: daysAgo(5), label: '火' },
-  { date: daysAgo(4), label: '水' },
-  { date: daysAgo(3), label: '木' },
-  { date: daysAgo(2), label: '金' },
-  { date: daysAgo(1), label: '土' },
-  { date: daysAgo(0), label: '日' },
-];
-
-// Recompute label based on actual weekday
-const WEEKDAY_JP = ['日', '月', '火', '水', '木', '金', '土'];
-const daysWithLabel = WEEK_DAYS.map(({ date }) => {
-  const d = new Date(date);
-  return { date, label: WEEKDAY_JP[d.getDay()] };
-});
+function getLast7Days(): Array<{ date: string; label: string }> {
+  const today = new Date();
+  return Array.from({ length: 7 }, (_, idx) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - idx));
+    const date = getLocalDateString(d);
+    return { date, label: WEEKDAY_JP[d.getDay()] };
+  });
+}
 
 export function WeeklyProgressChart({ tasks, data }: WeeklyProgressChartProps) {
+  const today = getLocalDateString(new Date());
+  const daysWithLabel = getLast7Days();
   const stats = daysWithLabel.map(({ date, label }) => {
-    // 1. APIデータ (data) 内に対象の日付があるか探す
-    const apiDayData = data?.find((d: any) => d.date === date);
+    const dayGoals = tasks.filter((t) => t.date === date);
+    const taskTotal = dayGoals.length;
+    const taskDone = dayGoals.filter((t) => t.completed).length;
 
-    let total, done;
+    let total = taskTotal;
+    let done = taskDone;
 
-    if (apiDayData) {
-      // APIデータがあればそれを優先
-      total = apiDayData.total;
-      done = apiDayData.done;
-    } else {
-      // APIデータがなければ、Propsとして渡された tasks から算出（フォールバック）
-      const dayGoals = tasks.filter((t) => t.date === date);
-      total = dayGoals.length;
-      done = dayGoals.filter((t) => t.completed).length;
+    if (total === 0) {
+      const apiDayData = data?.find((d: any) => d.date === date);
+      if (apiDayData) {
+        total = apiDayData.total;
+        done = apiDayData.done;
+      }
     }
 
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-    return { date, label, total, done, pct, isToday: date === TODAY };
+    return { date, label, total, done, pct, isToday: date === today };
   });
 
-  const maxTotal = Math.max(...stats.map((s) => s.total), 1);
+  const maxDone = Math.max(...stats.map((s) => s.done), 1);
 
   return (
     <section className="card">
@@ -61,11 +57,11 @@ export function WeeklyProgressChart({ tasks, data }: WeeklyProgressChartProps) {
       </div>
       <div className="weekly-chart">
         {stats.map(({ date, label, total, done, pct, isToday }) => {
-          const heightPct = total > 0 ? (total / maxTotal) * 100 : 8;
+          const heightPct = done > 0 ? (done / maxDone) * 100 : 8;
           return (
             <div key={date} className="weekly-chart__bar-wrap">
               <div
-                className={`weekly-chart__bar${isToday ? ' today' : total > 0 ? ' has-data' : ''}`}
+                className={`weekly-chart__bar${isToday ? ' today' : done > 0 ? ' has-data' : ''}`}
                 style={{ height: `${heightPct}%` }}
                 title={total > 0 ? `${done}/${total} 完了 (${pct}%)` : '目標なし'}
               />
