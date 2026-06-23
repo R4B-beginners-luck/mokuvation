@@ -1,17 +1,12 @@
-import type { Page, User } from '../types'; // 🌟 User 型をインポート
+import type { Page, User } from '../types';
+import { NAV_ITEMS } from './navItems';
 
 interface SidebarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onLogout: () => void;
-  user: User | null; // ─── 🌟 1. ここに user を追加！
+  user: User | null;
 }
-
-const NAV_ITEMS: { page: Page; icon: string; label: string }[] = [
-  { page: 'top',      icon: '⚡',  label: 'Today' },
-  { page: 'calendar', icon: '📅',  label: 'カレンダー' },
-  { page: 'goals',    icon: '🗺️',  label: '目標マップ' },
-];
 
 // ─── 🌟 2. 引数（Destructuring）にも user をしっかり追加！
 export function Sidebar({ currentPage, onNavigate, onLogout, user }: SidebarProps) {
