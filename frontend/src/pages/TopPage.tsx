@@ -321,11 +321,6 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
           </div>
 
           <div className="top-page__sidebar">
-            <StreakDisplay 
-              tasks={localTasks}
-              streakCount={summary?.currentStreak}
-            />
-            {/* 🌟 変更点：StreakDisplay をここから削除し、長期目標のみを表示 */}
             <LongTermSummary
               longTermGoals={longTermGoalsList}
               midTermGoals={midTermGoalsList}
