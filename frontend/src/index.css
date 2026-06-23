@@ -2112,3 +2112,240 @@ a { text-decoration: none; color: inherit; }
 
 .demo-toggle:hover { background: var(--bg-hover); }
 
+/* ============================================================
+   RESPONSIVE: MOBILE & TABLET (768px以下)
+   ============================================================ */
+/* ============================================================
+   RESPONSIVE: MOBILE & TABLET (768px以下)
+   ============================================================ */
+/* ============================================================
+   RESPONSIVE: MOBILE & TABLET (768px以下)
+   ============================================================ */
+/* ============================================================
+   RESPONSIVE: MOBILE & TABLET (768px以下)
+   ============================================================ */
+/* ============================================================
+   RESPONSIVE: MOBILE & TABLET (768px以下)
+   ============================================================ */
+/* ============================================================
+   RESPONSIVE: MOBILE & TABLET (768px以下)
+   ============================================================ */
+@media (max-width: 768px) {
+  /* 1. PC用の画面固定を解除し、スマホ本来の縦スクロールを有効化 */
+  html, body {
+    height: auto !important;
+    min-height: 100vh;
+    overflow: visible !important;
+    overflow-x: hidden !important;
+  }
+  
+  #root {
+    height: auto !important;
+    min-height: 100vh;
+    display: block !important;
+    width: 100vw;
+  }
+
+  /* 2. 全体コンテナの縦並び化と、下部ナビゲーション分の底上げ余白 */
+  .app-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 100vh;
+    padding-bottom: 84px !important;
+  }
+
+  /* 3. メインコンテンツのパディング調整（左右の余白をすっきり均等に） */
+  .page-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: var(--sp-4) !important;
+    box-sizing: border-box !important;
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
+  }
+
+  /* 4. TopPage内の大枠コンテナを綺麗な1列のカード並びに */
+  .top-page {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: var(--sp-4) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* 5. ヘッダー部分の横並び(flex)を完全に解除し、強制的に縦並びにする */
+  .top-page__header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: var(--sp-4) !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* 6. 挨拶テキスト部分も横いっぱいに広げる */
+  .top-page__header-text {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 7. 引き伸ばされていた「継続状況」の親コンテナを完全に全幅にする */
+  .top-page__header > div[style*="width: 340px"],
+  .top-page__header > div[style*="flex-shrink"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    flex: none !important;
+    flex-shrink: 1 !important;
+    flex-basis: auto !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  /* 8. 「継続状況（StreakDisplay）」カード自体のサイズを整列 */
+  .streak-display {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  /* 9. 【全面改修】目標マップ（達成マップ）の親要素とカード全体のズレ・はみ出しを完全解消 */
+  .goals-page,
+  .goal-map,
+  .goals-container,
+  .goals-header {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important; /* 左寄せではなく、カードの横幅を100%に広げる */
+  }
+
+  /* 10. 【最重要】目標マップの3×3マトリクスグリッドをスマホ画面幅内に100%自動収縮させる */
+  .matrix-container,
+  .goal-grid,
+  .map-grid {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    /* PC版の固定ピクセル幅を破壊し、3列に均等自動分割 */
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important; 
+    gap: var(--sp-2) !important;
+    margin: var(--sp-3) 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* マップ内の各マス（セル）の横幅制限も解除して等倍フィットさせる */
+  .matrix-cell,
+  .goal-card,
+  .map-item {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: var(--sp-2) !important; /* スマホ用にマス内の余白を少しコンパクトに */
+    margin: 0 !important;
+  }
+
+  /* 11. その他のセクション（タスク一覧・チャート・長期目標）もすべて全幅の縦1列に統一 */
+  .top-page__main,
+  .top-page__sidebar,
+  .today-section,
+  .weekly-progress-chart,
+  .long-term-summary {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  /* 12. ボタン類の最大幅制限を解除 */
+  .top-page button {
+    max-width: 100% !important;
+  }
+
+
+  /* ============================================================
+     SIDEBAR -> BOTTOM NAVIGATION VARIATION
+     ============================================================ */
+  .sidebar {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    flex-direction: row !important;
+    background: var(--bg-surface);
+    border-right: none !important;
+    border-top: 1px solid var(--border);
+    padding: 0 !important;
+    overflow: visible !important;
+    z-index: 1000;
+  }
+
+  .sidebar__brand,
+  .sidebar__footer {
+    display: none !important;
+  }
+
+  .sidebar__nav {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    padding: 0 var(--sp-2) !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    height: 100%;
+  }
+
+  .sidebar__nav-item {
+    flex: 1;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    height: 100%;
+    padding: var(--sp-1) 0 !important;
+    font-size: 11px !important;
+    color: var(--text-secondary);
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .sidebar__nav-item.active {
+    color: var(--accent-gold);
+    background: rgba(232, 162, 52, 0.05) !important;
+  }
+
+  .sidebar__nav-item.active::before {
+    top: 0 !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 40px !important;
+    height: 3px !important;
+    border-radius: 0 0 4px 4px !important;
+  }
+
+  .sidebar__nav-icon {
+    font-size: 18px !important;
+    width: auto !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+  }
+}
