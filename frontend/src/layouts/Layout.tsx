@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
+import { BottomNav } from './BottomNav';
 import { Sidebar } from './Sidebar.tsx';
-import type {  Page, User  } from '../types';
+import type { Page, User } from '../types';
 
 interface LayoutProps {
   currentPage: Page;
@@ -22,6 +23,12 @@ export function Layout({ currentPage, onNavigate, onLogout, user, children }: La
       <main className="page-content">
         {children}
       </main>
+      <BottomNav
+        currentPage={currentPage}
+        onNavigate={onNavigate}
+        onLogout={onLogout}
+        user={user}
+      />
     </div>
   );
 }
