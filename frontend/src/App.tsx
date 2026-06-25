@@ -12,6 +12,7 @@ import { taskApi }     from './features/tasks/api/taskApi';
 import { useLocalData, localTaskToTask } from './hooks/useLocalData';
 import { db }          from './services/db';
 import { updateTask, deleteTask } from './services/syncService';
+import { crdtToggleTask, crdtAddTask, crdtDeleteTask } from './services/crdtStore';
 
 export default function App() {
   const [page, setPage]             = useState<Page>('login');
@@ -84,16 +85,19 @@ export default function App() {
     // 1. UI を即時更新（楽観的更新）
     optimisticUpdateTask(id, { completed: nextCompleted });
 
+    // 2. CRDT Doc に変更を記録（オフライン中も差分が localStorage に残る）
+    crdtToggleTask(id, nextCompleted);
+
     try {
       if (navigator.onLine) {
-        // 2a. オンライン：API で更新 → Dexie にも反映
+        // 3a. オンライン：API で更新 → Dexie にも反映
         const raw = await taskApi.update(id, { is_completed: nextCompleted });
         const dbTask = await db.tasks.get(id);
         if (dbTask) {
           await db.tasks.put({ ...dbTask, is_completed: nextCompleted, updated_at: raw.updated_at ?? dbTask.updated_at });
         }
       } else {
-        // 2b. オフライン：Dexie + sync_queue に積む
+        // 3b. オフライン：Dexie + sync_queue に積む
         const dbTask = await db.tasks.get(id);
         if (dbTask) {
           await updateTask({ ...dbTask, is_completed: nextCompleted });
@@ -101,16 +105,15 @@ export default function App() {
       }
     } catch (error) {
       console.error('タスク更新に失敗しました', error);
-      // ロールバック
+      // ロールバック（CRDT も戻す）
+      crdtToggleTask(id, !nextCompleted);
       optimisticUpdateTask(id, { completed: !nextCompleted });
     }
   };
 
   // ── タスク追加 ───────────────────────────────────────────────
-  // API 呼び出し自体は useTaskMutations（既存）が担当
-  // ここでは返ってきた raw データを Dexie に保存して state に反映するだけ
   const handleAddTask = async (rawTask: any) => {
-    const task: Task = localTaskToTask({
+    const localTask = {
       id:           String(rawTask.id),
       user_id:      String(rawTask.user_id ?? ''),
       goal_id:      rawTask.goal_id ?? null,
@@ -121,39 +124,33 @@ export default function App() {
       completed_at: rawTask.completed_at ?? null,
       created_at:   rawTask.created_at,
       updated_at:   rawTask.updated_at,
-    });
+    };
 
-    // Dexie にも保存
-    await db.tasks.put({
-      id:           task.id,
-      user_id:      rawTask.user_id ?? '',
-      goal_id:      rawTask.goal_id ?? null,
-      title:        task.title,
-      description:  task.description ?? null,
-      scheduled_at: rawTask.scheduled_at ?? null,
-      is_completed: task.completed,
-      completed_at: rawTask.completed_at ?? null,
-      created_at:   rawTask.created_at,
-      updated_at:   rawTask.updated_at,
-    });
+    // Dexie に保存
+    await db.tasks.put(localTask);
 
-    optimisticAddTask(task);
+    // CRDT Doc に追加
+    crdtAddTask(localTask);
+
+    optimisticAddTask(localTaskToTask(localTask));
   };
 
   // ── タスク削除 ───────────────────────────────────────────────
   const handleDeleteTask = async (taskId: string) => {
     optimisticDeleteTask(taskId);
 
+    // CRDT Doc から削除
+    crdtDeleteTask(taskId);
+
     try {
       if (navigator.onLine) {
         await taskApi.delete(taskId);
         await db.tasks.delete(taskId);
       } else {
-        await deleteTask(taskId); // Dexie 削除 + queue 積み
+        await deleteTask(taskId);
       }
     } catch (error) {
       console.error('タスク削除に失敗しました', error);
-      // ロールバック（sync() で再取得）
       await sync();
     }
   };

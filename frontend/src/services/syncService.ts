@@ -12,6 +12,7 @@ import { db } from './db';
 import type { LocalTask, LocalGoal, SyncQueueItem } from './db';
 import { taskApi } from '../features/tasks/api/taskApi';
 import { goalApi } from '../features/goals/api/goalApi';
+import { initDoc, clearPersistedChanges } from './crdtStore';
 
 // ─── オンライン判定 ──────────────────────────────────────────────
 
@@ -64,6 +65,10 @@ export const syncFromServer = async (): Promise<void> => {
     // bulkPut = 既存レコードは上書き、新規は追加（upsert）
     await db.tasks.bulkPut(localTasks);
     await db.goals.bulkPut(localGoals);
+
+    // ✅ Automerge Doc を最新データで初期化（オフライン差分もここでマージされる）
+    initDoc(localTasks, localGoals);
+    clearPersistedChanges();
   } catch (err) {
     console.warn('[syncService] syncFromServer 失敗（オフライン？）:', err);
   }

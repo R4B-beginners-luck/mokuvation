@@ -9,6 +9,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\SyncController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,7 +41,7 @@ Route::get('/health', function () {
  * 自動的に 401 Unauthorized エラーとして遮断されます。
  */
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     // --- ユーザー関連 ---
     Route::post('/auth/logout', [AuthController::class, 'logout']); // ログアウト（トークン破棄）
     Route::get('/users/me', [UserController::class, 'me']);         // ログイン中の自分の情報を取得
@@ -60,6 +61,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tasks/{task}', [TaskController::class, 'show']);     // 特定のタスクの詳細を取得
     Route::patch('/tasks/{task}', [TaskController::class, 'update']); // タスクの更新・達成状態の切り替え
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);// タスクを削除
+
+    // --- オフライン同期 (Sync) ---
+    // フロントの sync_queue に積まれたオフライン操作を一括処理する
+    Route::post('/sync', [SyncController::class, 'handle']);
 
     // --- 集計・ダッシュボード (Dashboard) ---
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']); // グラフ用データや連続達成日数を取得
