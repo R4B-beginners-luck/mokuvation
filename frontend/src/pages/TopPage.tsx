@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import type { Task, User } from '../types';
+import type { Task, User, ShortTermGoal, LongTermGoal, MidTermGoal } from '../types';
 import { taskApi } from '../features/tasks/api/taskApi';
 import { longTermGoals, midTermGoals, TODAY } from '../data/dummy';
 import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongTermSummary, AddGoalModal } from '../features/dashboard';
+import { goalApi, type BackendGoal } from '../features/goals/api/goalApi';
 
 const MOTIVATIONAL_MESSAGES = [
   '小さな一歩が、大きな目標への道になる。',
@@ -40,6 +41,9 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
   const [modalOpen, setModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
+  const [longTermGoalsList, setLongTermGoalsList] = useState<LongTermGoal[]>(longTermGoals);
+  const [midTermGoalsList, setMidTermGoalsList] = useState<MidTermGoal[]>(midTermGoals);
+  const [shortTermGoalsList, setShortTermGoalsList] = useState<ShortTermGoal[]>([]);
   
   // 🌟 目標マップ画面と同じローディング状態管理のState群
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
@@ -99,6 +103,71 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
           setSummary(summaryData);
         }
 
+        // 目標データを取得してフロント用型に変換する
+        try {
+          const backendGoals: BackendGoal[] = await goalApi.getAll();
+          const byId = new Map(backendGoals.map((g) => [String(g.id), g]));
+
+          const findAncestor = (startId: string | null | undefined, targetType: string): BackendGoal | null => {
+            if (!startId) return null;
+            let cur = byId.get(String(startId)) || null;
+            while (cur) {
+              if (cur.period_type === targetType) return cur;
+              if (!cur.parent_goal_id) return null;
+              cur = byId.get(String(cur.parent_goal_id)) || null;
+            }
+            return null;
+          };
+
+          const longTerms: LongTermGoal[] = backendGoals
+            .filter((g) => g.period_type === 'long')
+            .map((g) => ({
+              id: String(g.id),
+              type: 'long',
+              title: g.title,
+              description: g.description ?? '',
+              createdAt: g.created_at,
+              completed: Boolean(g.is_completed),
+              color_code: g.color_code != null ? String(g.color_code) : undefined,
+              relatedLongTermGoalIds: [],
+            }));
+
+          const midTerms: MidTermGoal[] = backendGoals
+            .filter((g) => g.period_type === 'middle')
+            .map((g) => ({
+              id: String(g.id),
+              type: 'mid',
+              title: g.title,
+              description: g.description ?? '',
+              longTermGoalId: findAncestor(g.parent_goal_id, 'long') ? String(findAncestor(g.parent_goal_id, 'long')!.id) : '',
+              dueDate: g.due_at ? String(g.due_at).substring(0, 10) : undefined,
+              completed: Boolean(g.is_completed),
+              color_code: g.color_code != null ? String(g.color_code) : undefined,
+              relatedMidTermGoalIds: [],
+            }));
+
+          const shortTerms: ShortTermGoal[] = backendGoals
+            .filter((g) => g.period_type === 'short')
+            .map((g) => ({
+              id: String(g.id),
+              type: 'short',
+              title: g.title,
+              description: g.description ?? '',
+              completed: Boolean(g.is_completed),
+              longTermGoalId: findAncestor(g.parent_goal_id, 'long') ? String(findAncestor(g.parent_goal_id, 'long')!.id) : '',
+              midTermGoalId: findAncestor(g.parent_goal_id, 'middle') ? String(findAncestor(g.parent_goal_id, 'middle')!.id) : undefined,
+              dueDate: g.due_at ? String(g.due_at).substring(0, 10) : undefined,
+              color_code: g.color_code != null ? String(g.color_code) : undefined,
+            }));
+
+          setLongTermGoalsList(longTerms);
+          setMidTermGoalsList(midTerms);
+          setShortTermGoalsList(shortTerms);
+        } catch (e) {
+          // 目標API失敗時はダミーデータのままにする
+          console.warn('目標データの取得に失敗しました。ダミーデータを使用します。', e);
+        }
+
       } catch (err) {
         console.error('ダッシュボードデータの取得に失敗しました', err);
         if (mounted) setTaskLoadError('マイページの読み込みに失敗しました。');
@@ -138,6 +207,24 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
   const msgIdx = new Date().getDate() % MOTIVATIONAL_MESSAGES.length;
   const message = MOTIVATIONAL_MESSAGES[msgIdx];
 
+  // 先週日曜始まりで当週の日付配列を作成（yyyy-mm-dd）
+  const formatISO = (d: Date) => d.toISOString().slice(0, 10);
+  const getWeekDays = () => {
+    const today = new Date();
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - today.getDay());
+    const labels = ['日', '月', '火', '水', '木', '金', '土'];
+    return Array.from({ length: 7 }).map((_, i) => {
+      const dt = new Date(sunday);
+      dt.setDate(sunday.getDate() + i);
+      const iso = formatISO(dt);
+      return { date: iso, label: labels[i], isToday: iso === formatISO(new Date()) };
+    });
+  };
+
+  const completedDates = new Set(localTasks.filter(t => t.completed).map(t => t.date));
+  const weekDays = getWeekDays();
+
   return (
     <>
       {/* 🌟 目標マップ画面（GoalsPage）と完全に同一のCSS設計をしたロードカード構造 */}
@@ -166,13 +253,48 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
       ) : (
         /* 通常の画面描画エリア */
         <div className="top-page animate-fade-in">
-          <div className="top-page__header">
+          
+          {/* 🌟 変更点：ヘッダー部分をFlexboxにして、右側にStreakDisplayを引っ越し */}
+          <div className="top-page__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '24px' }}>
             <div>
               <div className="top-page__date">{getDateLabel()}</div>
               <div className="top-page__greeting">
-                {user ? `こんにちは、${user.user_name}さん 👋` : "読み込み中..."}
+                {user ? `こんにちは、${user.user_name}さん` : "読み込み中..."}
               </div>
               <div className="top-page__message">「{message}」</div>
+            </div>
+
+            {/* 中央：今週の達成マップ */}
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+              <div className="week-check-map card">
+                <div className="week-check-map__left">
+                  <div className="week-check-map__title">達成マップ</div>
+                  <div className="week-check-map__desc">今週の達成状況</div>
+                </div>
+
+                <div className="week-check-map__checks">
+                  {weekDays.map((d) => {
+                    const completed = completedDates.has(d.date);
+                    return (
+                      <div
+                        key={d.date}
+                        className={`week-check-map__day ${completed ? 'is-completed' : ''} ${d.isToday ? 'is-today' : ''}`}
+                      >
+                        <div className="week-check-map__weekday">{d.label}</div>
+                        <div className="week-check-map__dot">{completed ? '✓' : ''}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* サイドバーから移動してきた継続状況の表示コンテナ */}
+            <div style={{ flexShrink: 0, width: '340px' }}>
+              <StreakDisplay 
+                tasks={localTasks} 
+                streakCount={summary?.currentStreak}
+              />
             </div>
           </div>
 
@@ -180,8 +302,9 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
             {hasGoalsToday ? (
               <TodaySection
                 goals={todayGoals}
-                midTermGoals={midTermGoals}
-                longTermGoals={longTermGoals}
+                midTermGoals={midTermGoalsList}
+                longTermGoals={longTermGoalsList}
+                shortTermGoals={shortTermGoalsList}
                 onToggle={handleToggleWrapper}
                 onOpenModal={() => setModalOpen(true)}
                 onAddTask={handleAddWrapper}
@@ -198,12 +321,10 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
           </div>
 
           <div className="top-page__sidebar">
-            <StreakDisplay 
-              tasks={localTasks} 
-              streakCount={summary?.currentStreak}
-            />
             <LongTermSummary
-              longTermGoals={longTermGoals}
+              longTermGoals={longTermGoalsList}
+              midTermGoals={midTermGoalsList}
+              shortTermGoals={shortTermGoalsList}
               tasks={localTasks}
             />
           </div>
@@ -212,8 +333,8 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
 
       {modalOpen && (
         <AddGoalModal
-          longTermGoals={longTermGoals}
-          midTermGoals={midTermGoals}
+          longTermGoals={longTermGoalsList}
+          midTermGoals={midTermGoalsList}
           onAdd={handleAddWrapper}
           onClose={() => setModalOpen(false)}
         />
