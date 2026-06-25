@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { LongTermGoal, MidTermGoal, ShortTermGoal, Goal, NodePosition } from '../../types';
+import type {  LongTermGoal, MidTermGoal, ShortTermGoal, Goal, NodePosition  } from '../../types';
+import { DEFAULT_GOAL_COLOR } from '../../const/colors';
 
 interface GoalGraphProps {
   longTermGoal: LongTermGoal;
@@ -7,17 +8,52 @@ interface GoalGraphProps {
   shortTermGoals: ShortTermGoal[];
   selectedId: string | null;
   onSelectNode: (goal: Goal) => void;
+  onEditGoal: (goal: Goal) => void;
+  onAddGoal: (goal: Goal, presetGoalType?: 'mid' | 'short') => void;
+  onDeleteGoal: (goal: Goal) => void;
+  onToggleCompleted: (goal: Goal) => void;
 }
 
-// ── Node visual config ────────────────────────────────────────────────────────
+interface ContextMenuState {
+  goal: Goal;
+  x: number;
+  y: number;
+}
 
+// ノードの形状と大きさを定義（ノード色は goal.color_code を使用）
 const NODE_CONFIG = {
-  long:  { r: 36, color: '#e8a234', textColor: '#16151a', fontSize: 12, fontWeight: '700' },
-  mid:   { r: 26, color: '#5ab5a0', textColor: '#16151a', fontSize: 11, fontWeight: '600' },
-  short: { r: 18, color: '#9b7fd4', textColor: '#fff',    fontSize: 10, fontWeight: '500' },
+  long:  { r: 36, fontSize: 13, fontWeight: '700' },
+  mid:   { r: 26, fontSize: 12, fontWeight: '600' },
+  short: { r: 18, fontSize: 11, fontWeight: '500' },
 };
 
-// ── Radial layout computation ─────────────────────────────────────────────────
+function getNodeColor(goal: Goal): string {
+  return goal.color_code ?? DEFAULT_GOAL_COLOR;
+}
+
+function truncateText(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen) + '...';
+}
+
+function getPolygonPoints(type: string, radius: number): string {
+  if (type === 'long') {
+    // Hexagon
+    const points = [];
+    for (let i = 0; i < 6; i++) {
+        const angle_deg = 60 * i - 30;
+        const angle_rad = Math.PI / 180 * angle_deg;
+        points.push(`${radius * Math.cos(angle_rad)},${radius * Math.sin(angle_rad)}`);
+    }
+    return points.join(' ');
+  }
+  if (type === 'mid') {
+    // Square
+    const size = radius;
+    return `-${size},-${size} ${size},-${size} ${size},${size} -${size},${size}`;
+  }
+  return '';
+}
 
 function computeInitialPositions(
   lt: LongTermGoal,
@@ -28,17 +64,14 @@ function computeInitialPositions(
 ): Record<string, NodePosition> {
   const pos: Record<string, NodePosition> = {};
 
-  // Center: long-term
   pos[lt.id] = { x: cx, y: cy };
 
-  // Mid-term: evenly spaced on inner circle
   const R1 = 170;
   mids.forEach((m, i) => {
     const angle = (i / mids.length) * 2 * Math.PI - Math.PI / 2;
     pos[m.id] = { x: cx + R1 * Math.cos(angle), y: cy + R1 * Math.sin(angle) };
   });
 
-  // Short-term: clustered near parent
   const grouped: Record<string, ShortTermGoal[]> = {};
   shorts.forEach((s) => {
     const pid = s.midTermGoalId ?? lt.id;
@@ -51,7 +84,6 @@ function computeInitialPositions(
     if (!parent) return;
 
     const R2 = parentId === lt.id ? 280 : 115;
-    // Direction away from center
     const baseAngle = parentId === lt.id ? 0 : Math.atan2(parent.y - cy, parent.x - cx);
     const spread = children.length > 1 ? Math.min(Math.PI * 0.55, (children.length - 1) * 0.3) : 0;
 
@@ -70,33 +102,20 @@ function computeInitialPositions(
   return pos;
 }
 
-// ── Label wrapping ────────────────────────────────────────────────────────────
-
-function wrapText(text: string, maxLen: number): string[] {
-  if (text.length <= maxLen) return [text];
-  // Try to break at a natural point
-  const mid = Math.floor(text.length / 2);
-  const breakAt = text.lastIndexOf('の', mid) !== -1
-    ? text.lastIndexOf('の', mid) + 1
-    : text.lastIndexOf('・', mid) !== -1
-      ? text.lastIndexOf('・', mid) + 1
-      : mid;
-  return [text.slice(0, breakAt), text.slice(breakAt)];
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export function GoalGraph({
   longTermGoal,
   midTermGoals,
   shortTermGoals,
   selectedId,
   onSelectNode,
+  onEditGoal,
+  onAddGoal,
+  onDeleteGoal,
+  onToggleCompleted,
 }: GoalGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
 
-  // Measure container
   useEffect(() => {
     const el = svgRef.current?.parentElement;
     if (!el) return;
@@ -115,15 +134,44 @@ export function GoalGraph({
     computeInitialPositions(longTermGoal, midTermGoals, shortTermGoals, cx, cy)
   );
 
-  // Recompute when goals or size change
   useEffect(() => {
     setPositions(computeInitialPositions(longTermGoal, midTermGoals, shortTermGoals, cx, cy));
   }, [longTermGoal.id, midTermGoals.length, shortTermGoals.length, cx, cy]);
 
-  // ── Drag state ──────────────────────────────────────────────────────────────
   const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
 
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  useEffect(() => {
+    if (!contextMenu) return undefined;
+
+    const handlePointerDown = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        closeContextMenu();
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeContextMenu();
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', closeContextMenu);
+    window.addEventListener('scroll', closeContextMenu, true);
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', closeContextMenu);
+      window.removeEventListener('scroll', closeContextMenu, true);
+    };
+  }, [contextMenu, closeContextMenu]);
+
   const onNodeMouseDown = useCallback((e: React.MouseEvent, id: string) => {
+    if (e.button !== 0) return; // 右クリック・中クリックはドラッグ開始しない
     e.stopPropagation();
     const svg = svgRef.current!;
     const pt  = svg.createSVGPoint();
@@ -135,6 +183,78 @@ export function GoalGraph({
       oy: svgP.y - (positions[id]?.y ?? 0),
     };
   }, [positions]);
+
+  const getMenuHeightEstimate = (goal: Goal): number => {
+    // ヘッダー + 達成切替 + 編集 + 追加系ボタン + 区切り線 + 削除 のおおよその高さ
+    if (goal.type === 'long') return 262;
+    if (goal.type === 'mid') return 226;
+    return 190;
+  };
+
+  const openContextMenuAt = useCallback((goal: Goal, clientX: number, clientY: number) => {
+    dragRef.current = null;
+    onSelectNode(goal);
+
+    const menuWidth = 210;
+    const menuHeight = getMenuHeightEstimate(goal);
+    const x = Math.min(Math.max(8, clientX), window.innerWidth - menuWidth - 8);
+    const y = Math.min(Math.max(8, clientY), window.innerHeight - menuHeight - 8);
+
+    setContextMenu({ goal, x, y });
+  }, [onSelectNode]);
+
+  const onNodeContextMenu = useCallback((e: React.MouseEvent, goal: Goal) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openContextMenuAt(goal, e.clientX, e.clientY);
+  }, [openContextMenuAt]);
+
+  // スマホでの長押し検出（タッチ開始から一定時間動かなければメニューを開く）
+  const LONG_PRESS_DURATION = 500;
+  const LONG_PRESS_MOVE_THRESHOLD = 10;
+
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressFiredRef = useRef(false);
+
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const onNodeTouchStart = useCallback((e: React.TouchEvent, goal: Goal) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    longPressStartRef.current = { x: touch.clientX, y: touch.clientY };
+    longPressFiredRef.current = false;
+    clearLongPressTimer();
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressFiredRef.current = true;
+      openContextMenuAt(goal, touch.clientX, touch.clientY);
+    }, LONG_PRESS_DURATION);
+  }, [openContextMenuAt, clearLongPressTimer]);
+
+  const onNodeTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!longPressStartRef.current) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const dx = touch.clientX - longPressStartRef.current.x;
+    const dy = touch.clientY - longPressStartRef.current.y;
+    if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_THRESHOLD) {
+      clearLongPressTimer();
+    }
+  }, [clearLongPressTimer]);
+
+  const onNodeTouchEnd = useCallback((e: React.TouchEvent) => {
+    clearLongPressTimer();
+    if (longPressFiredRef.current) {
+      // 長押しでメニューを開いた直後の click 誤発火を防ぐ
+      e.preventDefault();
+    }
+    longPressStartRef.current = null;
+  }, [clearLongPressTimer]);
 
   const onSvgMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dragRef.current) return;
@@ -150,16 +270,13 @@ export function GoalGraph({
     if (dragRef.current) {
       const wasDrag =
         dragRef.current.id === clickedId
-          ? false // might be a click
+          ? false
           : true;
       if (!wasDrag && clickedId) {
-        // handled by node click
       }
     }
     dragRef.current = null;
   }, []);
-
-  // ── Edge building ───────────────────────────────────────────────────────────
 
   const edges: {
     x1: number; y1: number; x2: number; y2: number;
@@ -176,22 +293,26 @@ export function GoalGraph({
     edges.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, dashed, color, opacity });
   };
 
-  // long → mid
+  // 親ノードの色でエッジを描画
+  const ltColor = getNodeColor(longTermGoal);
+  
   midTermGoals.forEach((m) => {
-    addEdge(longTermGoal.id, m.id, false, '#e8a234', 0.5);
+    addEdge(longTermGoal.id, m.id, false, ltColor, 0.5);
   });
 
-  // long → short (without a mid parent)
   shortTermGoals
     .filter((s) => !s.midTermGoalId)
-    .forEach((s) => addEdge(longTermGoal.id, s.id, false, '#9b7fd4', 0.4));
+    .forEach((s) => addEdge(longTermGoal.id, s.id, false, ltColor, 0.4));
 
-  // mid → short
   shortTermGoals
     .filter((s) => s.midTermGoalId)
-    .forEach((s) => addEdge(s.midTermGoalId!, s.id, false, '#5ab5a0', 0.45));
+    .forEach((s) => {
+      const midGoal = midTermGoals.find(m => m.id === s.midTermGoalId);
+      const parentColor = midGoal ? getNodeColor(midGoal) : ltColor;
+      addEdge(s.midTermGoalId!, s.id, false, parentColor, 0.45);
+    });
 
-  // ── All goals for click / node rendering ────────────────────────────────────
+  // NOTE: same-level relationships are intentionally not drawn to keep the map readable.
 
   const allGoals: Goal[] = [
     longTermGoal,
@@ -200,133 +321,249 @@ export function GoalGraph({
   ];
 
   return (
-    <svg
-      ref={svgRef}
-      viewBox={`0 0 ${size.w} ${size.h}`}
-      onMouseMove={onSvgMouseMove}
-      onMouseUp={(e) => onSvgMouseUp(e)}
-      onMouseLeave={() => { dragRef.current = null; }}
-      style={{ display: 'block', userSelect: 'none' }}
-    >
-      <defs>
-        {/* Glow filters */}
-        <filter id="glow-gold" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="6" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-        <filter id="glow-teal" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="4" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-        <filter id="glow-violet" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
-      </defs>
+    <>
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${size.w} ${size.h}`}
+        onMouseMove={onSvgMouseMove}
+        onMouseUp={(e) => onSvgMouseUp(e)}
+        onMouseLeave={() => { dragRef.current = null; }}
+        style={{ display: 'block', userSelect: 'none' }}
+      >
+        <defs>
+          <filter id="glow-gold" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+          <filter id="glow-teal" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+          <filter id="glow-violet" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
 
-      {/* ── Edges ── */}
-      <g>
-        {edges.map((e, i) => (
-          <line
-            key={i}
-            x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
-            stroke={e.color}
-            strokeWidth={e.dashed ? 1.5 : 1.5}
-            strokeOpacity={e.opacity}
-            strokeDasharray={e.dashed ? '5,4' : undefined}
-          />
-        ))}
-      </g>
+        <g>
+          {edges.map((e, i) => (
+            <line
+              key={i}
+              x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
+              stroke={e.color}
+              strokeWidth={1.5}
+              strokeOpacity={e.opacity}
+            />
+          ))}
+        </g>
 
-      {/* ── Nodes ── */}
-      <g>
-        {allGoals.map((goal) => {
-          const p = positions[goal.id];
-          if (!p) return null;
+        <g>
+          {allGoals.map((goal) => {
+            const p = positions[goal.id];
+            if (!p) return null;
 
-          const cfg        = NODE_CONFIG[goal.type];
-          const isSelected = goal.id === selectedId;
-          const isShort    = goal.type === 'short';
-          const isDone     = isShort && (goal as ShortTermGoal).completed;
+            const cfg        = NODE_CONFIG[goal.type];
+            const nodeColor  = getNodeColor(goal);
+            const isSelected = goal.id === selectedId;
+            const isDone     = goal.completed;
 
-          // Label lines
-          const maxLen = goal.type === 'long' ? 7 : goal.type === 'mid' ? 6 : 5;
-          const lines  = wrapText(goal.title, maxLen);
+            const maxLen = goal.type === 'long' ? 14 : goal.type === 'mid' ? 12 : 10;
+            const displayTitle = truncateText(goal.title, maxLen);
+            const iconYOffset = cfg.r * 1.5;
 
-          return (
-            <g
-              key={goal.id}
-              transform={`translate(${p.x},${p.y})`}
-              style={{ cursor: 'pointer' }}
-              onMouseDown={(e) => onNodeMouseDown(e, goal.id)}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!dragRef.current) onSelectNode(goal);
-              }}
-            >
-              {/* Selection ring */}
-              {isSelected && (
-                <circle
-                  r={cfg.r + 6}
-                  fill="none"
-                  stroke={cfg.color}
-                  strokeWidth={2}
-                  strokeOpacity={0.5}
-                  strokeDasharray="4,3"
-                />
-              )}
+            return (
+              <g
+                key={goal.id}
+                transform={`translate(${p.x},${p.y})`}
+                style={{ cursor: 'pointer' }}
+                onMouseDown={(e) => onNodeMouseDown(e, goal.id)}
+                onContextMenu={(e) => onNodeContextMenu(e, goal)}
+                onTouchStart={(e) => onNodeTouchStart(e, goal)}
+                onTouchMove={onNodeTouchMove}
+                onTouchEnd={onNodeTouchEnd}
+                onTouchCancel={onNodeTouchEnd}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (longPressFiredRef.current) {
+                    longPressFiredRef.current = false;
+                    return; // 長押しでメニューを開いた直後のタップは選択処理を行わない
+                  }
+                  if (!dragRef.current) onSelectNode(goal);
+                }}
+              >
+                {isSelected && goal.type !== 'short' && (
+                  <>
+                    <polygon
+                      points={getPolygonPoints(goal.type, cfg.r + 10)}
+                      fill={nodeColor}
+                      opacity={0.15}
+                    />
+                    <polygon
+                      points={getPolygonPoints(goal.type, cfg.r + 6)}
+                      fill="none"
+                      stroke={nodeColor}
+                      strokeWidth={3}
+                      strokeOpacity={0.8}
+                    />
+                  </>
+                )}
+                {isSelected && goal.type === 'short' && (
+                  <>
+                    <circle
+                      r={cfg.r + 10}
+                      fill={nodeColor}
+                      opacity={0.15}
+                    />
+                    <circle
+                      r={cfg.r + 6}
+                      fill="none"
+                      stroke={nodeColor}
+                      strokeWidth={3}
+                      strokeOpacity={0.8}
+                    />
+                  </>
+                )}
 
-              {/* Glow backing (for selected) */}
-              {isSelected && (
-                <circle
-                  r={cfg.r}
-                  fill={cfg.color}
-                  opacity={0.25}
-                  filter={`url(#glow-${goal.type === 'long' ? 'gold' : goal.type === 'mid' ? 'teal' : 'violet'})`}
-                />
-              )}
+                {goal.type !== 'short' ? (
+                  <polygon
+                    points={getPolygonPoints(goal.type, cfg.r)}
+                    fill={isDone ? '#3a3840' : nodeColor}
+                    stroke={isSelected ? nodeColor : 'rgba(255,255,255,0.1)'}
+                    strokeWidth={isSelected ? 2 : 1}
+                    opacity={isDone ? 0.6 : 1}
+                  />
+                ) : (
+                  <circle
+                    r={cfg.r}
+                    fill={isDone ? '#3a3840' : nodeColor}
+                    stroke={isSelected ? nodeColor : 'rgba(255,255,255,0.1)'}
+                    strokeWidth={isSelected ? 2 : 1}
+                    opacity={isDone ? 0.6 : 1}
+                  />
+                )}
 
-              {/* Main circle */}
-              <circle
-                r={cfg.r}
-                fill={isDone ? '#3a3840' : cfg.color}
-                stroke={isSelected ? cfg.color : 'rgba(255,255,255,0.1)'}
-                strokeWidth={isSelected ? 2 : 1}
-                opacity={isDone ? 0.6 : 1}
-              />
+                {isDone && (
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={cfg.r * 0.7}
+                    fill={nodeColor}
+                    opacity={0.9}
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    ✓
+                  </text>
+                )}
 
-              {/* Completion indicator */}
-              {isDone && (
+                {/* Title outside the shape */}
                 <text
                   textAnchor="middle"
-                  dominantBaseline="central"
-                  fontSize={cfg.r * 0.7}
-                  fill={cfg.color}
-                  opacity={0.9}
-                >
-                  ✓
-                </text>
-              )}
-
-              {/* Label (below circle) */}
-              {!isDone && lines.map((line, li) => (
-                <text
-                  key={li}
-                  textAnchor="middle"
-                  dominantBaseline="central"
                   fontSize={cfg.fontSize}
                   fontWeight={cfg.fontWeight}
                   fontFamily="'DM Sans', sans-serif"
-                  fill={cfg.textColor}
-                  y={(lines.length > 1 ? (li - 0.5) : 0) * (cfg.fontSize + 1)}
+                  fill={isSelected ? '#ffffff' : nodeColor}
+                  y={iconYOffset}
+                  style={{ pointerEvents: 'none', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
                 >
-                  {line}
+                  {displayTitle}
                 </text>
-              ))}
-            </g>
-          );
-        })}
-      </g>
-    </svg>
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="goal-graph-context-menu"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="goal-graph-context-menu__header">
+            <span
+              className="goal-graph-context-menu__dot"
+              style={{ background: getNodeColor(contextMenu.goal) }}
+            />
+            <span className="goal-graph-context-menu__title">
+              {truncateText(contextMenu.goal.title, 20)}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="goal-graph-context-menu__item"
+            onClick={() => {
+              onToggleCompleted(contextMenu.goal);
+              closeContextMenu();
+            }}
+          >
+            {contextMenu.goal.completed ? '✅ 未達成に戻す' : '✔️ 達成済みにする'}
+          </button>
+
+          <button
+            type="button"
+            className="goal-graph-context-menu__item"
+            onClick={() => {
+              onEditGoal(contextMenu.goal);
+              closeContextMenu();
+            }}
+          >
+            ✏️ 編集する
+          </button>
+
+          {contextMenu.goal.type === 'long' && (
+            <>
+              <button
+                type="button"
+                className="goal-graph-context-menu__item"
+                onClick={() => {
+                  onAddGoal(contextMenu.goal, 'mid');
+                  closeContextMenu();
+                }}
+              >
+                ＋ 中期目標を追加
+              </button>
+              <button
+                type="button"
+                className="goal-graph-context-menu__item"
+                onClick={() => {
+                  onAddGoal(contextMenu.goal, 'short');
+                  closeContextMenu();
+                }}
+              >
+                ＋ 短期目標を追加
+              </button>
+            </>
+          )}
+
+          {contextMenu.goal.type === 'mid' && (
+            <button
+              type="button"
+              className="goal-graph-context-menu__item"
+              onClick={() => {
+                onAddGoal(contextMenu.goal, 'short');
+                closeContextMenu();
+              }}
+            >
+              ＋ 短期目標を追加
+            </button>
+          )}
+
+          <div className="goal-graph-context-menu__divider" />
+
+          <button
+            type="button"
+            className="goal-graph-context-menu__item goal-graph-context-menu__item--danger"
+            onClick={() => {
+              onDeleteGoal(contextMenu.goal);
+              closeContextMenu();
+            }}
+          >
+            🗑️ 削除する
+          </button>
+        </div>
+      )}
+    </>
   );
 }
