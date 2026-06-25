@@ -2642,7 +2642,9 @@ a { text-decoration: none; color: inherit; }
     margin: 0 ;
     line-height: 1 ;
   }
-  .top-page__streak-wrapper {
+}
+
+.top-page__streak-wrapper {
   flex-shrink: 0;
   width: 340px;
 }
@@ -2651,5 +2653,4 @@ a { text-decoration: none; color: inherit; }
   .top-page__streak-wrapper {
     width: 100%;
   }
-}
 }
