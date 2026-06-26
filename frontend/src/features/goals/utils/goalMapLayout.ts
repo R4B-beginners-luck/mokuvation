@@ -79,13 +79,70 @@ export function mergeGoalPositions(
   return merged;
 }
 
+export interface MapViewport {
+  panX: number;
+  panY: number;
+  scale: number;
+}
+
+export const MAP_VIEWPORT_SCALE_MIN = 0.4;
+export const MAP_VIEWPORT_SCALE_MAX = 2.5;
+
+export const DEFAULT_MAP_VIEWPORT: MapViewport = {
+  panX: 0,
+  panY: 0,
+  scale: 1,
+};
+
 export function toLogicalPoint(
   svgPoint: { x: number; y: number },
-  viewportCenterX: number,
-  viewportCenterY: number
+  centerX: number,
+  centerY: number,
+  viewport: Pick<MapViewport, 'panX' | 'panY' | 'scale'> = DEFAULT_MAP_VIEWPORT
 ): NodePosition {
   return {
-    x: svgPoint.x - viewportCenterX,
-    y: svgPoint.y - viewportCenterY,
+    x: (svgPoint.x - (centerX + viewport.panX)) / viewport.scale,
+    y: (svgPoint.y - (centerY + viewport.panY)) / viewport.scale,
+  };
+}
+
+export function clampViewportScale(scale: number): number {
+  return Math.min(MAP_VIEWPORT_SCALE_MAX, Math.max(MAP_VIEWPORT_SCALE_MIN, scale));
+}
+
+/** 画面中央を基準に倍率を設定（スライダー用） */
+export function setViewportScaleAtCenter(
+  centerX: number,
+  centerY: number,
+  viewport: MapViewport,
+  newScale: number
+): MapViewport {
+  const clamped = clampViewportScale(newScale);
+  if (clamped === viewport.scale) return viewport;
+
+  const logical = toLogicalPoint({ x: centerX, y: centerY }, centerX, centerY, viewport);
+  return {
+    scale: clamped,
+    panX: -logical.x * clamped,
+    panY: -logical.y * clamped,
+  };
+}
+
+/** 指定した SVG 座標を中心にズーム（ホイール用） */
+export function zoomViewportAtPoint(
+  svgPoint: { x: number; y: number },
+  centerX: number,
+  centerY: number,
+  viewport: MapViewport,
+  zoomFactor: number
+): MapViewport {
+  const newScale = clampViewportScale(viewport.scale * zoomFactor);
+  if (newScale === viewport.scale) return viewport;
+
+  const logical = toLogicalPoint(svgPoint, centerX, centerY, viewport);
+  return {
+    scale: newScale,
+    panX: svgPoint.x - centerX - logical.x * newScale,
+    panY: svgPoint.y - centerY - logical.y * newScale,
   };
 }

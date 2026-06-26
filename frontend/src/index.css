@@ -1712,6 +1712,51 @@ a { text-decoration: none; color: inherit; }
 
 .graph-canvas-wrap svg:active { cursor: grabbing; }
 
+.goal-graph__background {
+  cursor: default;
+}
+
+.goal-graph__zoom-control {
+  position: absolute;
+  top: auto;
+  right: var(--sp-4);
+  bottom: var(--sp-4);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(31, 30, 36, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  user-select: none;
+}
+
+.goal-graph__zoom-label {
+  flex-shrink: 0;
+  min-width: 3.25rem;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.goal-graph__zoom-slider {
+  width: 200px;
+  height: 6px;
+  margin: 0;
+  accent-color: var(--accent-gold);
+  cursor: pointer;
+}
+
+.goal-graph__zoom-slider:focus-visible {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
+}
+
 .goals-page__loading,
 .goals-page__error,
 .goals-page__empty {
