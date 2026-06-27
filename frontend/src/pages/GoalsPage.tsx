@@ -886,6 +886,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               longTermGoal={activeLt}
               midTermGoals={activeMids}
               shortTermGoals={activeShorts}
+              tasks={tasks}
               selectedId={selectedGoal?.id ?? null}
               savedPositions={savedPositions}
               pendingPositions={graphPendingPositions}
