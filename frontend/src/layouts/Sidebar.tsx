@@ -15,9 +15,11 @@ const NAV_ITEMS: { page: Page; icon: string; label: string }[] = [
 
 // ─── 🌟 2. 引数（Destructuring）にも user をしっかり追加！
 export function Sidebar({ currentPage, onNavigate, onLogout, user }: SidebarProps) {
-  // ─── 🌟 3. user がいればその名前、いなければ「ゲスト」にする処理
-  const displayUserName = user?.user_name || 'ゲスト';
-  const avatarChar = displayUserName.charAt(0);
+  const displayUserName =
+    typeof user?.user_name === 'string' && user.user_name.trim()
+      ? user.user_name.trim()
+      : 'ゲスト';
+  const avatarChar = [...displayUserName][0] ?? '?';
 
   return (
     <aside className="sidebar">

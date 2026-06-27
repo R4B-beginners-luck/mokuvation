@@ -54,9 +54,17 @@ export const authApi = {
   },
 
   getMe: async (): Promise<User> => {
-    return fetchWithAuth('/users/me', {
+    const data = await fetchWithAuth('/users/me', {
       method: 'GET',
     });
+
+    return {
+      user_id: String(data?.user_id ?? ''),
+      user_name:
+        typeof data?.user_name === 'string'
+          ? data.user_name
+          : 'ゲスト',
+    };
   },
 
   register: async (credentials: any): Promise<any> => {

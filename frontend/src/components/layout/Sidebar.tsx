@@ -14,8 +14,11 @@ const NAV_ITEMS: { page: Page; icon: string; label: string }[] = [
 ];
 
 export function Sidebar({ currentPage, onNavigate, onLogout,user }: SidebarProps) {
-  const displayUserName = user?.user_name || 'ゲスト';
-  const avatarChar = displayUserName.charAt(0);
+  const displayUserName =
+    typeof user?.user_name === 'string' && user.user_name.trim()
+      ? user.user_name.trim()
+      : 'ゲスト';
+  const avatarChar = [...displayUserName][0] ?? '?';
 
   return (
     <aside className="sidebar">
