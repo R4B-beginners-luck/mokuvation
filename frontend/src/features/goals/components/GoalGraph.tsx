@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { Check, Pencil, Plus, Trash2, Undo2 } from 'lucide-react';
 import type {  LongTermGoal, MidTermGoal, ShortTermGoal, Goal, NodePosition, Task  } from '../../../types';
 import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
 import {
@@ -6,6 +7,7 @@ import {
   DEFAULT_MAP_VIEWPORT,
   GOAL_CARD_MIN_HEIGHT,
   GOAL_CARD_WIDTH,
+  GOAL_LONG_PIN_OFFSET,
   MAP_VIEWPORT_SCALE_MAX,
   MAP_VIEWPORT_SCALE_MIN,
   mergeGoalPositions,
@@ -14,7 +16,7 @@ import {
   zoomViewportAtPoint,
   type MapViewport,
 } from '../utils/goalMapLayout';
-import { getCardBoundaryPoint } from '../utils/goalEdgeLayout';
+import { getCardBoundaryPoint, getGoalCardBounds } from '../utils/goalEdgeLayout';
 import { createGoalNodeAdapter } from '../utils/goalNodeAdapter';
 import GoalNodeCard from './goalNodeCard/GoalNodeCard';
 
@@ -353,6 +355,14 @@ export function GoalGraph({
     setContextMenu({ goal, x, y });
   }, [onSelectNode, clearDragListeners]);
 
+  const goalById = useMemo(() => {
+    const map = new Map<string, Goal>();
+    map.set(longTermGoal.id, longTermGoal);
+    midTermGoals.forEach((m) => map.set(m.id, m));
+    shortTermGoals.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [longTermGoal, midTermGoals, shortTermGoals]);
+
   const edges: {
     x1: number; y1: number; x2: number; y2: number;
     dashed: boolean; color: string; opacity: number;
@@ -365,8 +375,14 @@ export function GoalGraph({
     const a = displayPositions[fromId];
     const b = displayPositions[toId];
     if (!a || !b) return;
-    const fromPoint = getCardBoundaryPoint(a, b);
-    const toPoint = getCardBoundaryPoint(b, a);
+
+    const fromGoal = goalById.get(fromId);
+    const toGoal = goalById.get(toId);
+    const fromBounds = getGoalCardBounds(fromGoal?.type ?? 'mid');
+    const toBounds = getGoalCardBounds(toGoal?.type ?? 'mid');
+
+    const fromPoint = getCardBoundaryPoint(a, b, fromBounds);
+    const toPoint = getCardBoundaryPoint(b, a, toBounds);
     edges.push({
       x1: fromPoint.x,
       y1: fromPoint.y,
@@ -460,6 +476,8 @@ export function GoalGraph({
             const isDraggable = canDragGoal(goal.id, isLongTerm);
             const progress = goalNodeAdapter.toProgress(goal.id);
 
+            const pinOffset = isLongTerm ? GOAL_LONG_PIN_OFFSET : 0;
+
             return (
               <g
                 key={goal.id}
@@ -474,9 +492,9 @@ export function GoalGraph({
               >
                 <foreignObject
                   x={-GOAL_CARD_WIDTH / 2}
-                  y={-GOAL_CARD_MIN_HEIGHT / 2}
+                  y={-GOAL_CARD_MIN_HEIGHT / 2 - pinOffset}
                   width={GOAL_CARD_WIDTH}
-                  height={GOAL_CARD_MIN_HEIGHT}
+                  height={GOAL_CARD_MIN_HEIGHT + pinOffset}
                   style={{ overflow: 'visible' }}
                 >
                   <div style={{ width: GOAL_CARD_WIDTH, minHeight: GOAL_CARD_MIN_HEIGHT }}>
@@ -559,7 +577,17 @@ export function GoalGraph({
               closeContextMenu();
             }}
           >
-            {contextMenu.goal.completed ? '↩️ 未達成に戻す' : '✅ 達成にする'}
+            {contextMenu.goal.completed ? (
+              <>
+                <Undo2 size={15} strokeWidth={1.75} aria-hidden />
+                未達成に戻す
+              </>
+            ) : (
+              <>
+                <Check size={15} strokeWidth={1.75} aria-hidden />
+                達成にする
+              </>
+            )}
           </button>
 
           <button
@@ -570,7 +598,8 @@ export function GoalGraph({
               closeContextMenu();
             }}
           >
-            ✏️ 編集する
+            <Pencil size={15} strokeWidth={1.75} aria-hidden />
+            編集する
           </button>
 
           {contextMenu.goal.type === 'long' && (
@@ -583,7 +612,8 @@ export function GoalGraph({
                   closeContextMenu();
                 }}
               >
-                ＋ 中期目標を追加
+                <Plus size={15} strokeWidth={1.75} aria-hidden />
+                中期目標を追加
               </button>
               <button
                 type="button"
@@ -593,7 +623,8 @@ export function GoalGraph({
                   closeContextMenu();
                 }}
               >
-                ＋ 短期目標を追加
+                <Plus size={15} strokeWidth={1.75} aria-hidden />
+                短期目標を追加
               </button>
             </>
           )}
@@ -607,7 +638,8 @@ export function GoalGraph({
                 closeContextMenu();
               }}
             >
-              ＋ 短期目標を追加
+              <Plus size={15} strokeWidth={1.75} aria-hidden />
+              短期目標を追加
             </button>
           )}
 
@@ -621,7 +653,8 @@ export function GoalGraph({
               closeContextMenu();
             }}
           >
-            🗑️ 削除する
+            <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+            削除する
           </button>
         </div>
       )}

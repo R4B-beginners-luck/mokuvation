@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import type { Task, User } from '../types';
 import { taskApi } from '../features/tasks/api/taskApi';
 import { longTermGoals, midTermGoals, TODAY } from '../data/dummy';
 import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongTermSummary, AddGoalModal } from '../features/dashboard';
+import { TopPageSkeleton } from '../components/ui/TopPageSkeleton';
 
 const MOTIVATIONAL_MESSAGES = [
   '小さな一歩が、大きな目標への道になる。',
@@ -22,14 +24,6 @@ interface TopPageProps {
   user: User | null;
 }
 
-// 🌟 目標マップ画面と同じ「進捗テキスト切替」関数を定義
-function getLoadingProgressLabel(progress: number): string {
-  if (progress < 30) return 'ダッシュボードのサマリーを取得しています';
-  if (progress < 60) return '本日のタスク一覧を整理しています';
-  if (progress < 90) return '今週の進捗グラフを組み立てています';
-  return 'マイページの最終調整をしています';
-}
-
 function getDateLabel(): string {
   const d = new Date();
   const days = ['日', '月', '火', '水', '木', '金', '土'];
@@ -40,28 +34,9 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
   const [modalOpen, setModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
-  
-  // 🌟 目標マップ画面と同じローディング状態管理のState群
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState(16);
   const [taskLoadError, setTaskLoadError] = useState<string | null>(null);
 
-  // バーを16%〜94%までじわじわ伸ばすタイマー制御
-  useEffect(() => {
-    if (!isLoadingTasks) return undefined;
-
-    const timer = window.setInterval(() => {
-      setLoadingProgress((prev) => {
-        if (prev >= 94) return prev;
-        const step = prev < 45 ? 10 : prev < 75 ? 6 : 3;
-        return Math.min(prev + step, 94);
-      });
-    }, 120);
-
-    return () => window.clearInterval(timer);
-  }, [isLoadingTasks]);
-
-  // 他画面から戻ったときにAPIから並列で最新データをフェッチする主処理
   useEffect(() => {
     let mounted = true;
     const loadDashboardData = async () => {
@@ -69,11 +44,9 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
       if (!token) return;
 
       try {
-        setLoadingProgress(16);
         setIsLoadingTasks(true);
         setTaskLoadError(null);
 
-        // タスク一覧のフェッチと、サマリーデータのフェッチを並列で実行
         const [fetchedTasks, summaryResponse] = await Promise.all([
           taskApi.getTasks(),
           fetch(`${API_BASE_URL}/api/dashboard/summary`, { 
@@ -83,7 +56,6 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
 
         if (!mounted) return;
 
-        // 🌟 型安全対策：APIのタスクをフロント共通のTask[]型に安全にマッピング
         const formattedTasks: Task[] = fetchedTasks.map((t: any) => ({
           id: String(t.id),
           title: t.title,
@@ -93,7 +65,6 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
         }));
         setLocalTasks(formattedTasks);
 
-        // サマリーのセット
         if (summaryResponse.ok) {
           const summaryData = await summaryResponse.json();
           setSummary(summaryData);
@@ -104,9 +75,6 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
         if (mounted) setTaskLoadError('マイページの読み込みに失敗しました。');
       } finally {
         if (mounted) {
-          // 🌟 目標マップと全く同じ：完了したら100%にして、一瞬待ってからロード画面を消す
-          setLoadingProgress(100);
-          await new Promise((resolve) => window.setTimeout(resolve, 90));
           setIsLoadingTasks(false);
         }
       }
@@ -116,7 +84,6 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
     return () => { mounted = false; };
   }, []);
 
-  // 🌟 UIの即時反映を実現するラッパー関数群
   const handleToggleWrapper = (id: string) => {
     setLocalTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
     onToggle(id);
@@ -140,37 +107,22 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
 
   return (
     <>
-      {/* 🌟 目標マップ画面（GoalsPage）と完全に同一のCSS設計をしたロードカード構造 */}
       {isLoadingTasks ? (
         <div className="goals-page__loading" role="status" aria-live="polite" style={{ height: '70vh' }}>
-          <div className="goals-page__loading-card">
-            <div className="goals-page__loading-header">
-              <div className="goals-page__loading-title">マイページを読み込み中です...</div>
-              <div className="goals-page__loading-percent">{loadingProgress}%</div>
-            </div>
-            <div className="goals-page__loading-bar">
-              <div
-                className="goals-page__loading-bar-fill"
-                style={{ width: `${loadingProgress}%` }}
-              />
-            </div>
-            <div className="goals-page__loading-subtext">
-              {getLoadingProgressLabel(loadingProgress)}
-            </div>
-          </div>
+          <TopPageSkeleton />
         </div>
       ) : taskLoadError ? (
-        <div className="goals-page__error" style={{ height: '50vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          ⚠️ {taskLoadError} ページを再読み込みしてください。
+        <div className="goals-page__error" style={{ height: '50vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <AlertTriangle size={18} strokeWidth={1.75} aria-hidden />
+          {taskLoadError} ページを再読み込みしてください。
         </div>
       ) : (
-        /* 通常の画面描画エリア */
         <div className="top-page animate-fade-in">
           <div className="top-page__header">
             <div>
               <div className="top-page__date">{getDateLabel()}</div>
               <div className="top-page__greeting">
-                {user ? `こんにちは、${user.user_name}さん 👋` : "読み込み中..."}
+                {user ? `こんにちは、${user.user_name}さん` : '読み込み中...'}
               </div>
               <div className="top-page__message">「{message}」</div>
             </div>

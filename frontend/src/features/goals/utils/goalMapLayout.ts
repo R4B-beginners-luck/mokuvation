@@ -6,6 +6,8 @@ export const LONG_TERM_FIXED_POSITION: NodePosition = { x: 0, y: 0 };
 /** GoalNodeCard のバウンディングボックス（初期レイアウト・エッジ交点で共用） */
 export const GOAL_CARD_WIDTH = 230;
 export const GOAL_CARD_MIN_HEIGHT = 120;
+/** 長期目標カード上部ピンのはみ出し量（foreignObject・ラッパー padding-top と共用） */
+export const GOAL_LONG_PIN_OFFSET = 16;
 
 export function computeInitialPositions(
   lt: LongTermGoal,
