@@ -1426,12 +1426,11 @@ a { text-decoration: none; color: inherit; }
    ============================================================ */
 .calendar-page {
   padding: var(--sp-6) var(--sp-8);
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: var(--sp-6);
-  min-height: 100vh;
-  max-height: 100vh;
-  align-content: start;
+  display: flex;              /* grid → flex に変更 */
+  flex-direction: column;     /* 縦方向に積む */
+  height: 100%;               /* min-height:100vh → height:100% */
+  overflow: hidden;           /* ページ自体はスクロールさせない */
+  gap: var(--sp-4);
 }
 
 .calendar-page__loading {
@@ -1516,13 +1515,14 @@ a { text-decoration: none; color: inherit; }
 }
 
 .calendar-page__header {
-  grid-column: 1 / -1;
+ /* grid-column 削除、それ以外は維持 */
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--border);
-  margin-bottom: var(--sp-2);
+  margin-bottom: 0;           /* gap で制御するので削除 */
 }
 
 .calendar-page__title {
@@ -1530,6 +1530,24 @@ a { text-decoration: none; color: inherit; }
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.calendar-page__content {     /* TSXに既にあるラッパーdiv */
+  flex: 1;                    /* 残り高さを全部使う */
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: var(--sp-6);
+  overflow: hidden;           /* 子要素のスクロールに委ねる */
+  min-height: 0;              /* flexアイテムの高さ縮小を許可 */
+}
+
+/* カレンダー左列（凡例 + CalendarGrid） */
+.calendar-page__grid-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .calendar-nav {
@@ -1552,6 +1570,9 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .calendar-grid__weekdays {
@@ -1576,10 +1597,12 @@ a { text-decoration: none; color: inherit; }
 .calendar-grid__days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
+  flex: 1;
+  min-height: 0;
 }
 
 .calendar-day {
-  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1589,7 +1612,7 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
   transition: background var(--dur-fast), border-color var(--dur-fast);
   position: relative;
-  min-height: 56px;
+  min-height: 0;
 }
 
 .calendar-day:hover { background: var(--bg-raised); }
@@ -1679,6 +1702,8 @@ a { text-decoration: none; color: inherit; }
   align-self: start;
   position: sticky;
   top: 0;
+  overflow-y: auto;
+  height: 100%;  
 }
 
 .day-detail__header {
@@ -2375,4 +2400,3 @@ a { text-decoration: none; color: inherit; }
 }
 
 .demo-toggle:hover { background: var(--bg-hover); }
-
