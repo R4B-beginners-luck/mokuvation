@@ -322,7 +322,9 @@ a { text-decoration: none; color: inherit; }
 }
 
 .bottom-nav__icon {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
 }
 
