@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Calendar, Check, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { TaskAddModal, TaskDeleteConfirm } from '../../tasks';
 import type { Task as CreatedTask } from '../../tasks';
 import type { Task, Goal } from '../types';
@@ -41,7 +42,8 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
     return (
       <div className="day-detail">
         <div className="day-detail__empty">
-          📅<br />日付を選択してください
+          <Calendar size={32} strokeWidth={1.75} aria-hidden style={{ marginBottom: 8 }} />
+          日付を選択してください
         </div>
       </div>
     );
@@ -96,7 +98,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
               aria-label="選択したタスクを削除"
               title="選択したタスクを削除"
             >
-              🗑
+              <Trash2 size={15} strokeWidth={1.75} aria-hidden />
             </button>
           ) : (
             <button
@@ -110,7 +112,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
               aria-label="タスクを追加"
               title={canModifyTasks ? 'タスクを追加' : '過去の日付にはタスクを追加できません'}
             >
-              ＋
+              <Plus size={15} strokeWidth={1.75} aria-hidden />
             </button>
           )}
 
@@ -126,7 +128,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
             aria-label={isEditingEnabled ? '編集を終了' : '編集モードにする'}
             title={canModifyTasks ? (isEditingEnabled ? '編集を終了' : '編集する') : '過去の日付は編集できません'}
           >
-            ✎
+            <Pencil size={15} strokeWidth={1.75} aria-hidden />
           </button>
         </div>
       </div>
@@ -191,7 +193,11 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
                         : {}),
                     }}
                   >
-                    {isSelected ? '−' : task.is_completed ? '✓' : ''}
+                    {isSelected ? (
+                      <Minus size={14} strokeWidth={1.75} aria-hidden />
+                    ) : task.is_completed ? (
+                      <Check size={14} strokeWidth={1.75} aria-hidden />
+                    ) : null}
                   </div>
 
                   <div className="goal-item__body">

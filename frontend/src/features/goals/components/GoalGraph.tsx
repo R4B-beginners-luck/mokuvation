@@ -1,12 +1,32 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import type {  LongTermGoal, MidTermGoal, ShortTermGoal, Goal, NodePosition  } from '../../../types';
+import { Check, Pencil, Plus, Trash2, Undo2 } from 'lucide-react';
+import type {  LongTermGoal, MidTermGoal, ShortTermGoal, Goal, NodePosition, Task  } from '../../../types';
 import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
-import { computeInitialPositions, mergeGoalPositions, toLogicalPoint } from '../utils/goalMapLayout';
+import {
+  computeInitialPositions,
+  DEFAULT_MAP_VIEWPORT,
+  GOAL_CARD_MIN_HEIGHT,
+  GOAL_CARD_WIDTH,
+  GOAL_LONG_PIN_OFFSET,
+  MAP_VIEWPORT_SCALE_MAX,
+  MAP_VIEWPORT_SCALE_MIN,
+  mergeGoalPositions,
+  setViewportScaleAtCenter,
+  toLogicalPoint,
+  zoomViewportAtPoint,
+  type MapViewport,
+} from '../utils/goalMapLayout';
+import { getCardBoundaryPoint, getGoalCardBounds } from '../utils/goalEdgeLayout';
+import { createGoalNodeAdapter } from '../utils/goalNodeAdapter';
+import GoalNodeCard from './goalNodeCard/GoalNodeCard';
+
+const WHEEL_ZOOM_FACTOR = 1.1;
 
 interface GoalGraphProps {
   longTermGoal: LongTermGoal;
   midTermGoals: MidTermGoal[];
   shortTermGoals: ShortTermGoal[];
+  tasks: Task[];
   selectedId: string | null;
   savedPositions: Record<string, NodePosition>;
   pendingPositions: Record<string, NodePosition>;
@@ -29,13 +49,7 @@ interface ContextMenuState {
   y: number;
 }
 
-// ノードの形状と大きさを定義（ノード色は goal.color_code を使用）
-const NODE_CONFIG = {
-  long:  { r: 36, fontSize: 13, fontWeight: '700' },
-  mid:   { r: 26, fontSize: 12, fontWeight: '600' },
-  short: { r: 18, fontSize: 11, fontWeight: '500' },
-};
-
+// ノード色は goal.color_code を使用（エッジ描画）
 function getNodeColor(goal: Goal): string {
   return goal.color_code ?? DEFAULT_GOAL_COLOR;
 }
@@ -45,29 +59,11 @@ function truncateText(text: string, maxLen: number): string {
   return text.slice(0, maxLen) + '...';
 }
 
-function getPolygonPoints(type: string, radius: number): string {
-  if (type === 'long') {
-    // Hexagon
-    const points = [];
-    for (let i = 0; i < 6; i++) {
-        const angle_deg = 60 * i - 30;
-        const angle_rad = Math.PI / 180 * angle_deg;
-        points.push(`${radius * Math.cos(angle_rad)},${radius * Math.sin(angle_rad)}`);
-    }
-    return points.join(' ');
-  }
-  if (type === 'mid') {
-    // Square
-    const size = radius;
-    return `-${size},-${size} ${size},-${size} ${size},${size} -${size},${size}`;
-  }
-  return '';
-}
-
 export function GoalGraph({
   longTermGoal,
   midTermGoals,
   shortTermGoals,
+  tasks,
   selectedId,
   savedPositions,
   pendingPositions,
@@ -95,10 +91,31 @@ export function GoalGraph({
 
   const cx = size.w / 2;
   const cy = size.h / 2;
-  const viewportRef = useRef({ cx, cy });
+
+  const [mapViewport, setMapViewport] = useState<MapViewport>(DEFAULT_MAP_VIEWPORT);
+  const mapViewportRef = useRef(mapViewport);
+  mapViewportRef.current = mapViewport;
+
+  const viewportRef = useRef({ cx, cy, viewport: mapViewport });
   useEffect(() => {
-    viewportRef.current = { cx, cy };
-  }, [cx, cy]);
+    viewportRef.current = { cx, cy, viewport: mapViewport };
+  }, [cx, cy, mapViewport]);
+
+  useEffect(() => {
+    setMapViewport(DEFAULT_MAP_VIEWPORT);
+  }, [longTermGoal.id]);
+
+  const panListenersRef = useRef<{ move: (e: PointerEvent) => void; up: () => void } | null>(null);
+
+  const clearPanListeners = useCallback(() => {
+    const listeners = panListenersRef.current;
+    if (!listeners) return;
+    window.removeEventListener('pointermove', listeners.move);
+    window.removeEventListener('pointerup', listeners.up);
+    panListenersRef.current = null;
+  }, []);
+
+  useEffect(() => () => clearPanListeners(), [clearPanListeners]);
 
   const mergedPositions = useMemo(
     () => mergeGoalPositions(
@@ -108,6 +125,16 @@ export function GoalGraph({
       longTermGoal.id
     ),
     [longTermGoal, midTermGoals, shortTermGoals, savedPositions, pendingPositions]
+  );
+
+  const goalNodeAdapter = useMemo(
+    () => createGoalNodeAdapter({
+      longTermGoal,
+      midTermGoals,
+      shortTermGoals,
+      tasks,
+    }),
+    [longTermGoal, midTermGoals, shortTermGoals, tasks]
   );
 
   const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
@@ -147,6 +174,77 @@ export function GoalGraph({
     window.removeEventListener('pointermove', listeners.move);
     window.removeEventListener('pointerup', listeners.up);
     dragListenersRef.current = null;
+  }, []);
+
+  const clientToSvgPoint = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    return pt.matrixTransform(svg.getScreenCTM()!.inverse());
+  }, []);
+
+  const beginPan = useCallback((clientX: number, clientY: number) => {
+    clearPanListeners();
+    clearDragListeners();
+    const startPan = { ...mapViewportRef.current };
+    const startPointer = { x: clientX, y: clientY };
+
+    const handlePointerMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startPointer.x;
+      const dy = ev.clientY - startPointer.y;
+      setMapViewport({
+        ...startPan,
+        panX: startPan.panX + dx,
+        panY: startPan.panY + dy,
+      });
+    };
+
+    const handlePointerUp = () => {
+      clearPanListeners();
+    };
+
+    panListenersRef.current = { move: handlePointerMove, up: handlePointerUp };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [clearPanListeners, clearDragListeners]);
+
+  const onCanvasPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    beginPan(e.clientX, e.clientY);
+  }, [beginPan]);
+
+  const onSvgPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 1) return;
+    e.preventDefault();
+    beginPan(e.clientX, e.clientY);
+  }, [beginPan]);
+
+  const onSvgWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    const svgPoint = clientToSvgPoint(e.clientX, e.clientY);
+    if (!svgPoint) return;
+
+    const zoomFactor = e.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
+    const { cx: vcx, cy: vcy } = viewportRef.current;
+    setMapViewport((prev) => zoomViewportAtPoint(svgPoint, vcx, vcy, prev, zoomFactor));
+  }, [clientToSvgPoint]);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return undefined;
+
+    svg.addEventListener('wheel', onSvgWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', onSvgWheel);
+  }, [onSvgWheel]);
+
+  const onZoomSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newScale = Number(e.target.value) / 100;
+    const { cx: vcx, cy: vcy } = viewportRef.current;
+    setMapViewport((prev) => setViewportScaleAtCenter(vcx, vcy, prev, newScale));
   }, []);
 
   useEffect(() => () => clearDragListeners(), [clearDragListeners]);
@@ -198,16 +296,15 @@ export function GoalGraph({
     if (e.button !== 0) return;
     if (!canDragGoal(id, id === longTermGoal.id)) return;
     e.stopPropagation();
+    clearPanListeners();
     clearDragListeners();
     dragOverlayRef.current = {};
     setDragOverlay(null);
 
-    const svg = svgRef.current!;
-    const pt  = svg.createSVGPoint();
-    pt.x = e.clientX; pt.y = e.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM()!.inverse());
-    const { cx: vcx, cy: vcy } = viewportRef.current;
-    const logical = toLogicalPoint(svgP, vcx, vcy);
+    const svgP = clientToSvgPoint(e.clientX, e.clientY);
+    if (!svgP) return;
+    const { cx: vcx, cy: vcy, viewport } = viewportRef.current;
+    const logical = toLogicalPoint(svgP, vcx, vcy, viewport);
     const current = displayPositionsRef.current[id];
     dragStartRef.current = current
       ? { id, x: current.x, y: current.y }
@@ -220,12 +317,10 @@ export function GoalGraph({
 
     const handlePointerMove = (ev: PointerEvent) => {
       if (!dragRef.current || !svgRef.current) return;
-      const movePt = svgRef.current.createSVGPoint();
-      movePt.x = ev.clientX;
-      movePt.y = ev.clientY;
-      const moveSvgP = movePt.matrixTransform(svgRef.current.getScreenCTM()!.inverse());
-      const { cx: mcx, cy: mcy } = viewportRef.current;
-      const moveLogical = toLogicalPoint(moveSvgP, mcx, mcy);
+      const moveSvgP = clientToSvgPoint(ev.clientX, ev.clientY);
+      if (!moveSvgP) return;
+      const { cx: mcx, cy: mcy, viewport: moveViewport } = viewportRef.current;
+      const moveLogical = toLogicalPoint(moveSvgP, mcx, mcy, moveViewport);
       const { id: dragId, ox, oy } = dragRef.current;
       const next = { x: moveLogical.x - ox, y: moveLogical.y - oy };
       dragOverlayRef.current = { ...dragOverlayRef.current, [dragId]: next };
@@ -240,7 +335,7 @@ export function GoalGraph({
     dragListenersRef.current = { move: handlePointerMove, up: handlePointerUp };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [longTermGoal.id, clearDragListeners, commitDraggedPosition, canDragGoal]);
+  }, [longTermGoal.id, clearDragListeners, clearPanListeners, commitDraggedPosition, canDragGoal, clientToSvgPoint]);
 
   const onNodeContextMenu = useCallback((e: React.MouseEvent, goal: Goal) => {
     e.preventDefault();
@@ -260,6 +355,14 @@ export function GoalGraph({
     setContextMenu({ goal, x, y });
   }, [onSelectNode, clearDragListeners]);
 
+  const goalById = useMemo(() => {
+    const map = new Map<string, Goal>();
+    map.set(longTermGoal.id, longTermGoal);
+    midTermGoals.forEach((m) => map.set(m.id, m));
+    shortTermGoals.forEach((s) => map.set(s.id, s));
+    return map;
+  }, [longTermGoal, midTermGoals, shortTermGoals]);
+
   const edges: {
     x1: number; y1: number; x2: number; y2: number;
     dashed: boolean; color: string; opacity: number;
@@ -272,7 +375,23 @@ export function GoalGraph({
     const a = displayPositions[fromId];
     const b = displayPositions[toId];
     if (!a || !b) return;
-    edges.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, dashed, color, opacity });
+
+    const fromGoal = goalById.get(fromId);
+    const toGoal = goalById.get(toId);
+    const fromBounds = getGoalCardBounds(fromGoal?.type ?? 'mid');
+    const toBounds = getGoalCardBounds(toGoal?.type ?? 'mid');
+
+    const fromPoint = getCardBoundaryPoint(a, b, fromBounds);
+    const toPoint = getCardBoundaryPoint(b, a, toBounds);
+    edges.push({
+      x1: fromPoint.x,
+      y1: fromPoint.y,
+      x2: toPoint.x,
+      y2: toPoint.y,
+      dashed,
+      color,
+      opacity,
+    });
   };
 
   // 親ノードの色でエッジを描画
@@ -302,29 +421,39 @@ export function GoalGraph({
     ...shortTermGoals,
   ];
 
+  const worldTransform = `translate(${cx + mapViewport.panX}, ${cy + mapViewport.panY}) scale(${mapViewport.scale})`;
+  const zoomPercent = Math.round(mapViewport.scale * 100);
+  const zoomPercentLabel = `${zoomPercent}%`;
+  const zoomSliderMin = Math.round(MAP_VIEWPORT_SCALE_MIN * 100);
+  const zoomSliderMax = Math.round(MAP_VIEWPORT_SCALE_MAX * 100);
+
   return (
     <>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${size.w} ${size.h}`}
+        className="goal-graph__canvas"
         style={{ display: 'block', userSelect: 'none', touchAction: 'none' }}
+        onPointerDown={onSvgPointerDown}
       >
         <defs>
           <filter id="glow-gold" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="6" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
-          <filter id="glow-teal" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
-          <filter id="glow-violet" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
         </defs>
 
-        <g transform={`translate(${cx}, ${cy})`}>
+        <rect
+          x={0}
+          y={0}
+          width={size.w}
+          height={size.h}
+          fill="transparent"
+          className="goal-graph__background"
+          onPointerDown={onCanvasPointerDown}
+        />
+
+        <g transform={worldTransform}>
           {edges.map((e, i) => (
             <line
               key={i}
@@ -334,28 +463,20 @@ export function GoalGraph({
               strokeOpacity={e.opacity}
             />
           ))}
-        </g>
 
-        <g transform={`translate(${cx}, ${cy})`}>
           {allGoals.map((goal) => {
             const p = displayPositions[goal.id];
             if (!p) return null;
 
-            const cfg        = NODE_CONFIG[goal.type];
-            const nodeColor  = getNodeColor(goal);
-            const isSelected = goal.id === selectedId;
-            const isDone     = goal.completed;
             const isLongTerm = goal.type === 'long';
-
             const isPlacementTarget = placementMode
               ? movableGoalIdSet.has(goal.id)
               : false;
             const isPlacementFocus = placementMode?.focusGoalId === goal.id;
             const isDraggable = canDragGoal(goal.id, isLongTerm);
+            const progress = goalNodeAdapter.toProgress(goal.id);
 
-            const maxLen = goal.type === 'long' ? 14 : goal.type === 'mid' ? 12 : 10;
-            const displayTitle = truncateText(goal.title, maxLen);
-            const iconYOffset = cfg.r * 1.5;
+            const pinOffset = isLongTerm ? GOAL_LONG_PIN_OFFSET : 0;
 
             return (
               <g
@@ -368,97 +489,66 @@ export function GoalGraph({
                 ].filter(Boolean).join(' ')}
                 style={{ cursor: isDraggable ? 'grab' : 'default' }}
                 onMouseDown={(e) => onNodeMouseDown(e, goal.id)}
-                onContextMenu={(e) => onNodeContextMenu(e, goal)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (skipClickRef.current) {
-                    skipClickRef.current = false;
-                    return;
-                  }
-                  onSelectNode(goal);
-                }}
               >
-                {isSelected && goal.type !== 'short' && (
-                  <>
-                    <polygon
-                      points={getPolygonPoints(goal.type, cfg.r + 10)}
-                      fill={nodeColor}
-                      opacity={0.15}
-                    />
-                    <polygon
-                      points={getPolygonPoints(goal.type, cfg.r + 6)}
-                      fill="none"
-                      stroke={nodeColor}
-                      strokeWidth={3}
-                      strokeOpacity={0.8}
-                    />
-                  </>
-                )}
-                {isSelected && goal.type === 'short' && (
-                  <>
-                    <circle
-                      r={cfg.r + 10}
-                      fill={nodeColor}
-                      opacity={0.15}
-                    />
-                    <circle
-                      r={cfg.r + 6}
-                      fill="none"
-                      stroke={nodeColor}
-                      strokeWidth={3}
-                      strokeOpacity={0.8}
-                    />
-                  </>
-                )}
-
-                {goal.type !== 'short' ? (
-                  <polygon
-                    points={getPolygonPoints(goal.type, cfg.r)}
-                    fill={isDone ? '#3a3840' : nodeColor}
-                    stroke={isSelected ? nodeColor : 'rgba(255,255,255,0.1)'}
-                    strokeWidth={isSelected ? 2 : 1}
-                    opacity={isDone ? 0.6 : 1}
-                  />
-                ) : (
-                  <circle
-                    r={cfg.r}
-                    fill={isDone ? '#3a3840' : nodeColor}
-                    stroke={isSelected ? nodeColor : 'rgba(255,255,255,0.1)'}
-                    strokeWidth={isSelected ? 2 : 1}
-                    opacity={isDone ? 0.6 : 1}
-                  />
-                )}
-
-                {isDone && (
-                  <text
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={cfg.r * 0.7}
-                    fill={nodeColor}
-                    opacity={0.9}
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    ✓
-                  </text>
-                )}
-
-                {/* Title outside the shape */}
-                <text
-                  textAnchor="middle"
-                  fontSize={cfg.fontSize}
-                  fontWeight={cfg.fontWeight}
-                  fontFamily="'DM Sans', sans-serif"
-                  fill={isSelected ? '#ffffff' : nodeColor}
-                  y={iconYOffset}
-                  style={{ pointerEvents: 'none', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+                <foreignObject
+                  x={-GOAL_CARD_WIDTH / 2}
+                  y={-GOAL_CARD_MIN_HEIGHT / 2 - pinOffset}
+                  width={GOAL_CARD_WIDTH}
+                  height={GOAL_CARD_MIN_HEIGHT + pinOffset}
+                  style={{ overflow: 'visible' }}
                 >
-                  {displayTitle}
-                </text>
+                  <div style={{ width: GOAL_CARD_WIDTH, minHeight: GOAL_CARD_MIN_HEIGHT }}>
+                    <GoalNodeCard
+                      goalType={goal.type}
+                      status={goalNodeAdapter.toGoalStatus(goal)}
+                      title={goal.title}
+                      progress={progress}
+                      categoryColor={goalNodeAdapter.toCategoryColor(goal)}
+                      selected={goal.id === selectedId}
+                      density="full"
+                      onClick={() => {
+                        if (skipClickRef.current) {
+                          skipClickRef.current = false;
+                          return;
+                        }
+                        onSelectNode(goal);
+                      }}
+                      onContextMenu={(e) => onNodeContextMenu(e, goal)}
+                    />
+                  </div>
+                </foreignObject>
               </g>
             );
           })}
         </g>
       </svg>
+
+      <div
+        className="goal-graph__zoom-control"
+        onPointerDown={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+      >
+        <span
+          className="goal-graph__zoom-label"
+          aria-live="polite"
+        >
+          {zoomPercentLabel}
+        </span>
+        <input
+          type="range"
+          className="goal-graph__zoom-slider"
+          min={zoomSliderMin}
+          max={zoomSliderMax}
+          step={1}
+          value={zoomPercent}
+          onChange={onZoomSliderChange}
+          aria-label="表示倍率"
+          aria-valuemin={zoomSliderMin}
+          aria-valuemax={zoomSliderMax}
+          aria-valuenow={zoomPercent}
+          aria-valuetext={zoomPercentLabel}
+        />
+      </div>
 
       {contextMenu && (
         <div
@@ -487,7 +577,17 @@ export function GoalGraph({
               closeContextMenu();
             }}
           >
-            {contextMenu.goal.completed ? '↩️ 未達成に戻す' : '✅ 達成にする'}
+            {contextMenu.goal.completed ? (
+              <>
+                <Undo2 size={15} strokeWidth={1.75} aria-hidden />
+                未達成に戻す
+              </>
+            ) : (
+              <>
+                <Check size={15} strokeWidth={1.75} aria-hidden />
+                達成にする
+              </>
+            )}
           </button>
 
           <button
@@ -498,7 +598,8 @@ export function GoalGraph({
               closeContextMenu();
             }}
           >
-            ✏️ 編集する
+            <Pencil size={15} strokeWidth={1.75} aria-hidden />
+            編集する
           </button>
 
           {contextMenu.goal.type === 'long' && (
@@ -511,7 +612,8 @@ export function GoalGraph({
                   closeContextMenu();
                 }}
               >
-                ＋ 中期目標を追加
+                <Plus size={15} strokeWidth={1.75} aria-hidden />
+                中期目標を追加
               </button>
               <button
                 type="button"
@@ -521,7 +623,8 @@ export function GoalGraph({
                   closeContextMenu();
                 }}
               >
-                ＋ 短期目標を追加
+                <Plus size={15} strokeWidth={1.75} aria-hidden />
+                短期目標を追加
               </button>
             </>
           )}
@@ -535,7 +638,8 @@ export function GoalGraph({
                 closeContextMenu();
               }}
             >
-              ＋ 短期目標を追加
+              <Plus size={15} strokeWidth={1.75} aria-hidden />
+              短期目標を追加
             </button>
           )}
 
@@ -549,7 +653,8 @@ export function GoalGraph({
               closeContextMenu();
             }}
           >
-            🗑️ 削除する
+            <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+            削除する
           </button>
         </div>
       )}

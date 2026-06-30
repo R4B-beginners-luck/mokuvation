@@ -3,7 +3,7 @@ import type { Page, ShortTermGoal, Task, User } from './types';
 import { shortTermGoalsInitial } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
-import { LoadingPage } from './pages/LoadingPage';
+import Splash from './components/Splash/Splash';
 import { TopPage }     from './pages/TopPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GoalsPage }   from './pages/GoalsPage';
@@ -36,12 +36,22 @@ export default function App() {
   const [page, setPage]             = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [user, setUser]             = useState<User | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  // 🔄 DBからタスクを全件取得してセット
+
+  // 日本時間の「今日」を YYYY-MM-DD で取得する共通関数
+  const getJstTodayStr = (): string => {
+    const jstDate = new Date(Date.now() + ((new Date().getTimezoneOffset() + 540) * 60 * 1000));
+    return jstDate.getFullYear() + '-' + 
+           String(jstDate.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(jstDate.getDate()).padStart(2, '0');
+  };
+
+  // 🔄【追加】DBからタスクを全件取得して共通ステートにセットする関数
   const fetchAndSetTasks = async () => {
     try {
       const dbTasks = await taskApi.getTasks();
@@ -90,6 +100,9 @@ export default function App() {
       setIsLoggedIn(false);
       setUser(null);
       setPage('login');
+      throw error;
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -139,8 +152,18 @@ export default function App() {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
   };
 
-  if (isCheckingAuth) return <LoadingPage />;
-  if (!isLoggedIn)    return <LoginPage onLogin={handleLogin} />;
+  // ── Login screen (no sidebar) ────────────────────────────────────────────────
+  if (isCheckingAuth || isLoggingIn) {
+    return (
+      <Splash
+        label={isLoggingIn ? 'ログインしています…' : undefined}
+      />
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} onLoggingInChange={setIsLoggingIn} />;
+  }
 
   return (
     <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout} user={user}>
