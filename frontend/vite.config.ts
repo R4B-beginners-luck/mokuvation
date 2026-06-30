@@ -14,7 +14,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         // キャッシュ対象ファイル
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // ⚠️ wasm が抜けていたため、Automerge(CRDT)が使う .wasm 本体が
+        // オフライン時にキャッシュから読めず、起動処理が止まって画面が
+        // 真っ白になるバグがあった。wasm を追加して解消する。
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm}'],
+        // デフォルトの上限(2MB)だと automerge の wasm(約1.8MB)がギリギリ／
+        // 将来的なバージョンアップで超える可能性があるため余裕を持たせる
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {
             // API は NetworkFirst（オフライン時のみキャッシュ使用）
