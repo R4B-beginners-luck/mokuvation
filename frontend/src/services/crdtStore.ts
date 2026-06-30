@@ -122,18 +122,21 @@ export const crdtToggleTask = (taskId: string, isCompleted: boolean): void => {
 
 /** タスクを CRDT ドキュメントに追加 */
 export const crdtAddTask = (task: LocalTask): void => {
+  // Automerge は undefined を許容しない（null か値そのもの以外を書き込むと例外）。
+  // 呼び出し元のデータ不備で undefined が紛れ込んでも落ちないよう、ここでも防御する。
+  const now = new Date().toISOString();
   doc = Automerge.change(doc, (d) => {
     d.tasks[task.id] = {
       id:           task.id,
-      user_id:      task.user_id,
+      user_id:      task.user_id ?? '',
       goal_id:      task.goal_id ?? '',
-      title:        task.title,
+      title:        task.title ?? '',
       description:  task.description ?? '',
       scheduled_at: task.scheduled_at ?? '',
-      is_completed: task.is_completed,
+      is_completed: task.is_completed ?? false,
       completed_at: task.completed_at ?? '',
-      created_at:   task.created_at,
-      updated_at:   task.updated_at,
+      created_at:   task.created_at ?? now,
+      updated_at:   task.updated_at ?? now,
     };
   });
   _persistChanges();

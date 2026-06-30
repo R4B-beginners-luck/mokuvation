@@ -118,17 +118,25 @@ export default function App() {
 
   // ── タスク追加 ───────────────────────────────────────────────
   const handleAddTask = async (rawTask: any) => {
+    // 呼び出し元によって渡されるオブジェクトの形が違う：
+    //   - TaskAddModal（useTaskMutations経由）→ 本物の Task（snake_case, created_at等あり）
+    //   - TopPage の「今日の目標を追加」モーダル → ShortTermGoal 由来（camelCase, created_at等なし）
+    // ここで created_at/updated_at に undefined を渡すと、Automerge が
+    // 「undefined は無効な値」として例外を投げてアプリが落ちるため、
+    // 必ずフォールバック（現在時刻 or null）を入れて正規化する。
+    const now = new Date().toISOString();
+
     const localTask = {
       id:           String(rawTask.id),
       user_id:      String(rawTask.user_id ?? ''),
-      goal_id:      rawTask.goal_id ?? null,
+      goal_id:      rawTask.goal_id ?? rawTask.midTermGoalId ?? rawTask.longTermGoalId ?? null,
       title:        rawTask.title,
       description:  rawTask.description ?? null,
-      scheduled_at: rawTask.scheduled_at ?? null,
-      is_completed: Boolean(rawTask.is_completed),
+      scheduled_at: rawTask.scheduled_at ?? rawTask.dueDate ?? null,
+      is_completed: Boolean(rawTask.is_completed ?? rawTask.completed ?? false),
       completed_at: rawTask.completed_at ?? null,
-      created_at:   rawTask.created_at,
-      updated_at:   rawTask.updated_at,
+      created_at:   rawTask.created_at ?? now,
+      updated_at:   rawTask.updated_at ?? now,
     };
 
     // Dexie に保存
