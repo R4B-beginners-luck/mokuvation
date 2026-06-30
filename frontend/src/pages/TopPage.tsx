@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import type { Task, User } from '../types';
 import { taskApi } from '../features/tasks/api/taskApi';
 import { longTermGoals, midTermGoals, TODAY } from '../data/dummy';
 import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongTermSummary, AddGoalModal } from '../features/dashboard';
