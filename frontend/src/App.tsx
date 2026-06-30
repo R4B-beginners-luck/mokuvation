@@ -12,6 +12,7 @@ import { taskApi }     from './features/tasks/api/taskApi';
 import { useLocalData, localTaskToTask } from './hooks/useLocalData';
 import { db }          from './services/db';
 import { updateTask, deleteTask } from './services/syncService';
+import { cacheUserId } from './features/tasks/hooks/useTaskMutations';
 import { crdtToggleTask, crdtAddTask, crdtDeleteTask } from './services/crdtStore';
 
 export default function App() {
@@ -57,6 +58,7 @@ export default function App() {
     try {
       const userData = await authApi.getMe();
       setUser(userData);
+      cacheUserId(userData.user_id); // オフライン作成用にキャッシュ
       setIsLoggedIn(true);
       setPage('top');
     } catch (error) {
