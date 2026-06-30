@@ -14,6 +14,7 @@ class Task extends Model
     use SoftDeletes, HasUuids;
 
     protected $fillable = [
+        'id',
         'goal_id',
         'user_id',
         'title',

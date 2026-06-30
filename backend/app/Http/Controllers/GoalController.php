@@ -20,12 +20,13 @@ class GoalController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'title'          => ['required', 'string', 'max:255'],
-            'description'    => ['nullable', 'string'],
-            'color_code'     => ['nullable', 'integer', 'between:0,11'],
-            'period_type'    => ['required', 'string', 'in:short,middle,long'],
-            'due_at'         => ['nullable', 'date'],
-            'parent_goal_id' => ['nullable', 'uuid', 'exists:goals,id'],
+            'id'              => ['nullable', 'uuid'],
+            'title'           => ['required', 'string', 'max:255'],
+            'description'     => ['nullable', 'string'],
+            'color_code'      => ['nullable', 'integer', 'between:0,11'],
+            'period_type'     => ['required', 'string', 'in:short,middle,long'],
+            'due_at'          => ['nullable', 'date'],
+            'parent_goal_id'  => ['nullable', 'uuid', 'exists:goals,id'],
         ]);
 
         $result = $this->goalService->create($validated);

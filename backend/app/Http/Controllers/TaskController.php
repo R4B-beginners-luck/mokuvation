@@ -20,6 +20,7 @@ class TaskController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'id'           => ['nullable', 'uuid'],
             'goal_id'      => ['nullable', 'uuid', 'exists:goals,id'],
             'user_id'      => ['required', 'string'],
             'title'        => ['required', 'string', 'max:255'],

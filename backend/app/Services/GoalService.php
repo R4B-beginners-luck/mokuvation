@@ -32,6 +32,9 @@ class GoalService
         }
 
         return Auth::user()->goals()->create([
+            // Task 側と同様、クライアントが生成した UUID があれば優先する
+            // （オフライン作成 → 同期時の重複/ID不整合を防ぐため）
+            'id'             => $data['id'] ?? null,
             'title'          => $data['title'],
             'description'    => $data['description'] ?? null,
             'color_code'     => $data['color_code'] ?? null,

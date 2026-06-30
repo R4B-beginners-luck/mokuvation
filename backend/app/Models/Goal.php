@@ -11,6 +11,7 @@ class Goal extends Model
     use SoftDeletes, HasUuids;
 
     protected $fillable = [
+        'id',
         'user_id',
         'parent_goal_id',
         'title',

@@ -84,6 +84,11 @@ export const getLocalGoals = (): Promise<LocalGoal[]> => db.goals.toArray();
 
 export const saveTaskLocally = async (task: LocalTask): Promise<void> => {
   await db.tasks.put(task);
+  if (!isOnline()) {
+    // ここが抜けていたため、未使用ながらも「オフライン作成は同期されない」
+    // 実装になっていた（update/delete だけ enqueue されていた）。
+    await enqueue({ entity: 'task', operation: 'create', payload: task });
+  }
 };
 
 export const updateTaskLocally = async (task: LocalTask): Promise<void> => {
@@ -133,9 +138,42 @@ export const flushQueue = async (): Promise<void> => {
       }),
     });
 
-    if (res.ok) {
-      // 送信成功 → キューを全消去
-      await db.sync_queue.clear();
+    if (!res.ok) {
+      // HTTP レベルで失敗（認証切れ等）→ 何も消さずに次回リトライへ
+      console.warn('[syncService] flushQueue HTTPエラー:', res.status);
+      return;
+    }
+
+    // ⚠️ レスポンスは 200 でも、操作ごとに成功/失敗が分かれる
+    // （例：オフライン中に削除済みのレコードを更新しようとした 等）。
+    // ここを見ずに `db.sync_queue.clear()` していたのが元のバグで、
+    // サーバー側で失敗した操作までキューから消えてしまい、
+    // 変更が「サイレントに消失」していた。
+    const body = await res.json().catch(() => null);
+    const results: Array<{ index: number; status: 'ok' | 'error'; message?: string }> =
+      body?.results ?? [];
+
+    if (results.length !== items.length) {
+      // 想定外のレスポンス形状。安全側に倒して何も削除しない。
+      console.warn('[syncService] flushQueue: results の件数が operations と一致しません');
+      return;
+    }
+
+    const failed = results.filter((r) => r.status === 'error');
+    const succeededIds = items
+      .filter((_, i) => results[i]?.status === 'ok')
+      .map((item) => item.id)
+      .filter((id): id is number => id !== undefined);
+
+    if (succeededIds.length > 0) {
+      await db.sync_queue.bulkDelete(succeededIds);
+    }
+
+    if (failed.length > 0) {
+      // 失敗した操作はキューに残し、次回オンライン復帰時に再送する。
+      // （対象が既に存在しない等、恒久的に失敗するケースも有り得るが、
+      //   黙って消すよりは安全なため、現状はリトライ任せにする）
+      console.warn('[syncService] flushQueue: 一部の操作が失敗しました', failed);
     }
   } catch (err) {
     console.warn('[syncService] flushQueue 失敗:', err);

@@ -5,9 +5,24 @@ import { db } from '../../../services/db';
 import type { LocalTask } from '../../../services/db';
 import { isOnline, cacheUserId, getCachedUserId } from '../../../services/syncService';
 
-// ─── 仮 ID 生成（オフライン作成時）─────────────────────────────
-const generateTempId = (): string =>
-  'temp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+// ─── ID 生成（オンライン・オフライン共通） ─────────────────────
+// crypto.randomUUID() で本物の UUID を生成し、作成時点でクライアントと
+// サーバーで同じ ID を共有する。これにより、
+//   - オフライン作成 → 後でサーバーに送信、というケースで
+//     ローカルレコードとサーバーレコードの ID が食い違って
+//     「同期後に同じタスクが重複して表示される」事が無くなる
+//   - 同一オフラインセッション中に「作成 → 更新」のように
+//     同じタスクへ連続して操作した場合でも、IDがずれず
+//     更新がサーバー側で迷子にならない
+const generateTaskId = (): string =>
+  (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? crypto.randomUUID()
+    // randomUUID が使えない環境向けのフォールバック
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
 
 // ─── hook 本体 ───────────────────────────────────────────────────
 
@@ -29,6 +44,7 @@ export const useTaskMutations = () => {
 
         const fullPayload: CreateTaskPayload = {
           ...payload,
+          id: generateTaskId(),
           user_id: currentUser.user_id,
         };
 
@@ -58,11 +74,11 @@ export const useTaskMutations = () => {
           return null;
         }
 
-        const tempId = generateTempId();
+        const taskId = generateTaskId();
         const now    = new Date().toISOString();
 
         const localTask: LocalTask = {
-          id:           tempId,
+          id:           taskId,
           user_id:      userId,
           goal_id:      payload.goal_id ?? null,
           title:        payload.title,

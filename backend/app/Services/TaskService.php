@@ -42,6 +42,11 @@ class TaskService
         }
 
         return Task::create([
+            // クライアント（オフライン作成時）が生成した UUID をそのまま採用する。
+            // これを省略すると HasUuids が新規 UUID を発行してしまい、
+            // クライアント側の一時ID（Dexie上のレコード）と紐付かなくなる
+            // ＝再同期時に「同じタスクが重複して見える」原因になる。
+            'id'           => $data['id'] ?? null,
             'goal_id'      => $data['goal_id'] ?? null,
             'user_id'      => $data['user_id'],
             'title'        => $data['title'],
