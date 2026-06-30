@@ -1,7 +1,6 @@
-import { Zap, Calendar, Map } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import type { Page, User } from '../types';
 import { BrandMark } from '../components/BrandMark/BrandMark';
+import { NAV_ITEMS } from './navItems';
 
 interface SidebarProps {
   currentPage: Page;
@@ -10,11 +9,7 @@ interface SidebarProps {
   user: User | null;
 }
 
-const NAV_ITEMS: { page: Page; icon: LucideIcon; label: string }[] = [
-  { page: 'top',      icon: Zap,      label: 'Today' },
-  { page: 'calendar', icon: Calendar, label: 'カレンダー' },
-  { page: 'goals',    icon: Map,      label: '目標マップ' },
-];
+
 export function Sidebar({ currentPage, onNavigate, onLogout, user }: SidebarProps) {
   const displayUserName =
     typeof user?.user_name === 'string' && user.user_name.trim()
