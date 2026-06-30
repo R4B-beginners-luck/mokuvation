@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Sidebar } from './Sidebar.tsx';
+import { Sidebar } from './Sidebar';
 import type {  Page, User  } from '../types';
 
 interface LayoutProps {

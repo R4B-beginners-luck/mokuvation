@@ -1640,8 +1640,13 @@ a { text-decoration: none; color: inherit; }
 
 .goal-node--placement-focus polygon,
 .goal-node--placement-focus circle,
-.goal-node--placement-focus rect {
+.goal-node--placement-focus rect,
+.goal-node--placement-focus .gnc {
   filter: url(#glow-gold);
+}
+
+.goal-node--placement-focus .gnc {
+  box-shadow: 0 0 20px rgba(232, 162, 52, 0.55);
 }
 
 .goal-node--placement-target {
@@ -1652,8 +1657,8 @@ a { text-decoration: none; color: inherit; }
   opacity: 0.45;
 }
 
-.goal-node--placement-locked text {
-  opacity: 0.7;
+.goal-node--placement-locked .gnc {
+  opacity: 0.85;
 }
 
 .goals-page__title {
@@ -1704,13 +1709,13 @@ a { text-decoration: none; color: inherit; }
   position: relative;
 }
 
-.graph-canvas-wrap svg {
+.graph-canvas-wrap svg.goal-graph__canvas {
   width: 100%;
   height: 100%;
   cursor: grab;
 }
 
-.graph-canvas-wrap svg:active { cursor: grabbing; }
+.graph-canvas-wrap svg.goal-graph__canvas:active { cursor: grabbing; }
 
 .goal-graph__background {
   cursor: default;
@@ -1839,34 +1844,11 @@ a { text-decoration: none; color: inherit; }
   }
 }
 
-/* Graph legend */
-.graph-legend {
-  position: absolute;
-  bottom: var(--sp-4);
-  left: var(--sp-4);
-  display: flex;
-  gap: var(--sp-4);
-  background: rgba(31, 30, 36, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: var(--sp-2) var(--sp-4);
-}
 
-.graph-legend__item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
 
-.graph-legend__dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+
+
+
 
 /* Goal map node context menu (right-click on long/mid/short icons) */
 .goal-graph-context-menu {

@@ -3,6 +3,10 @@ import type { LongTermGoal, MidTermGoal, NodePosition, ShortTermGoal } from '../
 /** 長期目標は論理座標の原点に固定 */
 export const LONG_TERM_FIXED_POSITION: NodePosition = { x: 0, y: 0 };
 
+/** GoalNodeCard のバウンディングボックス（初期レイアウト・エッジ交点で共用） */
+export const GOAL_CARD_WIDTH = 230;
+export const GOAL_CARD_MIN_HEIGHT = 120;
+
 export function computeInitialPositions(
   lt: LongTermGoal,
   mids: MidTermGoal[],
@@ -12,7 +16,7 @@ export function computeInitialPositions(
 
   pos[lt.id] = { ...LONG_TERM_FIXED_POSITION };
 
-  const R1 = 170;
+  const R1 = 300;
   mids.forEach((m, i) => {
     const angle = mids.length > 0
       ? (i / mids.length) * 2 * Math.PI - Math.PI / 2
@@ -31,7 +35,7 @@ export function computeInitialPositions(
     const parent = pos[parentId];
     if (!parent) return;
 
-    const R2 = parentId === lt.id ? 280 : 115;
+    const R2 = parentId === lt.id ? 420 : 200;
     const baseAngle = parentId === lt.id
       ? 0
       : Math.atan2(parent.y, parent.x);
