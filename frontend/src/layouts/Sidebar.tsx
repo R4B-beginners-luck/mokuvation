@@ -15,7 +15,6 @@ const NAV_ITEMS: { page: Page; icon: LucideIcon; label: string }[] = [
   { page: 'calendar', icon: Calendar, label: 'カレンダー' },
   { page: 'goals',    icon: Map,      label: '目標マップ' },
 ];
-
 export function Sidebar({ currentPage, onNavigate, onLogout, user }: SidebarProps) {
   const displayUserName =
     typeof user?.user_name === 'string' && user.user_name.trim()

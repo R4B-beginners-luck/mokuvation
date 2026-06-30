@@ -72,6 +72,7 @@
   /* Layout */
   --sidebar-width: 220px;
   --sidebar-collapsed: 64px;
+  --bottom-nav-height: 56px;
 }
 
 /* ============================================================
@@ -126,6 +127,17 @@ a { text-decoration: none; color: inherit; }
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .page-content {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .page-content:has(.goals-page) {
+    padding-bottom: 0;
+  }
 }
 
 /* ============================================================
@@ -259,6 +271,182 @@ a { text-decoration: none; color: inherit; }
   font-weight: 500;
   color: var(--text-secondary);
   white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+}
+
+/* ============================================================
+   BOTTOM NAV (mobile)
+   ============================================================ */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.bottom-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 4px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.bottom-nav__item.active {
+  color: var(--accent-gold);
+}
+
+.bottom-nav__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.bottom-nav__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   BOTTOM SHEET
+   ============================================================ */
+.bottom-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.bottom-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  border: none;
+  cursor: pointer;
+  animation: fadeIn 0.15s var(--ease);
+}
+
+.bottom-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  padding: var(--sp-4) var(--sp-5) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  box-shadow: var(--shadow-lg);
+  animation: slideUpSheet 0.22s var(--ease);
+}
+
+@keyframes slideUpSheet {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bottom-sheet__handle {
+  width: 36px;
+  height: 4px;
+  margin: 0 auto var(--sp-4);
+  border-radius: var(--r-full);
+  background: rgba(240, 236, 224, 0.18);
+}
+
+.bottom-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-5);
+}
+
+.bottom-sheet__title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.bottom-sheet__close {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+
+.bottom-sheet__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.bottom-sheet__user {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+}
+
+.bottom-sheet__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-full);
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-teal));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #16151a;
+  flex-shrink: 0;
+}
+
+.bottom-sheet__username {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bottom-sheet__logout {
+  width: 100%;
+  justify-content: center;
 }
 
 /* ============================================================
@@ -556,6 +744,107 @@ a { text-decoration: none; color: inherit; }
   font-size: 13px;
   color: var(--text-secondary);
   margin-top: 2px;
+}
+
+/* ============================================================
+   Week check map (ヘッダー中央の小さな週表示)
+   ============================================================ */
+.week-check-map {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: linear-gradient(180deg, rgba(155,127,212,0.06), rgba(155,127,212,0.03));
+  border: 1px solid rgba(155,127,212,0.12);
+  border-radius: 12px;
+  min-width: 380px;
+  max-width: 100%; /* 💡 最大幅の制限を解除 */
+  flex: 1;         /* 💡 ヘッダーの空きスペースいっぱいに広げる */
+  margin-left: var(--sp-8); /* 💡 左側の挨拶文との間に余裕を持たせる */
+}
+
+.week-check-map__left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-right: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.week-check-map__title {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.week-check-map__desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.week-check-map__checks {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;                        /* 💡 横に広げる */
+  justify-content: space-between; /* 💡 曜日を等間隔に配置 */
+}
+
+.week-check-map__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;                        /* 💡 横に広げる */
+  min-width: 30px;
+}
+
+.week-check-map__weekday {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+
+.week-check-map__dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.week-check-map__day.is-completed .week-check-map__dot {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #102513;
+}
+
+.week-check-map__day.is-today .week-check-map__dot {
+  box-shadow: 0 0 0 2px rgba(232,162,52,0.12);
+  border-color: var(--accent-gold);
+}
+
+.week-check-map__day.is-completed .week-check-map__dot {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #102513;
+}
+
+.week-check-map__day.is-today .week-check-map__dot {
+  box-shadow: 0 0 0 2px rgba(232,162,52,0.12);
+  border-color: var(--accent-gold);
+}
+
+@media (max-width: 900px) {
+  .week-check-map { min-width: 300px; }
+  .week-check-map__dot { width: 24px; height: 24px; font-size: 12px; }
+  .week-check-map__day { min-width: 32px; }
 }
 
 .top-page__main {
@@ -1128,11 +1417,11 @@ a { text-decoration: none; color: inherit; }
    ============================================================ */
 .calendar-page {
   padding: var(--sp-6) var(--sp-8);
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: var(--sp-6);
-  min-height: 100vh;
-  align-content: start;
+  display: flex;              /* grid → flex に変更 */
+  flex-direction: column;     /* 縦方向に積む */
+  height: 100%;               /* min-height:100vh → height:100% */
+  overflow: hidden;           /* ページ自体はスクロールさせない */
+  gap: var(--sp-4);
 }
 
 .calendar-page__loading {
@@ -1146,13 +1435,14 @@ a { text-decoration: none; color: inherit; }
 }
 
 .calendar-page__header {
-  grid-column: 1 / -1;
+ /* grid-column 削除、それ以外は維持 */
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--border);
-  margin-bottom: var(--sp-2);
+  margin-bottom: 0;           /* gap で制御するので削除 */
 }
 
 .calendar-page__title {
@@ -1163,6 +1453,24 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.calendar-page__content {     /* TSXに既にあるラッパーdiv */
+  flex: 1;                    /* 残り高さを全部使う */
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: var(--sp-6);
+  overflow: hidden;           /* 子要素のスクロールに委ねる */
+  min-height: 0;              /* flexアイテムの高さ縮小を許可 */
+}
+
+/* カレンダー左列（凡例 + CalendarGrid） */
+.calendar-page__grid-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .calendar-nav {
@@ -1185,6 +1493,9 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .calendar-grid__weekdays {
@@ -1209,10 +1520,12 @@ a { text-decoration: none; color: inherit; }
 .calendar-grid__days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
+  flex: 1;
+  min-height: 0;
 }
 
 .calendar-day {
-  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1222,7 +1535,7 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
   transition: background var(--dur-fast), border-color var(--dur-fast);
   position: relative;
-  min-height: 56px;
+  min-height: 0;
 }
 
 .calendar-day:hover { background: var(--bg-raised); }
@@ -1312,6 +1625,8 @@ a { text-decoration: none; color: inherit; }
   align-self: start;
   position: sticky;
   top: 0;
+  overflow-y: auto;
+  height: 100%;  
 }
 
 .day-detail__header {
@@ -1486,6 +1801,12 @@ a { text-decoration: none; color: inherit; }
   grid-template-columns: 1fr 300px;
   height: 100vh;
   overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .goals-page {
+    height: calc(100vh - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .goals-page__graph-area {
@@ -2043,4 +2364,3 @@ a { text-decoration: none; color: inherit; }
 }
 
 .demo-toggle:hover { background: var(--bg-hover); }
-

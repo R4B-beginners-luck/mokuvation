@@ -107,67 +107,80 @@ export function CalendarContainer() {
           </button>
         </div>
       </div>
+    
+    <div className="calendar-page__content">
+      {/* Calendar grid */}
+        <div className="calendar-page__grid-col">
+          <CalendarGrid
+            year={year}
+            month={month}
+            tasks={calendarTasks}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
 
-      <div>
-        <div
-          style={{
-            display: 'flex',
-            gap: 'var(--sp-4)',
-            marginBottom: 'var(--sp-3)',
-            paddingLeft: 'var(--sp-2)',
-          }}
-        >
-          <span
+          {/* Legend */}
+          <div
             style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 11,
-              color: '#fff',
+              gap: 'var(--sp-4)',
+              marginTop: 'var(--sp-3)',
+              paddingLeft: 'var(--sp-2)',
+              flexShrink: 0,
             }}
           >
             <span
               style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: 'var(--accent-gold)',
-                display: 'inline-block',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11,
+                color: '#fff',
               }}
-            />
-            全達成
-          </span>
-          <span
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 11,
-              color: '#fff',
-            }}
-          >
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: 'var(--accent-gold)',
+                  display: 'inline-block',
+                }}
+              />
+              全達成
+            </span>
             <span
               style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: 'var(--accent-violet)',
-                display: 'inline-block',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11,
+                color: '#fff',
               }}
-            />
-            一部達成
-          </span>
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: 'var(--accent-violet)',
+                  display: 'inline-block',
+                }}
+              />
+              一部達成
+            </span>
+          </div>
         </div>
 
-        <CalendarGrid
-          year={year}
-          month={month}
+        {/* Day detail panel */}
+        <DayGoalList
+          date={selectedDate}
           tasks={calendarTasks}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
+          goals={goals}
+          onTaskAdded={handleTaskAdded}
+          onTaskDeleted={handleTaskDeleted}
         />
       </div>
-
       <DayGoalList
         date={selectedDate}
         tasks={calendarTasks}

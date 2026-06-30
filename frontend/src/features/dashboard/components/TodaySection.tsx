@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check, Plus, Trash2 } from 'lucide-react';
-import type { Task, MidTermGoal, LongTermGoal } from '../../../types';
+import type { Task, MidTermGoal, LongTermGoal, ShortTermGoal } from '../../../types';
 import { TaskAddModal } from '../../tasks'; 
 import { TaskDeleteConfirm } from '../../tasks';
 
@@ -8,6 +8,7 @@ interface TodaySectionProps {
   goals: Task[]; // 親から渡される、フィルタ済みの今日のタスク
   midTermGoals: MidTermGoal[];
   longTermGoals: LongTermGoal[];
+  shortTermGoals: ShortTermGoal[];
   onToggle: (id: string) => void;
   onOpenModal: () => void;
   onAddTask: (newTask: Task) => void;
@@ -16,8 +17,9 @@ interface TodaySectionProps {
 
 export function TodaySection({
   goals,
-  midTermGoals,
-  longTermGoals,
+  midTermGoals = [],
+  longTermGoals = [],
+  shortTermGoals = [],
   onToggle,
   onAddTask,
   onDeleteTask,
@@ -27,11 +29,61 @@ export function TodaySection({
 
   const completed = goals.filter((g) => g.completed).length;
 
-  const getMidTitle = (id?: string) =>
-    id ? midTermGoals.find((m) => m.id === id)?.title : undefined;
+  // goalId が何の目標種別を指しているか判定し、長期・中期の親を遡る
+  const resolveLongTermGoalId = (goalId?: string): string | undefined => {
+    if (!goalId) return undefined;
 
-  const getLongTitle = (id: string) =>
-    longTermGoals.find((l) => l.id === id)?.title ?? '';
+    // goalId が long term goal ID か確認
+    const longTerm = longTermGoals.find((l) => l.id === goalId);
+    if (longTerm) return longTerm.id;
+
+    // goalId が mid term goal ID か確認
+    const midTerm = midTermGoals.find((m) => m.id === goalId);
+    if (midTerm && midTerm.longTermGoalId) return midTerm.longTermGoalId;
+
+    // goalId が short term goal ID か確認
+    const shortTerm = shortTermGoals.find((s) => s.id === goalId);
+    if (shortTerm) {
+      if (shortTerm.longTermGoalId) return shortTerm.longTermGoalId;
+      if (shortTerm.midTermGoalId) {
+        const parentMid = midTermGoals.find((m) => m.id === shortTerm.midTermGoalId);
+        return parentMid?.longTermGoalId;
+      }
+    }
+
+    return undefined;
+  };
+
+  const resolveMidTermGoalId = (goalId?: string): string | undefined => {
+    if (!goalId) return undefined;
+
+    // goalId が mid term goal ID か確認
+    const midTerm = midTermGoals.find((m) => m.id === goalId);
+    if (midTerm) return midTerm.id;
+
+    // goalId が short term goal ID か確認
+    const shortTerm = shortTermGoals.find((s) => s.id === goalId);
+    if (shortTerm && shortTerm.midTermGoalId) return shortTerm.midTermGoalId;
+
+    return undefined;
+  };
+
+  const resolveShortTermGoalId = (goalId?: string): string | undefined => {
+    if (!goalId) return undefined;
+
+    // goalId が short term goal ID の場合はそのまま返す
+    const shortTerm = shortTermGoals.find((s) => s.id === goalId);
+    if (shortTerm) return shortTerm.id;
+
+    // goalId が mid term goal ID の場合、その mid に紐づく short-term があれば最初のものを返す（任意）
+    const midTerm = midTermGoals.find((m) => m.id === goalId);
+    if (midTerm) {
+      const childShort = shortTermGoals.find((s) => s.midTermGoalId === midTerm.id);
+      return childShort?.id;
+    }
+
+    return undefined;
+  };
 
   return (
     <section className="card">
@@ -64,12 +116,20 @@ export function TodaySection({
               <div className="goal-item__body">
                 <div className="goal-item__title">{goal.title}</div>
                 <div className="goal-item__meta">
-                  {goal.goalId && (
-                    <span className="tag tag--long">{getLongTitle(goal.goalId)}</span>
+                  {goal.goalId && resolveLongTermGoalId(goal.goalId) && (
+                    <span className="tag tag--long">
+                      {longTermGoals.find((l) => l.id === resolveLongTermGoalId(goal.goalId))?.title}
+                    </span>
                   )}
-                  {goal.goalId && getMidTitle(goal.goalId) && (
+                  {goal.goalId && resolveMidTermGoalId(goal.goalId) && (
                     <span className="tag tag--mid" style={{ marginLeft: 4 }}>
-                      {getMidTitle(goal.goalId)}
+                      {midTermGoals.find((m) => m.id === resolveMidTermGoalId(goal.goalId))?.title}
+                    </span>
+                  )}
+
+                  {goal.goalId && resolveShortTermGoalId(goal.goalId) && (
+                    <span className="tag tag--short" style={{ marginLeft: 4 }}>
+                      {shortTermGoals.find((s) => s.id === resolveShortTermGoalId(goal.goalId))?.title}
                     </span>
                   )}
                 </div>
