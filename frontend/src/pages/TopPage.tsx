@@ -290,7 +290,7 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
             </div>
 
             {/* サイドバーから移動してきた継続状況の表示コンテナ */}
-            <div style={{ flexShrink: 0, width: '340px' }}>
+            <div className="top-page__streak-wrapper">
               <StreakDisplay 
                 tasks={localTasks} 
                 streakCount={summary?.currentStreak}

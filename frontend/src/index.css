@@ -859,6 +859,50 @@ a { text-decoration: none; color: inherit; }
   .week-check-map__day { min-width: 32px; }
 }
 
+@media (max-width: 768px) {
+  /* 達成マップの親ラッパー（インラインで flex:1 / justify-content:center が付いている div）を左寄せに上書き */
+  .top-page__header > div[style*="justify-content: center"],
+  .top-page__header > div[style*="justify-content:center"] {
+    
+    display: block ;
+    width: 100% ;
+    justify-content: flex-start ;
+  }
+
+  /* 達成マップカード自体を全幅・左寄せに、はみ出し防止 */
+  .week-check-map {
+    min-width: 0 ;
+    width: 100% ;
+    max-width: 100% ;
+    margin-left: 0 ;
+    flex: none ;
+    box-sizing: border-box ;
+    overflow: hidden ;
+    gap: var(--sp-2);
+    padding: var(--sp-3) ;
+  }
+
+  /* 曜日ドットをさらに小さく、間隔を詰める */
+  .week-check-map__checks {
+    gap: 4px ;
+  }
+
+  .week-check-map__dot {
+    width: 22px ;
+    height: 22px ;
+    font-size: 11px ;
+  }
+
+  .week-check-map__day {
+    min-width: 0 ;
+    flex: 1 ;
+  }
+
+  .week-check-map__weekday {
+    font-size: 10px;
+  }
+}
+
 .top-page__main {
   display: flex;
   flex-direction: column;
@@ -1062,14 +1106,14 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  max-height: 280px;
+  height: 400px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
 @media (max-width: 768px) {
   .today-goals__list {
-    max-height: 200px;
+    max-height: 300px;
   }
 }
 
@@ -1140,7 +1184,7 @@ a { text-decoration: none; color: inherit; }
 
 @media (max-width: 768px) {
   .weekly-chart {
-    height: 50px;
+    height: 300px;
     margin-bottom: var(--sp-5);
   }
 }
@@ -2475,4 +2519,241 @@ a { text-decoration: none; color: inherit; }
   transition: background var(--dur-fast);
 }
 
+
 .demo-toggle:hover { background: var(--bg-hover); }
+
+
+/* ============================================================
+   RESPONSIVE: MOBILE & TABLET (768px以下)
+   ============================================================ */
+@media (max-width: 768px) {
+  /* 1. PC用の画面固定を解除し、スマホ本来の縦スクロールを有効化 */
+  html, body {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    overflow-x: hidden;
+  }
+  
+  #root {
+    height: auto;
+    min-height: 100vh;
+    display: block;
+    width: 100vw;
+  }
+
+  /* 2. 全体コンテナの縦並び化と、下部ナビゲーション分の底上げ余白 */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    padding-bottom: 84px;
+  }
+
+  /* 3. メインコンテンツのパディング調整（左右の余白をすっきり均等に） */
+  .page-content {
+    width: 100%;
+    max-width: 100%;
+    padding: var(--sp-4);
+    box-sizing: border-box;
+    overflow-y: visible;
+    overflow-x: hidden;
+  }
+
+  /* 4. TopPage内の大枠コンテナを綺麗な1列のカード並びに */
+  .top-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  /* 5. ヘッダー部分の横並び(flex)を完全に解除し、強制的に縦並びにする */
+  .top-page__header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--sp-4);
+    width: 100%;
+    height: auto;
+  }
+
+  /* 6. 挨拶テキスト部分も横いっぱいに広げる */
+  .top-page__header-text {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* 7. 引き伸ばされていた「継続状況」の親コンテナを完全に全幅にする */
+  .top-page__header > div[style*="width: 340px"],
+  .top-page__header > div[style*="flex-shrink"] {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    flex: none;
+    flex-shrink: 1;
+    flex-basis: auto;
+    box-sizing: border-box;
+    margin: 0;
+  }
+
+  /* 8. 「継続状況（StreakDisplay）」カード自体のサイズを整列 */
+  .streak-display {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    box-sizing: border-box;
+    margin: 0;
+  }
+
+  /* 9. 【全面改修】目標マップ（達成マップ）の親要素とカード全体のズレ・はみ出しを完全解消 */
+  .goals-page,
+  .goal-map,
+  .goals-container,
+  .goals-header {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch; /* 左寄せではなく、カードの横幅を100%に広げる */
+  }
+
+  /* 10. 【最重要】目標マップの3×3マトリクスグリッドをスマホ画面幅内に100%自動収縮させる */
+  .matrix-container,
+  .goal-grid,
+  .map-grid {
+    display: grid;
+    width: 100%;
+    max-width: 100%;
+    /* PC版の固定ピクセル幅を破壊し、3列に均等自動分割 */
+    grid-template-columns: repeat(3, minmax(0, 1fr)); 
+    gap: var(--sp-2);
+    margin: var(--sp-3) 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* マップ内の各マス（セル）の横幅制限も解除して等倍フィットさせる */
+  .matrix-cell,
+  .goal-card,
+  .map-item {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: var(--sp-2); /* スマホ用にマス内の余白を少しコンパクトに */
+    margin: 0;
+  }
+
+  /* 11. その他のセクション（タスク一覧・チャート・長期目標）もすべて全幅の縦1列に統一 */
+  .top-page__main,
+  .top-page__sidebar,
+  .today-section,
+  .weekly-progress-chart,
+  .long-term-summary {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+  }
+
+  /* 12. ボタン類の最大幅制限を解除 */
+  .top-page button {
+    max-width: 100%;
+  }
+
+
+  /* ============================================================
+      SIDEBAR -> BOTTOM NAVIGATION VARIATION
+     ============================================================ */
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    height: 64px;
+    min-height: 64px;
+    flex-direction: row;
+    background: var(--bg-surface);
+    border-right: none;
+    border-top: 1px solid var(--border);
+    padding: 0;
+    overflow: visible;
+    z-index: 1000;
+  }
+
+  .sidebar__brand,
+  .sidebar__footer {
+    display: none;
+  }
+
+  .sidebar__nav {
+    flex: 1 ;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 var(--sp-2);
+    gap: 0;
+    margin: 0;
+    height: 100%;
+  }
+
+  .sidebar__nav-item {
+    flex: 1;
+    display: flex ;
+    flex-direction: column ;
+    align-items: center ;
+    justify-content: center ;
+    gap: 4px ;
+    height: 100%;
+    padding: var(--sp-1) 0 ;
+    font-size: 11px ;
+    color: var(--text-secondary);
+    border-radius: 0 ;
+    background: transparent ;
+  }
+
+  .sidebar__nav-item.active {
+    color: var(--accent-gold);
+    background: rgba(232, 162, 52, 0.05) ;
+  }
+
+  .sidebar__nav-item.active::before {
+    top: 0 ;
+    left: 50% ;
+    transform: translateX(-50%) ;
+    width: 40px ;
+    height: 3px ;
+    border-radius: 0 0 4px 4px ;
+  }
+
+  .sidebar__nav-icon {
+    font-size: 18px;
+    width: auto ;
+    margin: 0 ;
+    line-height: 1 ;
+  }
+}
+
+.top-page__streak-wrapper {
+  flex-shrink: 0;
+  width: 340px;
+}
+
+@media (max-width: 768px) {
+  .top-page__streak-wrapper {
+    width: 100%;
+  }
+}
+
