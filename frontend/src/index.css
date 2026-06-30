@@ -2476,3 +2476,92 @@ a { text-decoration: none; color: inherit; }
 }
 
 .demo-toggle:hover { background: var(--bg-hover); }
+/* ============================================================
+   RESPONSIVE - カレンダー画面
+   ============================================================ */
+
+/* タブレット以下（768px）: 2カラム → 1カラム縦積み */
+@media (max-width: 768px) {
+  .calendar-page {
+    padding: var(--sp-4) var(--sp-4);
+    height: auto;
+    overflow: visible;
+    min-height: 100%;
+  }
+
+  .calendar-page__content {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .calendar-page__grid-col {
+    overflow: visible;
+    min-height: 0;
+  }
+
+  .calendar-grid {
+    flex: none;
+  }
+
+  .calendar-grid__days {
+    flex: none;
+    grid-auto-rows: auto;   /* 固定値なし・コンテンツ分だけの高さ */
+  }
+
+  .calendar-day {
+    min-height: 52px;       /* 最低限タップできる高さだけ確保 */
+  }
+
+  .day-detail {
+    position: static;
+    height: auto;
+    margin-top: 0;          /* カレンダーとの隙間は gap で制御 */
+  }
+
+  .page-content {
+    overflow-y: auto;
+    height: auto;
+  }
+}
+
+/* スマホ（480px以下）: さらにコンパクトに */
+@media (max-width: 480px) {
+  .calendar-page {
+    padding: var(--sp-3) var(--sp-3);
+    gap: var(--sp-3);
+  }
+
+  .calendar-page__title {
+    font-size: 17px;
+  }
+
+  .calendar-nav__label {
+    font-size: 13px;
+    min-width: 100px;
+  }
+
+  .calendar-grid__weekday {
+    padding: var(--sp-1) 2px;
+    font-size: 10px;
+  }
+
+  .calendar-day {
+    min-height: 44px;
+    padding: var(--sp-1);
+  }
+
+  .calendar-day__num {
+    font-size: 11px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .calendar-day__dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .day-detail {
+    padding: var(--sp-3);
+  }
+}
