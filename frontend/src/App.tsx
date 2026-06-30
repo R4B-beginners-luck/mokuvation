@@ -158,12 +158,22 @@ export default function App() {
     try {
       if (navigator.onLine) {
         await taskApi.delete(taskId);
-        await db.tasks.delete(taskId);
       } else {
         await deleteTaskLocally(taskId);
       }
-    } catch (error) {
+      await db.tasks.delete(taskId);
+    } catch (error: any) {
+      if (error?.status === 404) {
+        // サーバー側にそのタスクが存在しない＝もともとローカルだけで
+        // 作られたタスク（例：今日の目標を追加 UI から作られたもの）が
+        // 削除された、というだけなので異常ではない。
+        // ローカル状態（Dexie・CRDT・UI）からは既に消えているので、
+        // ログを出さずに静かに完了させる。
+        await db.tasks.delete(taskId);
+        return;
+      }
       console.error('タスク削除に失敗しました', error);
+      // 404以外（ネットワークエラー等）の場合のみ、サーバーと再同期して状態を合わせる
       await sync();
     }
   };
