@@ -1,7 +1,19 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type {  LongTermGoal, MidTermGoal, ShortTermGoal, Goal, NodePosition  } from '../../../types';
 import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
-import { computeInitialPositions, mergeGoalPositions, toLogicalPoint } from '../utils/goalMapLayout';
+import {
+  computeInitialPositions,
+  DEFAULT_MAP_VIEWPORT,
+  MAP_VIEWPORT_SCALE_MAX,
+  MAP_VIEWPORT_SCALE_MIN,
+  mergeGoalPositions,
+  setViewportScaleAtCenter,
+  toLogicalPoint,
+  zoomViewportAtPoint,
+  type MapViewport,
+} from '../utils/goalMapLayout';
+
+const WHEEL_ZOOM_FACTOR = 1.1;
 
 interface GoalGraphProps {
   longTermGoal: LongTermGoal;
@@ -95,10 +107,31 @@ export function GoalGraph({
 
   const cx = size.w / 2;
   const cy = size.h / 2;
-  const viewportRef = useRef({ cx, cy });
+
+  const [mapViewport, setMapViewport] = useState<MapViewport>(DEFAULT_MAP_VIEWPORT);
+  const mapViewportRef = useRef(mapViewport);
+  mapViewportRef.current = mapViewport;
+
+  const viewportRef = useRef({ cx, cy, viewport: mapViewport });
   useEffect(() => {
-    viewportRef.current = { cx, cy };
-  }, [cx, cy]);
+    viewportRef.current = { cx, cy, viewport: mapViewport };
+  }, [cx, cy, mapViewport]);
+
+  useEffect(() => {
+    setMapViewport(DEFAULT_MAP_VIEWPORT);
+  }, [longTermGoal.id]);
+
+  const panListenersRef = useRef<{ move: (e: PointerEvent) => void; up: () => void } | null>(null);
+
+  const clearPanListeners = useCallback(() => {
+    const listeners = panListenersRef.current;
+    if (!listeners) return;
+    window.removeEventListener('pointermove', listeners.move);
+    window.removeEventListener('pointerup', listeners.up);
+    panListenersRef.current = null;
+  }, []);
+
+  useEffect(() => () => clearPanListeners(), [clearPanListeners]);
 
   const mergedPositions = useMemo(
     () => mergeGoalPositions(
@@ -147,6 +180,69 @@ export function GoalGraph({
     window.removeEventListener('pointermove', listeners.move);
     window.removeEventListener('pointerup', listeners.up);
     dragListenersRef.current = null;
+  }, []);
+
+  const clientToSvgPoint = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    return pt.matrixTransform(svg.getScreenCTM()!.inverse());
+  }, []);
+
+  const beginPan = useCallback((clientX: number, clientY: number) => {
+    clearPanListeners();
+    clearDragListeners();
+    const startPan = { ...mapViewportRef.current };
+    const startPointer = { x: clientX, y: clientY };
+
+    const handlePointerMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startPointer.x;
+      const dy = ev.clientY - startPointer.y;
+      setMapViewport({
+        ...startPan,
+        panX: startPan.panX + dx,
+        panY: startPan.panY + dy,
+      });
+    };
+
+    const handlePointerUp = () => {
+      clearPanListeners();
+    };
+
+    panListenersRef.current = { move: handlePointerMove, up: handlePointerUp };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [clearPanListeners, clearDragListeners]);
+
+  const onCanvasPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    beginPan(e.clientX, e.clientY);
+  }, [beginPan]);
+
+  const onSvgPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 1) return;
+    e.preventDefault();
+    beginPan(e.clientX, e.clientY);
+  }, [beginPan]);
+
+  const onSvgWheel = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const svgPoint = clientToSvgPoint(e.clientX, e.clientY);
+    if (!svgPoint) return;
+
+    const zoomFactor = e.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
+    const { cx: vcx, cy: vcy } = viewportRef.current;
+    setMapViewport((prev) => zoomViewportAtPoint(svgPoint, vcx, vcy, prev, zoomFactor));
+  }, [clientToSvgPoint]);
+
+  const onZoomSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newScale = Number(e.target.value) / 100;
+    const { cx: vcx, cy: vcy } = viewportRef.current;
+    setMapViewport((prev) => setViewportScaleAtCenter(vcx, vcy, prev, newScale));
   }, []);
 
   useEffect(() => () => clearDragListeners(), [clearDragListeners]);
@@ -198,16 +294,15 @@ export function GoalGraph({
     if (e.button !== 0) return;
     if (!canDragGoal(id, id === longTermGoal.id)) return;
     e.stopPropagation();
+    clearPanListeners();
     clearDragListeners();
     dragOverlayRef.current = {};
     setDragOverlay(null);
 
-    const svg = svgRef.current!;
-    const pt  = svg.createSVGPoint();
-    pt.x = e.clientX; pt.y = e.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM()!.inverse());
-    const { cx: vcx, cy: vcy } = viewportRef.current;
-    const logical = toLogicalPoint(svgP, vcx, vcy);
+    const svgP = clientToSvgPoint(e.clientX, e.clientY);
+    if (!svgP) return;
+    const { cx: vcx, cy: vcy, viewport } = viewportRef.current;
+    const logical = toLogicalPoint(svgP, vcx, vcy, viewport);
     const current = displayPositionsRef.current[id];
     dragStartRef.current = current
       ? { id, x: current.x, y: current.y }
@@ -220,12 +315,10 @@ export function GoalGraph({
 
     const handlePointerMove = (ev: PointerEvent) => {
       if (!dragRef.current || !svgRef.current) return;
-      const movePt = svgRef.current.createSVGPoint();
-      movePt.x = ev.clientX;
-      movePt.y = ev.clientY;
-      const moveSvgP = movePt.matrixTransform(svgRef.current.getScreenCTM()!.inverse());
-      const { cx: mcx, cy: mcy } = viewportRef.current;
-      const moveLogical = toLogicalPoint(moveSvgP, mcx, mcy);
+      const moveSvgP = clientToSvgPoint(ev.clientX, ev.clientY);
+      if (!moveSvgP) return;
+      const { cx: mcx, cy: mcy, viewport: moveViewport } = viewportRef.current;
+      const moveLogical = toLogicalPoint(moveSvgP, mcx, mcy, moveViewport);
       const { id: dragId, ox, oy } = dragRef.current;
       const next = { x: moveLogical.x - ox, y: moveLogical.y - oy };
       dragOverlayRef.current = { ...dragOverlayRef.current, [dragId]: next };
@@ -240,7 +333,7 @@ export function GoalGraph({
     dragListenersRef.current = { move: handlePointerMove, up: handlePointerUp };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [longTermGoal.id, clearDragListeners, commitDraggedPosition, canDragGoal]);
+  }, [longTermGoal.id, clearDragListeners, clearPanListeners, commitDraggedPosition, canDragGoal, clientToSvgPoint]);
 
   const onNodeContextMenu = useCallback((e: React.MouseEvent, goal: Goal) => {
     e.preventDefault();
@@ -302,12 +395,47 @@ export function GoalGraph({
     ...shortTermGoals,
   ];
 
+  const worldTransform = `translate(${cx + mapViewport.panX}, ${cy + mapViewport.panY}) scale(${mapViewport.scale})`;
+  const zoomPercent = Math.round(mapViewport.scale * 100);
+  const zoomPercentLabel = `${zoomPercent}%`;
+  const zoomSliderMin = Math.round(MAP_VIEWPORT_SCALE_MIN * 100);
+  const zoomSliderMax = Math.round(MAP_VIEWPORT_SCALE_MAX * 100);
+
   return (
     <>
+      <div
+        className="goal-graph__zoom-control"
+        onPointerDown={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+      >
+        <span
+          className="goal-graph__zoom-label"
+          aria-live="polite"
+        >
+          {zoomPercentLabel}
+        </span>
+        <input
+          type="range"
+          className="goal-graph__zoom-slider"
+          min={zoomSliderMin}
+          max={zoomSliderMax}
+          step={1}
+          value={zoomPercent}
+          onChange={onZoomSliderChange}
+          aria-label="表示倍率"
+          aria-valuemin={zoomSliderMin}
+          aria-valuemax={zoomSliderMax}
+          aria-valuenow={zoomPercent}
+          aria-valuetext={zoomPercentLabel}
+        />
+      </div>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${size.w} ${size.h}`}
+        className="goal-graph__canvas"
         style={{ display: 'block', userSelect: 'none', touchAction: 'none' }}
+        onPointerDown={onSvgPointerDown}
+        onWheel={onSvgWheel}
       >
         <defs>
           <filter id="glow-gold" x="-50%" y="-50%" width="200%" height="200%">
@@ -324,7 +452,17 @@ export function GoalGraph({
           </filter>
         </defs>
 
-        <g transform={`translate(${cx}, ${cy})`}>
+        <rect
+          x={0}
+          y={0}
+          width={size.w}
+          height={size.h}
+          fill="transparent"
+          className="goal-graph__background"
+          onPointerDown={onCanvasPointerDown}
+        />
+
+        <g transform={worldTransform}>
           {edges.map((e, i) => (
             <line
               key={i}
@@ -334,9 +472,7 @@ export function GoalGraph({
               strokeOpacity={e.opacity}
             />
           ))}
-        </g>
 
-        <g transform={`translate(${cx}, ${cy})`}>
           {allGoals.map((goal) => {
             const p = displayPositions[goal.id];
             if (!p) return null;
