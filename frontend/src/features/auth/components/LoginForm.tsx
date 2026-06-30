@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
 interface LoginFormProps {
-  // LoginPage側での型エラーを避けるため、引数は (data?: any) としておきます
-  onLogin: (data?: any) => void;
+  onLogin: () => void | Promise<void>;
+  onLoggingInChange?: (loggingIn: boolean) => void;
 }
 
-export function LoginForm({ onLogin }: LoginFormProps) {
+export function LoginForm({ onLogin, onLoggingInChange }: LoginFormProps) {
   // useAuthから必要な機能を取り出す
   const { login, isLoading, error: authError } = useAuth();
   const [userId, setUserId] = useState('');
@@ -23,20 +23,18 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     }
     setValidationError('');
 
-    // 2. useAuthのlogin関数を実行
-    // 設計書に合わせて user_id というキーで送るようフックに渡す
+    onLoggingInChange?.(true);
+
     const result = await login({ user_id: userId, password });
 
     if (result) {
-      /**
-       * 【整合性のための注記】
-       * 本来は useAuth 内部で localStorage.setItem('user_info', ...) を
-       * 行うのが理想的です。もしフック側でやっていない場合は、
-       * ここで result (APIレスポンス) を使って保存処理を行います。
-       */
-      
-      // 親コンポーネントに通知
-      onLogin(result);
+      try {
+        await onLogin();
+      } catch {
+        onLoggingInChange?.(false);
+      }
+    } else {
+      onLoggingInChange?.(false);
     }
   };
 

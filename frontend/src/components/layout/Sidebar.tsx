@@ -1,4 +1,7 @@
+import { Zap, Calendar, Map } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { Page, User } from '../../types';
+import { BrandMark } from '../BrandMark/BrandMark';
 
 interface SidebarProps {
   currentPage: Page;
@@ -7,33 +10,40 @@ interface SidebarProps {
   user: User | null;
 }
 
-const NAV_ITEMS: { page: Page; icon: string; label: string }[] = [
-  { page: 'top',      icon: '⚡',  label: 'Today' },
-  { page: 'calendar', icon: '📅',  label: 'カレンダー' },
-  { page: 'goals',    icon: '🗺️',  label: '目標マップ' },
+const NAV_ITEMS: { page: Page; icon: LucideIcon; label: string }[] = [
+  { page: 'top',      icon: Zap,      label: 'Today' },
+  { page: 'calendar', icon: Calendar, label: 'カレンダー' },
+  { page: 'goals',    icon: Map,      label: '目標マップ' },
 ];
 
-export function Sidebar({ currentPage, onNavigate, onLogout,user }: SidebarProps) {
-  const displayUserName = user?.user_name || 'ゲスト';
-  const avatarChar = displayUserName.charAt(0);
+export function Sidebar({ currentPage, onNavigate, onLogout, user }: SidebarProps) {
+  const displayUserName =
+    typeof user?.user_name === 'string' && user.user_name.trim()
+      ? user.user_name.trim()
+      : 'ゲスト';
+  const avatarChar = [...displayUserName][0] ?? '?';
 
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <div className="sidebar__logo">M</div>
+        <div className="sidebar__logo">
+          <BrandMark size={32} />
+        </div>
         <span className="sidebar__name">
           moku<span>vation</span>
         </span>
       </div>
 
       <nav className="sidebar__nav">
-        {NAV_ITEMS.map(({ page, icon, label }) => (
+        {NAV_ITEMS.map(({ page, icon: Icon, label }) => (
           <button
             key={page}
             className={`sidebar__nav-item${currentPage === page ? ' active' : ''}`}
             onClick={() => onNavigate(page)}
           >
-            <span className="sidebar__nav-icon">{icon}</span>
+            <span className="sidebar__nav-icon">
+              <Icon size={18} strokeWidth={1.75} aria-hidden />
+            </span>
             <span>{label}</span>
           </button>
         ))}

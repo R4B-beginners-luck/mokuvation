@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { Save, Trash2 } from 'lucide-react';
 import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal } from '../../../types';
 import { Modal } from '../../../components/Modal';
+import { ButtonSpinner } from '../../../components/ui/ButtonSpinner';
 import { TODAY } from '../../../data/dummy';
 import { COLOR_PALETTE, DEFAULT_GOAL_COLOR } from '../../../const/colors';
 
@@ -299,9 +301,31 @@ export function GoalActionModal({
               });
             }}
             disabled={saveDisabled || isSaving}
-            style={{ opacity: saveDisabled || isSaving ? 0.5 : 1, cursor: saveDisabled || isSaving ? 'default' : 'pointer' }}
+            style={{
+              opacity: saveDisabled || isSaving ? 0.5 : 1,
+              cursor: saveDisabled || isSaving ? 'default' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
           >
-            {isSaving ? '保存中…' : isEditMode ? '保存する' : '追加する'}
+            {isSaving ? (
+              <>
+                <ButtonSpinner />
+                保存中…
+              </>
+            ) : isEditMode ? (
+              <>
+                <Save size={15} strokeWidth={1.75} aria-hidden />
+                保存する
+              </>
+            ) : (
+              <>
+                <Save size={15} strokeWidth={1.75} aria-hidden />
+                追加する
+              </>
+            )}
           </button>
         </div>
         {isEditMode && (
@@ -312,18 +336,18 @@ export function GoalActionModal({
               disabled={isSaving}
               aria-label="目標を削除"
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                width: '100%',
-                padding: '10px 12px',
-                fontSize: 13,
-              }}
-            >
-              <span aria-hidden="true">🗑️</span>
-              <span>この目標を削除</span>
-            </button>
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              width: '100%',
+              padding: '10px 12px',
+              fontSize: 13,
+            }}
+          >
+            <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+            <span>この目標を削除</span>
+          </button>
           </div>
         )}
       </div>

@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react';
-import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task, NodePosition } from '../types';
 import { GoalGraph, GoalDetailPanel } from '../features/goals';
+import { computeInitialPositions, mergeGoalPositions } from '../features/goals/utils/goalMapLayout';
 import { GoalActionModal, type GoalActionMode, type GoalActionPayload } from '../features/goals/components/GoalActionModal';
 import { goalApi, type BackendGoal, type CreateGoalPayload, type UpdateGoalPayload } from '../features/goals/api/goalApi';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { COLOR_PALETTE } from '../const/colors';
+import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
+import { ButtonSpinner } from '../components/ui/ButtonSpinner';
+import { Map, Plus } from 'lucide-react';
 
 type GoalActionState = {
   mode: GoalActionMode;
@@ -12,16 +16,23 @@ type GoalActionState = {
   presetGoalType?: 'mid' | 'short';
 };
 
+type PlacementSession = {
+  type: 'add' | 'edit';
+  movableGoalIds: string[];
+  draftPositions: Record<string, NodePosition>;
+  baselinePositions: Record<string, NodePosition>;
+};
+
+type LoadedGoalsData = {
+  longTermGoals: LongTermGoal[];
+  midTermGoals: MidTermGoal[];
+  shortTermGoals: ShortTermGoal[];
+  savedPositions: Record<string, NodePosition>;
+};
+
 interface GoalsPageProps {
   shortTermGoals: ShortTermGoal[];
   tasks: Task[];
-}
-
-function getLoadingProgressLabel(progress: number): string {
-  if (progress < 30) return '長期目標を取得しています';
-  if (progress < 60) return '中期・短期目標を整理しています';
-  if (progress < 90) return '目標マップを組み立てています';
-  return '表示の最終調整をしています';
 }
 
 function resolveGoalFromState(
@@ -115,6 +126,96 @@ function buildGoalTree(goals: BackendGoal[]) {
   return { longTermGoals, midTermGoals, shortTermGoals };
 }
 
+function extractSavedPositions(goals: BackendGoal[]): Record<string, NodePosition> {
+  const saved: Record<string, NodePosition> = {};
+
+  goals.forEach((goal) => {
+    if (goal.period_type === 'long') return;
+    if (goal.position_x == null || goal.position_y == null) return;
+
+    const x = Number(goal.position_x);
+    const y = Number(goal.position_y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+    saved[goal.id] = { x, y };
+  });
+
+  return saved;
+}
+
+function filterPendingPositions(
+  pending: Record<string, NodePosition>,
+  validGoalIds: Set<string>
+): Record<string, NodePosition> {
+  return Object.fromEntries(
+    Object.entries(pending).filter(([goalId]) => validGoalIds.has(goalId))
+  );
+}
+
+function sanitizePosition(position: NodePosition): NodePosition | null {
+  const x = Math.round(position.x * 100) / 100;
+  const y = Math.round(position.y * 100) / 100;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y };
+}
+
+function collectActiveMovableGoalIds(
+  mids: MidTermGoal[],
+  shorts: ShortTermGoal[],
+  activeLtId: string
+): string[] {
+  return [
+    ...mids.filter((m) => m.longTermGoalId === activeLtId).map((m) => m.id),
+    ...shorts.filter((s) => s.longTermGoalId === activeLtId).map((s) => s.id),
+  ];
+}
+
+function buildBaselinePositions(
+  longTermGoal: LongTermGoal,
+  mids: MidTermGoal[],
+  shorts: ShortTermGoal[],
+  saved: Record<string, NodePosition>,
+  goalIds: string[]
+): Record<string, NodePosition> {
+  const auto = computeInitialPositions(longTermGoal, mids, shorts);
+  const merged = mergeGoalPositions(auto, saved, {}, longTermGoal.id);
+  const baseline: Record<string, NodePosition> = {};
+  goalIds.forEach((id) => {
+    if (merged[id]) baseline[id] = merged[id];
+  });
+  return baseline;
+}
+
+function formatPositionSaveError(error: unknown): string {
+  if (error && typeof error === 'object' && 'status' in error) {
+    const apiError = error as { status: number; data?: Record<string, unknown> };
+    const message = typeof apiError.data?.message === 'string'
+      ? apiError.data.message
+      : null;
+    const validationErrors = apiError.data?.errors;
+    const firstValidationError =
+      validationErrors && typeof validationErrors === 'object'
+        ? Object.values(validationErrors as Record<string, string[]>).flat()[0]
+        : null;
+
+    if (apiError.status === 401) {
+      return '認証が切れています。再度ログインしてください。';
+    }
+    if (apiError.status === 404) {
+      return '配置保存APIが見つかりません。バックエンドのデプロイとマイグレーションを確認してください。';
+    }
+    if (firstValidationError) {
+      return `配置の保存に失敗しました: ${firstValidationError}`;
+    }
+    if (message) {
+      return `配置の保存に失敗しました: ${message}`;
+    }
+    return `配置の保存に失敗しました（HTTP ${apiError.status}）。`;
+  }
+
+  return '配置の保存に失敗しました。再度お試しください。';
+}
+
 function updateGoalCompleted<T extends Goal>(
   goals: T[],
   goalId: string,
@@ -135,10 +236,29 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalAction, setGoalAction] = useState<GoalActionState | null>(null);
   const [isLoadingGoals, setIsLoadingGoals] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState(16);
   const [isSavingGoal, setIsSavingGoal] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [goalLoadError, setGoalLoadError] = useState<string | null>(null);
+  const [savedPositions, setSavedPositions] = useState<Record<string, NodePosition>>({});
+  const [pendingPositions, setPendingPositions] = useState<Record<string, NodePosition>>({});
+  const [isSavingPositions, setIsSavingPositions] = useState(false);
+  const [positionSaveNotice, setPositionSaveNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [placementSession, setPlacementSession] = useState<PlacementSession | null>(null);
+  const placementSessionRef = useRef<PlacementSession | null>(null);
+  useEffect(() => {
+    placementSessionRef.current = placementSession;
+  }, [placementSession]);
+
+  const graphPendingPositions = placementSession?.draftPositions ?? pendingPositions;
+
+  const longTermGoalIds = useMemo(
+    () => new Set(longTermGoals.map((goal) => goal.id)),
+    [longTermGoals]
+  );
+  const pendingPositionCount = useMemo(
+    () => Object.keys(pendingPositions).filter((goalId) => !longTermGoalIds.has(goalId)).length,
+    [pendingPositions, longTermGoalIds]
+  );
 
   const activeLt = longTermGoals.find((l) => l.id === activeLtId) ?? longTermGoals[0] ?? null;
   const hiddenLongTermIds = new Set(longTermGoals.filter((l) => l.completed).map((l) => l.id));
@@ -195,23 +315,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     }
   }, [demoShowCompleted, selectedGoal, hiddenLongTermIds, hiddenMidTermIds, hiddenShortTermIds]);
 
-  useEffect(() => {
-    if (!isLoadingGoals) return undefined;
-
-    const timer = window.setInterval(() => {
-      setLoadingProgress((prev) => {
-        if (prev >= 94) return prev;
-        const step = prev < 45 ? 10 : prev < 75 ? 6 : 3;
-        return Math.min(prev + step, 94);
-      });
-    }, 120);
-
-    return () => window.clearInterval(timer);
-  }, [isLoadingGoals]);
-
-  const loadGoals = async (preferredActiveLtId?: string, showLoadingUI = false) => {
+  const loadGoals = async (preferredActiveLtId?: string, showLoadingUI = false): Promise<LoadedGoalsData | null> => {
     if (showLoadingUI) {
-      setLoadingProgress(16);
       setIsLoadingGoals(true);
     }
     setGoalLoadError(null);
@@ -220,18 +325,33 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     try {
       const goals = await goalApi.getAll();
       const { longTermGoals, midTermGoals, shortTermGoals } = buildGoalTree(goals);
+      const validGoalIds = new Set(goals.map((goal) => goal.id));
+      const apiLongTermIds = new Set(
+        goals.filter((goal) => goal.period_type === 'long').map((goal) => goal.id)
+      );
+      const nextSavedPositions = extractSavedPositions(goals);
       setLongTermGoals(longTermGoals);
       setMidTermGoals(midTermGoals);
       setShortTermGoals(shortTermGoals);
+      setSavedPositions(nextSavedPositions);
+      setPendingPositions((prev) => Object.fromEntries(
+        Object.entries(filterPendingPositions(prev, validGoalIds))
+          .filter(([goalId]) => !apiLongTermIds.has(goalId))
+      ));
       if (preferredActiveLtId && longTermGoals.some((lt) => lt.id === preferredActiveLtId)) {
         setActiveLtId(preferredActiveLtId);
       }
+      return {
+        longTermGoals,
+        midTermGoals,
+        shortTermGoals,
+        savedPositions: nextSavedPositions,
+      };
     } catch (error) {
       setGoalLoadError('目標の読み込みに失敗しました。');
+      return null;
     } finally {
       if (showLoadingUI) {
-        setLoadingProgress(100);
-        await new Promise((resolve) => window.setTimeout(resolve, 90));
         setIsLoadingGoals(false);
       }
     }
@@ -252,6 +372,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   };
 
   const handleEditGoal = (goal: Goal) => {
+    if (placementSession) return;
     setGoalAction({
       mode: 'edit',
       goal: resolveGoalFromState(goal, shortTermGoalsState, midTermGoals, longTermGoals),
@@ -259,10 +380,12 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   };
 
   const handleAddGoal = (goal: Goal, presetGoalType?: 'mid' | 'short') => {
+    if (placementSession) return;
     setGoalAction({ mode: 'add-goal', goal, presetGoalType });
   };
 
   const handleAddLongTerm = () => {
+    if (placementSession) return;
     const template: LongTermGoal = activeLt ?? longTermGoals[0] ?? {
       id: '__new_long__',
       type: 'long',
@@ -295,6 +418,175 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const handleDemoCompletedToggle = () => {
     setDemoShowCompleted((prev) => !prev);
   };
+
+  const handlePositionCommit = useCallback((goalId: string, position: NodePosition) => {
+    if (longTermGoalIds.has(goalId)) return;
+
+    if (placementSessionRef.current) {
+      setPlacementSession((prev) => {
+        if (!prev || !prev.movableGoalIds.includes(goalId)) return prev;
+        return { ...prev, draftPositions: { ...prev.draftPositions, [goalId]: position } };
+      });
+    } else {
+      setPendingPositions((prev) => ({ ...prev, [goalId]: position }));
+    }
+    setPositionSaveNotice(null);
+  }, [longTermGoalIds]);
+
+  const beginPlacementSession = useCallback((
+    type: PlacementSession['type'],
+    movableGoalIds: string[],
+    data: LoadedGoalsData,
+    activeLongTermId: string
+  ) => {
+    const longTermGoal = data.longTermGoals.find((lt) => lt.id === activeLongTermId);
+    if (!longTermGoal || movableGoalIds.length === 0) return;
+
+    const activeMidsForLt = data.midTermGoals.filter((m) => m.longTermGoalId === activeLongTermId);
+    const activeShortsForLt = data.shortTermGoals.filter((s) => s.longTermGoalId === activeLongTermId);
+    const baselinePositions = buildBaselinePositions(
+      longTermGoal,
+      activeMidsForLt,
+      activeShortsForLt,
+      data.savedPositions,
+      movableGoalIds
+    );
+
+    setPlacementSession({
+      type,
+      movableGoalIds,
+      draftPositions: {},
+      baselinePositions,
+    });
+    setPositionSaveNotice(null);
+    setPendingPositions({});
+
+    const focusId = type === 'add' ? movableGoalIds[0] : null;
+    if (focusId) {
+      const focused =
+        activeMidsForLt.find((m) => m.id === focusId)
+        ?? activeShortsForLt.find((s) => s.id === focusId)
+        ?? null;
+      if (focused) setSelectedGoal(focused);
+    }
+  }, []);
+
+  const handleSkipPlacement = useCallback(() => {
+    setPlacementSession(null);
+    setPositionSaveNotice(null);
+  }, []);
+
+  const handleConfirmPlacement = async () => {
+    if (!placementSession || isSavingPositions) return;
+
+    const resolvePosition = (goalId: string): NodePosition | null => {
+      const raw = placementSession.draftPositions[goalId]
+        ?? placementSession.baselinePositions[goalId];
+      return raw ? sanitizePosition(raw) : null;
+    };
+
+    let entries: readonly (readonly [string, NodePosition])[];
+
+    if (placementSession.type === 'add') {
+      const goalId = placementSession.movableGoalIds[0];
+      const position = goalId ? resolvePosition(goalId) : null;
+      entries = goalId && position ? [[goalId, position] as const] : [];
+    } else {
+      entries = placementSession.movableGoalIds
+        .map((goalId) => {
+          const position = resolvePosition(goalId);
+          if (!position) return null;
+          const baseline = placementSession.baselinePositions[goalId];
+          if (baseline && baseline.x === position.x && baseline.y === position.y) return null;
+          return [goalId, position] as const;
+        })
+        .filter((entry): entry is readonly [string, NodePosition] => entry !== null);
+    }
+
+    if (entries.length === 0) {
+      setPlacementSession(null);
+      setPositionSaveNotice({ type: 'success', text: '配置を確定しました。' });
+      return;
+    }
+
+    setIsSavingPositions(true);
+    setPositionSaveNotice(null);
+
+    try {
+      await goalApi.updatePositions({
+        positions: entries.map(([goal_id, position]) => ({
+          goal_id,
+          x: position.x,
+          y: position.y,
+        })),
+      });
+
+      setSavedPositions((prev) => {
+        const next = { ...prev };
+        entries.forEach(([goalId, position]) => {
+          next[goalId] = position;
+        });
+        return next;
+      });
+      setPlacementSession(null);
+      setPositionSaveNotice({ type: 'success', text: '配置を確定しました。' });
+    } catch (error) {
+      setPositionSaveNotice({ type: 'error', text: formatPositionSaveError(error) });
+    } finally {
+      setIsSavingPositions(false);
+    }
+  };
+
+  const handleSavePositions = async () => {
+    const entries = Object.entries(pendingPositions)
+      .filter(([goalId]) => !longTermGoalIds.has(goalId))
+      .map(([goalId, position]) => {
+        const sanitized = sanitizePosition(position);
+        return sanitized ? [goalId, sanitized] as const : null;
+      })
+      .filter((entry): entry is readonly [string, NodePosition] => entry !== null);
+
+    if (entries.length === 0 || isSavingPositions) return;
+
+    setIsSavingPositions(true);
+    setPositionSaveNotice(null);
+
+    try {
+      await goalApi.updatePositions({
+        positions: entries.map(([goal_id, position]) => ({
+          goal_id,
+          x: position.x,
+          y: position.y,
+        })),
+      });
+
+      setSavedPositions((prev) => {
+        const next = { ...prev };
+        entries.forEach(([goalId, position]) => {
+          next[goalId] = position;
+        });
+        return next;
+      });
+      setPendingPositions({});
+      setPositionSaveNotice({ type: 'success', text: '配置を保存しました。' });
+    } catch (error) {
+      setPositionSaveNotice({ type: 'error', text: formatPositionSaveError(error) });
+    } finally {
+      setIsSavingPositions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (pendingPositionCount === 0 && !placementSession) return undefined;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [pendingPositionCount, placementSession]);
 
   const handleToggleCompleted = async (goal: Goal) => {
     const nextCompleted = !goal.completed;
@@ -398,9 +690,20 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           ? goal.id
           : payload.longTermGoalId ?? (goal as MidTermGoal | ShortTermGoal).longTermGoalId;
 
-        await loadGoals(preferredActiveLtId);
-        setSelectedGoal(null);
+        const data = await loadGoals(preferredActiveLtId);
         setGoalAction(null);
+
+        if (data && goal.type !== 'long') {
+          const activeLongTermId = preferredActiveLtId ?? data.longTermGoals[0]?.id ?? '';
+          const movableGoalIds = collectActiveMovableGoalIds(
+            data.midTermGoals,
+            data.shortTermGoals,
+            activeLongTermId
+          );
+          beginPlacementSession('edit', movableGoalIds, data, activeLongTermId);
+        } else {
+          setSelectedGoal(null);
+        }
         return;
       }
 
@@ -424,9 +727,15 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         ? createdGoal.id
         : payload.longTermGoalId;
 
-      await loadGoals(preferredActiveLtId);
-      setSelectedGoal(null);
+      const data = await loadGoals(preferredActiveLtId);
       setGoalAction(null);
+
+      if (data && createdGoal.period_type !== 'long') {
+        const activeLongTermId = preferredActiveLtId ?? data.longTermGoals[0]?.id ?? '';
+        beginPlacementSession('add', [createdGoal.id], data, activeLongTermId);
+      } else {
+        setSelectedGoal(null);
+      }
     } catch (error) {
       console.error('Goal save failed', error);
       setGoalLoadError('目標の保存に失敗しました。再度お試しください。');
@@ -440,7 +749,10 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       {/* Graph area */}
       <div className="goals-page__graph-area">
         <div className="goals-page__header">
-          <h1 className="goals-page__title">🗺️ 目標マップ</h1>
+          <h1 className="goals-page__title">
+            <Map size={20} strokeWidth={1.75} aria-hidden />
+            目標マップ
+          </h1>
           <div className="goals-page__selector">
             <button
               type="button"
@@ -455,6 +767,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               id="goals-page-lt-select"
               className="form-select goals-page__lt-select"
               value={activeLtId}
+              disabled={!!placementSession}
               onChange={(e) => {
                 setActiveLtId(e.target.value);
                 setSelectedGoal(null);
@@ -467,32 +780,82 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
             <button
               type="button"
               className="btn-secondary"
-              style={{ whiteSpace: 'nowrap', fontSize: 13 }}
+              style={{ whiteSpace: 'nowrap', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
               onClick={handleAddLongTerm}
             >
-              ＋ 長期目標
+              <Plus size={15} strokeWidth={1.75} aria-hidden />
+              長期目標
             </button>
+            {!placementSession && (
+              <button
+                type="button"
+                className="btn-secondary goals-page__save-positions-btn"
+                disabled={pendingPositionCount === 0 || isSavingPositions}
+                onClick={handleSavePositions}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                {isSavingPositions ? (
+                  <>
+                    <ButtonSpinner />
+                    保存中...
+                  </>
+                ) : pendingPositionCount > 0
+                  ? `配置を保存（${pendingPositionCount}件）`
+                  : '配置を保存'}
+              </button>
+            )}
           </div>
+          {placementSession && (
+            <div className="goals-page__placement-bar" role="region" aria-label="配置プレビュー">
+              <p className="goals-page__placement-message">
+                {placementSession.type === 'add'
+                  ? '追加した目標の位置を決めてください。'
+                  : '目標の位置を調整してください。複数まとめて動かせます。'}
+              </p>
+              <div className="goals-page__placement-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={isSavingPositions}
+                  onClick={handleSkipPlacement}
+                >
+                  スキップ
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={isSavingPositions}
+                  onClick={handleConfirmPlacement}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  {isSavingPositions ? (
+                    <>
+                      <ButtonSpinner />
+                      保存中...
+                    </>
+                  ) : '配置を確定'}
+                </button>
+              </div>
+            </div>
+          )}
+          {!placementSession && pendingPositionCount > 0 && (
+            <p className="goals-page__unsaved-notice">未保存の変更があります</p>
+          )}
+          {positionSaveNotice && (
+            <p
+              className={`goals-page__position-notice goals-page__position-notice--${positionSaveNotice.type}`}
+              role="status"
+              aria-live="polite"
+            >
+              {positionSaveNotice.text}
+            </p>
+          )}
         </div>
 
-        <div className="graph-canvas-wrap">
+        <div className={`graph-canvas-wrap${placementSession ? ' graph-canvas-wrap--placement' : ''}`}>
           {isLoadingGoals ? (
             <div className="goals-page__loading" role="status" aria-live="polite">
-              <div className="goals-page__loading-card">
-                <div className="goals-page__loading-header">
-                  <div className="goals-page__loading-title">目標を読み込み中です...</div>
-                  <div className="goals-page__loading-percent">{loadingProgress}%</div>
-                </div>
-                <div className="goals-page__loading-bar">
-                  <div
-                    className="goals-page__loading-bar-fill"
-                    style={{ width: `${loadingProgress}%` }}
-                  />
-                </div>
-                <div className="goals-page__loading-subtext">
-                  {getLoadingProgressLabel(loadingProgress)}
-                </div>
-              </div>
+              <GoalsPageSkeleton />
             </div>
           ) : goalLoadError ? (
             <div className="goals-page__error">{goalLoadError}</div>
@@ -501,12 +864,23 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               longTermGoal={activeLt}
               midTermGoals={activeMids}
               shortTermGoals={activeShorts}
+              tasks={tasks}
               selectedId={selectedGoal?.id ?? null}
+              savedPositions={savedPositions}
+              pendingPositions={graphPendingPositions}
+              placementMode={placementSession ? {
+                type: placementSession.type,
+                movableGoalIds: placementSession.movableGoalIds,
+                focusGoalId: placementSession.type === 'add'
+                  ? placementSession.movableGoalIds[0]
+                  : undefined,
+              } : null}
               onSelectNode={handleSelectNode}
               onToggleCompleted={handleToggleCompleted}
               onEditGoal={handleEditGoal}
               onAddGoal={handleAddGoal}
               onDeleteGoal={handleDeleteGoalFromMap}
+              onPositionCommit={handlePositionCommit}
             />
           ) : (
             <div className="goals-page__empty">長期目標がありません。</div>

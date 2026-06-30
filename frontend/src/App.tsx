@@ -3,7 +3,7 @@ import type { Page, ShortTermGoal, Task, User } from './types';
 import { shortTermGoalsInitial } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
-import { LoadingPage } from './pages/LoadingPage';
+import Splash from './components/Splash/Splash';
 import { TopPage }     from './pages/TopPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GoalsPage }   from './pages/GoalsPage';
@@ -19,7 +19,8 @@ export default function App() {
   const [page, setPage]             = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [user, setUser]             = useState<User | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
 
@@ -67,6 +68,9 @@ export default function App() {
       setIsLoggedIn(false);
       setUser(null);
       setPage('login');
+      throw error;
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -157,8 +161,18 @@ export default function App() {
     }
   };
 
-  if (isCheckingAuth) return <LoadingPage />;
-  if (!isLoggedIn)    return <LoginPage onLogin={handleLogin} />;
+  // ── Login screen (no sidebar) ────────────────────────────────────────────────
+  if (isCheckingAuth || isLoggingIn) {
+    return (
+      <Splash
+        label={isLoggingIn ? 'ログインしています…' : undefined}
+      />
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} onLoggingInChange={setIsLoggingIn} />;
+  }
 
   return (
     <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout} user={user}>

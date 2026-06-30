@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // {goal} は「ルートモデルバインディング」機能を利用。URL の ID から自動で Goal モデルを取得します。
     Route::get('/goals', [GoalController::class, 'index']);           // 自分の目標一覧を取得
     Route::post('/goals', [GoalController::class, 'store']);          // 新しい目標を保存
+    Route::patch('/goals/positions', [GoalController::class, 'updatePositions']); // 目標マップ座標の一括更新
     Route::get('/goals/{goal}', [GoalController::class, 'show']);     // 特定の目標の詳細を取得
     Route::patch('/goals/{goal}', [GoalController::class, 'update']); // 目標の内容を更新
     Route::delete('/goals/{goal}', [GoalController::class, 'destroy']);// 目標を削除

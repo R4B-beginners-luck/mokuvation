@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { LoginForm, RegisterForm } from '../features/auth';
+import { BrandMark } from '../components/BrandMark/BrandMark';
 
 
 interface LoginPageProps {
-  // App.tsx の handleLogin (引数なし) と整合性を合わせる
-  onLogin: () => void;
+  onLogin: () => void | Promise<void>;
+  onLoggingInChange?: (loggingIn: boolean) => void;
 }
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage({ onLogin, onLoggingInChange }: LoginPageProps) {
   // 'login' または 'register' の状態を管理
   const [view, setView] = useState<'login' | 'register'>('login');
 
@@ -16,9 +17,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
    * 引数にユーザー情報が含まれていても、App.tsx側の引数なし onLogin を
    * 安全に実行できるようにここでラップします。
    */
-  const handleAuthSuccess = () => {
-    // ユーザー情報の保存などは各Form側で完結している想定
-    onLogin();
+  const handleAuthSuccess = async () => {
+    await onLogin();
   };
 
   return (
@@ -30,7 +30,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
       <div className="login-card">
         <div className="login-card__brand">
-          <div className="login-card__logo">M</div>
+          <div className="login-card__logo">
+            <BrandMark size={52} />
+          </div>
           <h1 className="login-card__title">
             moku<span>vation</span>
           </h1>
@@ -42,7 +44,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         {/* 表示の切り替え */}
         {view === 'login' ? (
           <>
-            <LoginForm onLogin={handleAuthSuccess} />
+            <LoginForm onLogin={handleAuthSuccess} onLoggingInChange={onLoggingInChange} />
             <div style={{ textAlign: 'center', marginTop: '16px' }}>
               <button 
                 onClick={() => setView('register')} 
