@@ -19,6 +19,8 @@ class Goal extends Model
         'period_type',
         'due_at',
         'is_completed',
+        'position_x',
+        'position_y',
     ];
 
     // 1. データ型のキャスト（変換）
@@ -26,6 +28,8 @@ class Goal extends Model
         'is_completed' => 'boolean', // DBの0/1をbooleanとして扱う
         'due_at' => 'datetime',      // 日付文字列をCarbonインスタンスとして扱う
         'color_code' => 'integer',   // カラーパレットのインデックス
+        'position_x' => 'float',
+        'position_y' => 'float',
     ];
 
     // 2. リレーション：目標は1人のユーザーに属する（多対1）

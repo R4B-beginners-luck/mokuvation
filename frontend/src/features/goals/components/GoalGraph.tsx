@@ -1,17 +1,26 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type {  LongTermGoal, MidTermGoal, ShortTermGoal, Goal, NodePosition  } from '../../../types';
 import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
+import { computeInitialPositions, mergeGoalPositions, toLogicalPoint } from '../utils/goalMapLayout';
 
 interface GoalGraphProps {
   longTermGoal: LongTermGoal;
   midTermGoals: MidTermGoal[];
   shortTermGoals: ShortTermGoal[];
   selectedId: string | null;
+  savedPositions: Record<string, NodePosition>;
+  pendingPositions: Record<string, NodePosition>;
+  placementMode?: {
+    type: 'add' | 'edit';
+    movableGoalIds: string[];
+    focusGoalId?: string;
+  } | null;
   onSelectNode: (goal: Goal) => void;
   onEditGoal: (goal: Goal) => void;
   onAddGoal: (goal: Goal, presetGoalType?: 'mid' | 'short') => void;
   onToggleCompleted: (goal: Goal) => void;
   onDeleteGoal: (goal: Goal) => void;
+  onPositionCommit: (goalId: string, position: NodePosition) => void;
 }
 
 interface ContextMenuState {
@@ -55,63 +64,20 @@ function getPolygonPoints(type: string, radius: number): string {
   return '';
 }
 
-function computeInitialPositions(
-  lt: LongTermGoal,
-  mids: MidTermGoal[],
-  shorts: ShortTermGoal[],
-  cx: number,
-  cy: number
-): Record<string, NodePosition> {
-  const pos: Record<string, NodePosition> = {};
-
-  pos[lt.id] = { x: cx, y: cy };
-
-  const R1 = 170;
-  mids.forEach((m, i) => {
-    const angle = (i / mids.length) * 2 * Math.PI - Math.PI / 2;
-    pos[m.id] = { x: cx + R1 * Math.cos(angle), y: cy + R1 * Math.sin(angle) };
-  });
-
-  const grouped: Record<string, ShortTermGoal[]> = {};
-  shorts.forEach((s) => {
-    const pid = s.midTermGoalId ?? lt.id;
-    if (!grouped[pid]) grouped[pid] = [];
-    grouped[pid].push(s);
-  });
-
-  Object.entries(grouped).forEach(([parentId, children]) => {
-    const parent = pos[parentId];
-    if (!parent) return;
-
-    const R2 = parentId === lt.id ? 280 : 115;
-    const baseAngle = parentId === lt.id ? 0 : Math.atan2(parent.y - cy, parent.x - cx);
-    const spread = children.length > 1 ? Math.min(Math.PI * 0.55, (children.length - 1) * 0.3) : 0;
-
-    children.forEach((s, i) => {
-      const offset = children.length > 1
-        ? -spread / 2 + (spread / (children.length - 1)) * i
-        : 0;
-      const angle = baseAngle + offset;
-      pos[s.id] = {
-        x: parent.x + R2 * Math.cos(angle),
-        y: parent.y + R2 * Math.sin(angle),
-      };
-    });
-  });
-
-  return pos;
-}
-
 export function GoalGraph({
   longTermGoal,
   midTermGoals,
   shortTermGoals,
   selectedId,
+  savedPositions,
+  pendingPositions,
+  placementMode = null,
   onSelectNode,
   onEditGoal,
   onAddGoal,
   onToggleCompleted,
   onDeleteGoal,
+  onPositionCommit,
 }: GoalGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -129,21 +95,61 @@ export function GoalGraph({
 
   const cx = size.w / 2;
   const cy = size.h / 2;
+  const viewportRef = useRef({ cx, cy });
+  useEffect(() => {
+    viewportRef.current = { cx, cy };
+  }, [cx, cy]);
 
-  const [positions, setPositions] = useState<Record<string, NodePosition>>(() =>
-    computeInitialPositions(longTermGoal, midTermGoals, shortTermGoals, cx, cy)
+  const mergedPositions = useMemo(
+    () => mergeGoalPositions(
+      computeInitialPositions(longTermGoal, midTermGoals, shortTermGoals),
+      savedPositions,
+      pendingPositions,
+      longTermGoal.id
+    ),
+    [longTermGoal, midTermGoals, shortTermGoals, savedPositions, pendingPositions]
   );
 
-  useEffect(() => {
-    setPositions(computeInitialPositions(longTermGoal, midTermGoals, shortTermGoals, cx, cy));
-  }, [longTermGoal.id, midTermGoals.length, shortTermGoals.length, cx, cy]);
-
   const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);
+  const dragStartRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const dragListenersRef = useRef<{ move: (e: PointerEvent) => void; up: () => void } | null>(null);
+  const skipClickRef = useRef(false);
+  const dragOverlayRef = useRef<Record<string, NodePosition>>({});
+  const [dragOverlay, setDragOverlay] = useState<Record<string, NodePosition> | null>(null);
+
+  const movableGoalIdSet = useMemo(
+    () => new Set(placementMode?.movableGoalIds ?? []),
+    [placementMode]
+  );
+
+  const canDragGoal = useCallback((goalId: string, isLongTerm: boolean) => {
+    if (isLongTerm) return false;
+    if (placementMode) return movableGoalIdSet.has(goalId);
+    return true;
+  }, [placementMode, movableGoalIdSet]);
+
+  const displayPositions = useMemo(() => {
+    if (!dragOverlay) return mergedPositions;
+    return { ...mergedPositions, ...dragOverlay };
+  }, [mergedPositions, dragOverlay]);
+
+  const displayPositionsRef = useRef(displayPositions);
+  displayPositionsRef.current = displayPositions;
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  const clearDragListeners = useCallback(() => {
+    const listeners = dragListenersRef.current;
+    if (!listeners) return;
+    window.removeEventListener('pointermove', listeners.move);
+    window.removeEventListener('pointerup', listeners.up);
+    dragListenersRef.current = null;
+  }, []);
+
+  useEffect(() => () => clearDragListeners(), [clearDragListeners]);
 
   useEffect(() => {
     if (!contextMenu) return undefined;
@@ -170,24 +176,80 @@ export function GoalGraph({
     };
   }, [contextMenu, closeContextMenu]);
 
+  const commitDraggedPosition = useCallback(() => {
+    if (!dragRef.current) return;
+
+    const draggedId = dragRef.current.id;
+    const start = dragStartRef.current;
+    const current = dragOverlayRef.current[draggedId] ?? mergedPositions[draggedId];
+
+    if (current && start && (current.x !== start.x || current.y !== start.y)) {
+      skipClickRef.current = true;
+      onPositionCommit(draggedId, current);
+    }
+
+    dragOverlayRef.current = {};
+    setDragOverlay(null);
+    dragRef.current = null;
+    dragStartRef.current = null;
+  }, [mergedPositions, onPositionCommit]);
+
   const onNodeMouseDown = useCallback((e: React.MouseEvent, id: string) => {
-    if (e.button !== 0) return; // 右クリック・中クリックはドラッグ開始しない
+    if (e.button !== 0) return;
+    if (!canDragGoal(id, id === longTermGoal.id)) return;
     e.stopPropagation();
+    clearDragListeners();
+    dragOverlayRef.current = {};
+    setDragOverlay(null);
+
     const svg = svgRef.current!;
     const pt  = svg.createSVGPoint();
     pt.x = e.clientX; pt.y = e.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM()!.inverse());
+    const { cx: vcx, cy: vcy } = viewportRef.current;
+    const logical = toLogicalPoint(svgP, vcx, vcy);
+    const current = displayPositionsRef.current[id];
+    dragStartRef.current = current
+      ? { id, x: current.x, y: current.y }
+      : { id, x: logical.x, y: logical.y };
     dragRef.current = {
       id,
-      ox: svgP.x - (positions[id]?.x ?? 0),
-      oy: svgP.y - (positions[id]?.y ?? 0),
+      ox: logical.x - (current?.x ?? 0),
+      oy: logical.y - (current?.y ?? 0),
     };
-  }, [positions]);
+
+    const handlePointerMove = (ev: PointerEvent) => {
+      if (!dragRef.current || !svgRef.current) return;
+      const movePt = svgRef.current.createSVGPoint();
+      movePt.x = ev.clientX;
+      movePt.y = ev.clientY;
+      const moveSvgP = movePt.matrixTransform(svgRef.current.getScreenCTM()!.inverse());
+      const { cx: mcx, cy: mcy } = viewportRef.current;
+      const moveLogical = toLogicalPoint(moveSvgP, mcx, mcy);
+      const { id: dragId, ox, oy } = dragRef.current;
+      const next = { x: moveLogical.x - ox, y: moveLogical.y - oy };
+      dragOverlayRef.current = { ...dragOverlayRef.current, [dragId]: next };
+      setDragOverlay({ ...dragOverlayRef.current });
+    };
+
+    const handlePointerUp = () => {
+      clearDragListeners();
+      commitDraggedPosition();
+    };
+
+    dragListenersRef.current = { move: handlePointerMove, up: handlePointerUp };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  }, [longTermGoal.id, clearDragListeners, commitDraggedPosition, canDragGoal]);
 
   const onNodeContextMenu = useCallback((e: React.MouseEvent, goal: Goal) => {
     e.preventDefault();
     e.stopPropagation();
+    clearDragListeners();
+    dragOverlayRef.current = {};
+    setDragOverlay(null);
     dragRef.current = null;
+    dragStartRef.current = null;
     onSelectNode(goal);
 
     const menuWidth = 210;
@@ -196,29 +258,7 @@ export function GoalGraph({
     const y = Math.min(Math.max(8, e.clientY), window.innerHeight - menuHeight - 8);
 
     setContextMenu({ goal, x, y });
-  }, [onSelectNode]);
-
-  const onSvgMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragRef.current) return;
-    const svg = svgRef.current!;
-    const pt  = svg.createSVGPoint();
-    pt.x = e.clientX; pt.y = e.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM()!.inverse());
-    const { id, ox, oy } = dragRef.current;
-    setPositions((prev) => ({ ...prev, [id]: { x: svgP.x - ox, y: svgP.y - oy } }));
-  }, []);
-
-  const onSvgMouseUp = useCallback((_e: React.MouseEvent, clickedId?: string) => {
-    if (dragRef.current) {
-      const wasDrag =
-        dragRef.current.id === clickedId
-          ? false
-          : true;
-      if (!wasDrag && clickedId) {
-      }
-    }
-    dragRef.current = null;
-  }, []);
+  }, [onSelectNode, clearDragListeners]);
 
   const edges: {
     x1: number; y1: number; x2: number; y2: number;
@@ -229,8 +269,8 @@ export function GoalGraph({
     fromId: string, toId: string,
     dashed: boolean, color: string, opacity: number
   ) => {
-    const a = positions[fromId];
-    const b = positions[toId];
+    const a = displayPositions[fromId];
+    const b = displayPositions[toId];
     if (!a || !b) return;
     edges.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, dashed, color, opacity });
   };
@@ -267,10 +307,7 @@ export function GoalGraph({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${size.w} ${size.h}`}
-        onMouseMove={onSvgMouseMove}
-        onMouseUp={(e) => onSvgMouseUp(e)}
-        onMouseLeave={() => { dragRef.current = null; }}
-        style={{ display: 'block', userSelect: 'none' }}
+        style={{ display: 'block', userSelect: 'none', touchAction: 'none' }}
       >
         <defs>
           <filter id="glow-gold" x="-50%" y="-50%" width="200%" height="200%">
@@ -287,7 +324,7 @@ export function GoalGraph({
           </filter>
         </defs>
 
-        <g>
+        <g transform={`translate(${cx}, ${cy})`}>
           {edges.map((e, i) => (
             <line
               key={i}
@@ -299,15 +336,22 @@ export function GoalGraph({
           ))}
         </g>
 
-        <g>
+        <g transform={`translate(${cx}, ${cy})`}>
           {allGoals.map((goal) => {
-            const p = positions[goal.id];
+            const p = displayPositions[goal.id];
             if (!p) return null;
 
             const cfg        = NODE_CONFIG[goal.type];
             const nodeColor  = getNodeColor(goal);
             const isSelected = goal.id === selectedId;
             const isDone     = goal.completed;
+            const isLongTerm = goal.type === 'long';
+
+            const isPlacementTarget = placementMode
+              ? movableGoalIdSet.has(goal.id)
+              : false;
+            const isPlacementFocus = placementMode?.focusGoalId === goal.id;
+            const isDraggable = canDragGoal(goal.id, isLongTerm);
 
             const maxLen = goal.type === 'long' ? 14 : goal.type === 'mid' ? 12 : 10;
             const displayTitle = truncateText(goal.title, maxLen);
@@ -317,12 +361,21 @@ export function GoalGraph({
               <g
                 key={goal.id}
                 transform={`translate(${p.x},${p.y})`}
-                style={{ cursor: 'pointer' }}
+                className={[
+                  isPlacementFocus ? 'goal-node--placement-focus' : '',
+                  isPlacementTarget ? 'goal-node--placement-target' : '',
+                  placementMode && !isPlacementTarget ? 'goal-node--placement-locked' : '',
+                ].filter(Boolean).join(' ')}
+                style={{ cursor: isDraggable ? 'grab' : 'default' }}
                 onMouseDown={(e) => onNodeMouseDown(e, goal.id)}
                 onContextMenu={(e) => onNodeContextMenu(e, goal)}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (!dragRef.current) onSelectNode(goal);
+                  if (skipClickRef.current) {
+                    skipClickRef.current = false;
+                    return;
+                  }
+                  onSelectNode(goal);
                 }}
               >
                 {isSelected && goal.type !== 'short' && (

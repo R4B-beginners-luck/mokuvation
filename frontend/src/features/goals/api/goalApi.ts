@@ -17,6 +17,7 @@ const getFetchOptions = (method: string, body?: any): RequestInit => {
     headers,
     body: body ? JSON.stringify(body) : undefined,
     credentials: 'include',
+    cache: 'no-store',
   };
 };
 
@@ -31,6 +32,8 @@ export type BackendGoal = {
   is_completed: boolean;
   // バックエンドではカラーパレットのインデックス(0-11)を返す
   color_code?: number | null;
+  position_x?: number | null;
+  position_y?: number | null;
 };
 
 export type CreateGoalPayload = {
@@ -49,7 +52,23 @@ export type UpdateGoalPayload = Partial<{
   due_at: string | null;
   is_completed: boolean;
   color_code: number | null;
+  position_x: number | null;
+  position_y: number | null;
 }>;
+
+export type GoalPositionUpdateItem = {
+  goal_id: string;
+  x: number;
+  y: number;
+};
+
+export type UpdateGoalPositionsPayload = {
+  positions: GoalPositionUpdateItem[];
+};
+
+export type UpdateGoalPositionsResponse = {
+  updated: number;
+};
 
 export const goalApi = {
   getAll: async (): Promise<BackendGoal[]> => {
@@ -97,5 +116,25 @@ export const goalApi = {
       const errorData = await response.json().catch(() => ({}));
       throw { status: response.status, data: errorData };
     }
+  },
+
+  updatePositions: async (
+    payload: UpdateGoalPositionsPayload
+  ): Promise<UpdateGoalPositionsResponse> => {
+    const response = await fetch(
+      `${API_BASE_URL}/goals/positions`,
+      getFetchOptions('PATCH', payload)
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      let data: Record<string, unknown> = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { message: text.slice(0, 200) };
+      }
+      throw { status: response.status, data };
+    }
+    return response.json();
   },
 };
