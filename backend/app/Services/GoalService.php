@@ -64,6 +64,8 @@ class GoalService
             'period_type'  => $data['period_type'] ?? null,
             'due_at'       => $data['due_at'] ?? null,
             'is_completed' => $data['is_completed'] ?? null,
+            'position_x'   => $data['position_x'] ?? null,
+            'position_y'   => $data['position_y'] ?? null,
         ], fn($v) => $v !== null));
 
         return $goal;

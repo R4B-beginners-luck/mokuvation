@@ -3,17 +3,7 @@ import { taskApi } from '../api/taskApi';
 import type { CreateTaskPayload, Task } from '../types';
 import { db } from '../../../services/db';
 import type { LocalTask } from '../../../services/db';
-import { isOnline } from '../../../services/syncService';
-
-// ─── ユーザーID キャッシュ ───────────────────────────────────────
-const USER_ID_KEY = 'mokuvation_user_id';
-
-export const cacheUserId = (userId: string): void => {
-  localStorage.setItem(USER_ID_KEY, userId);
-};
-
-const getCachedUserId = (): string | null =>
-  localStorage.getItem(USER_ID_KEY);
+import { isOnline, cacheUserId, getCachedUserId } from '../../../services/syncService';
 
 // ─── 仮 ID 生成（オフライン作成時）─────────────────────────────
 const generateTempId = (): string =>

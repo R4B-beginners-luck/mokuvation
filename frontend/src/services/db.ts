@@ -27,6 +27,8 @@ export interface LocalGoal {
   due_at: string | null;
   is_completed: boolean;
   color_code: number | null;
+  position_x: number | null;
+  position_y: number | null;
   created_at: string;
   updated_at: string;
 }

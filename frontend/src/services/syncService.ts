@@ -1,11 +1,7 @@
 /**
  * syncService.ts
- *
- * 役割：API ↔ Dexie（IndexedDB）の同期を管理する
- *
- * - オンライン時：API からデータを取得して Dexie に書き込む
- * - オフライン時：sync_queue に操作を積んでおく
- * - 復帰時：sync_queue を順番に API へ送信する（Step 4 で実装）
+ * API ↔ Dexie の同期を管理する。
+ * オフライン時は sync_queue に積み、オンライン復帰時に一括送信する。
  */
 
 import { db } from './db';
@@ -14,16 +10,22 @@ import { taskApi } from '../features/tasks/api/taskApi';
 import { goalApi } from '../features/goals/api/goalApi';
 import { initDoc, clearPersistedChanges } from './crdtStore';
 
-// ─── オンライン判定 ──────────────────────────────────────────────
-
 export const isOnline = (): boolean => navigator.onLine;
 
-// ─── 初回 / 復帰時の全件同期 ────────────────────────────────────
+// ─── ユーザーID キャッシュ ────────────────────────────────────────
+// ログイン時に保存しておき、オフライン時に使う
+const USER_ID_KEY = 'mokuvation_user_id';
 
-/**
- * サーバーから tasks・goals を全件取得して Dexie に上書き保存する。
- * ログイン直後 & オンライン復帰時に呼ぶ。
- */
+export const cacheUserId = (userId: string): void => {
+  localStorage.setItem(USER_ID_KEY, userId);
+};
+
+export const getCachedUserId = (): string | null => {
+  return localStorage.getItem(USER_ID_KEY);
+};
+
+// ─── 全件同期（ログイン後・オンライン復帰時） ─────────────────────
+
 export const syncFromServer = async (): Promise<void> => {
   if (!isOnline()) return;
 
@@ -33,7 +35,6 @@ export const syncFromServer = async (): Promise<void> => {
       goalApi.getAll(),
     ]);
 
-    // tasks を LocalTask 型に合わせて保存
     const localTasks: LocalTask[] = (rawTasks as any[]).map((t) => ({
       id:           String(t.id),
       user_id:      String(t.user_id),
@@ -47,7 +48,6 @@ export const syncFromServer = async (): Promise<void> => {
       updated_at:   t.updated_at,
     }));
 
-    // goals を LocalGoal 型に合わせて保存
     const localGoals: LocalGoal[] = (rawGoals as any[]).map((g) => ({
       id:             String(g.id),
       user_id:        String(g.user_id ?? ''),
@@ -58,11 +58,12 @@ export const syncFromServer = async (): Promise<void> => {
       due_at:         g.due_at ?? null,
       is_completed:   Boolean(g.is_completed),
       color_code:     g.color_code ?? null,
+      position_x:     g.position_x ?? null,
+      position_y:     g.position_y ?? null,
       created_at:     g.created_at,
       updated_at:     g.updated_at,
     }));
 
-    // bulkPut = 既存レコードは上書き、新規は追加（upsert）
     await db.tasks.bulkPut(localTasks);
     await db.goals.bulkPut(localGoals);
 
@@ -70,82 +71,73 @@ export const syncFromServer = async (): Promise<void> => {
     initDoc(localTasks, localGoals);
     clearPersistedChanges();
   } catch (err) {
-    console.warn('[syncService] syncFromServer 失敗（オフライン？）:', err);
+    console.warn('[syncService] syncFromServer 失敗:', err);
   }
 };
 
-// ─── 個別操作：Dexie 書き込み + キュー積み ──────────────────────
+// ─── Dexie からの読み出し ────────────────────────────────────────
 
-/** タスクをローカルに作成し、オフラインなら sync_queue に積む */
-export const createTask = async (task: LocalTask): Promise<void> => {
+export const getLocalTasks = (): Promise<LocalTask[]> => db.tasks.toArray();
+export const getLocalGoals = (): Promise<LocalGoal[]> => db.goals.toArray();
+
+// ─── 個別操作 ────────────────────────────────────────────────────
+
+export const saveTaskLocally = async (task: LocalTask): Promise<void> => {
   await db.tasks.put(task);
-
-  if (!isOnline()) {
-    await enqueue({ entity: 'task', operation: 'create', payload: task });
-  } else {
-    // オンラインならそのまま API へ（呼び元の useTaskMutations が担当）
-  }
 };
 
-/** タスクをローカルで更新し、オフラインなら sync_queue に積む */
-export const updateTask = async (task: LocalTask): Promise<void> => {
+export const updateTaskLocally = async (task: LocalTask): Promise<void> => {
   await db.tasks.put(task);
-
   if (!isOnline()) {
     await enqueue({ entity: 'task', operation: 'update', payload: task });
   }
 };
 
-/** タスクをローカルで削除し、オフラインなら sync_queue に積む */
-export const deleteTask = async (taskId: string): Promise<void> => {
+export const deleteTaskLocally = async (taskId: string): Promise<void> => {
   await db.tasks.delete(taskId);
-
   if (!isOnline()) {
     await enqueue({ entity: 'task', operation: 'delete', payload: { id: taskId } });
   }
 };
 
-/** ゴールをローカルで更新し、オフラインなら sync_queue に積む */
-export const updateGoal = async (goal: LocalGoal): Promise<void> => {
-  await db.goals.put(goal);
-
-  if (!isOnline()) {
-    await enqueue({ entity: 'goal', operation: 'update', payload: goal });
-  }
-};
-
-// ─── sync_queue ヘルパー ─────────────────────────────────────────
+// ─── sync_queue ───────────────────────────────────────────────────
 
 const enqueue = async (item: Omit<SyncQueueItem, 'id' | 'created_at'>): Promise<void> => {
-  await db.sync_queue.add({
-    ...item,
-    created_at: new Date().toISOString(),
-  });
+  await db.sync_queue.add({ ...item, created_at: new Date().toISOString() });
 };
 
-/** sync_queue に積まれた操作をサーバーへ送信する（Step 4 で拡張） */
 export const flushQueue = async (): Promise<void> => {
   if (!isOnline()) return;
 
   const items = await db.sync_queue.orderBy('created_at').toArray();
   if (items.length === 0) return;
 
-  for (const item of items) {
-    try {
-      if (item.entity === 'task') {
-        if (item.operation === 'create' || item.operation === 'update') {
-          const t = item.payload as LocalTask;
-          await taskApi.update(t.id, { is_completed: t.is_completed });
-        } else if (item.operation === 'delete') {
-          await taskApi.delete((item.payload as { id: string }).id);
-        }
-      }
-      // キュー送信成功 → 該当レコードを削除
-      await db.sync_queue.delete(item.id!);
-    } catch (err) {
-      console.warn('[syncService] flushQueue 送信失敗:', item, err);
-      // 失敗したものは次回に持ち越す
-      break;
+  // /api/sync に一括送信
+  const token = localStorage.getItem('auth_token');
+  const apiBase = `${import.meta.env.VITE_API_URL}/api`;
+
+  try {
+    const res = await fetch(`${apiBase}/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        operations: items.map((item) => ({
+          entity:    item.entity,
+          operation: item.operation,
+          payload:   item.payload,
+        })),
+      }),
+    });
+
+    if (res.ok) {
+      // 送信成功 → キューを全消去
+      await db.sync_queue.clear();
     }
+  } catch (err) {
+    console.warn('[syncService] flushQueue 失敗:', err);
   }
 };

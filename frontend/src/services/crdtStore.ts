@@ -39,6 +39,8 @@ type GoalEntry = {
   due_at: string;
   is_completed: boolean;
   color_code: number;
+  position_x: number;
+  position_y: number;
   created_at: string;
   updated_at: string;
 };
@@ -91,6 +93,8 @@ export const initDoc = (tasks: LocalTask[], goals: LocalGoal[]): void => {
         due_at:         g.due_at ?? '',
         is_completed:   g.is_completed,
         color_code:     g.color_code ?? 0,
+        position_x:     g.position_x ?? 0,
+        position_y:     g.position_y ?? 0,
         created_at:     g.created_at,
         updated_at:     g.updated_at,
       };
@@ -170,6 +174,8 @@ export const getGoalsFromDoc = (): LocalGoal[] =>
     due_at:         g.due_at || null,
     is_completed:   g.is_completed,
     color_code:     g.color_code ?? null,
+    position_x:     g.position_x ?? null,
+    position_y:     g.position_y ?? null,
     created_at:     g.created_at,
     updated_at:     g.updated_at,
   }));

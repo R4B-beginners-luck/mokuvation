@@ -11,8 +11,7 @@ import { authApi }     from './features/auth/api/authApi';
 import { taskApi }     from './features/tasks/api/taskApi';
 import { useLocalData, localTaskToTask } from './hooks/useLocalData';
 import { db }          from './services/db';
-import { updateTask, deleteTask } from './services/syncService';
-import { cacheUserId } from './features/tasks/hooks/useTaskMutations';
+import { updateTaskLocally, deleteTaskLocally, cacheUserId } from './services/syncService';
 import { crdtToggleTask, crdtAddTask, crdtDeleteTask } from './services/crdtStore';
 
 export default function App() {
@@ -106,7 +105,7 @@ export default function App() {
         // 3b. オフライン：Dexie + sync_queue に積む
         const dbTask = await db.tasks.get(id);
         if (dbTask) {
-          await updateTask({ ...dbTask, is_completed: nextCompleted });
+          await updateTaskLocally({ ...dbTask, is_completed: nextCompleted });
         }
       }
     } catch (error) {
@@ -153,7 +152,7 @@ export default function App() {
         await taskApi.delete(taskId);
         await db.tasks.delete(taskId);
       } else {
-        await deleteTask(taskId);
+        await deleteTaskLocally(taskId);
       }
     } catch (error) {
       console.error('タスク削除に失敗しました', error);
