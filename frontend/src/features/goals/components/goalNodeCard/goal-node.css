@@ -96,3 +96,77 @@
     align-items: center; justify-content: center;
   }
   .gnc__miniIcon{ color: #C9CDE0; }
+
+  /* ===== 長期目標：上部ピン＋ゴールド光彩 ===== */
+  .gnc-wrap--long {
+    position: relative;
+    padding-top: 16px;
+    overflow: visible;
+  }
+
+  .gnc-pin {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .gnc-pin__head {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #E8A33E;
+    box-shadow: 0 0 8px rgba(232, 163, 62, 0.7);
+    flex-shrink: 0;
+  }
+
+  .gnc-pin__shaft {
+    width: 2px;
+    height: 14px;
+    background: linear-gradient(to bottom, rgba(232, 163, 62, 0.95), transparent);
+    flex-shrink: 0;
+  }
+
+  .gnc--long {
+    border: 1px solid rgba(232, 163, 62, 0.45);
+    box-shadow: 0 0 20px rgba(232, 163, 62, 0.15);
+  }
+
+  .gnc--long .gnc__type {
+    color: #E8C97A;
+    background: rgba(232, 163, 62, 0.16);
+  }
+
+  .gnc--long.gnc--overdue {
+    border-color: var(--gnc-danger);
+    box-shadow: 0 0 20px rgba(232, 163, 62, 0.15), 0 0 10px rgba(224, 83, 63, 0.2);
+  }
+
+  .gnc--long.gnc--due-soon {
+    border-color: var(--gnc-warning);
+    box-shadow: 0 0 20px rgba(232, 163, 62, 0.15), 0 0 10px rgba(232, 179, 57, 0.15);
+  }
+
+  .gnc--long.gnc--selected {
+    border: 2px solid var(--gnc-selected);
+    box-shadow: 0 0 16px rgba(148, 87, 216, 0.45), 0 0 20px rgba(232, 163, 62, 0.12);
+  }
+
+  .gnc-wrap--long.gnc-wrap--mini .gnc-pin__head {
+    width: 8px;
+    height: 8px;
+    box-shadow: 0 0 6px rgba(232, 163, 62, 0.65);
+  }
+
+  .gnc-wrap--long.gnc-wrap--mini .gnc-pin__shaft {
+    height: 10px;
+  }
+
+  .gnc-wrap--long.gnc-wrap--mini {
+    padding-top: 12px;
+  }

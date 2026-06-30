@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { Check, Clock } from "lucide-react";
 import "./goal-node.css";
 import {
@@ -33,6 +33,24 @@ export interface GoalNodeCardProps {
   onContextMenu?: (e: MouseEvent) => void;
 }
 
+function LongTermPin() {
+  return (
+    <div className="gnc-pin" aria-hidden>
+      <span className="gnc-pin__head" />
+      <span className="gnc-pin__shaft" />
+    </div>
+  );
+}
+
+function LongTermCardWrap({ density, children }: { density: NodeDensity; children: ReactNode }) {
+  return (
+    <div className={`gnc-wrap gnc-wrap--long gnc-wrap--${density}`}>
+      <LongTermPin />
+      {children}
+    </div>
+  );
+}
+
 export default function GoalNodeCard({
   goalType,
   status,
@@ -44,6 +62,7 @@ export default function GoalNodeCard({
   onClick,
   onContextMenu,
 }: GoalNodeCardProps) {
+  const isLong = goalType === "long";
   const type = GOAL_TYPE_CONFIG[goalType] ?? FALLBACK_TYPE;
   const st = STATUS_CONFIG[status];
   const TypeIcon = type.icon;
@@ -54,6 +73,7 @@ export default function GoalNodeCard({
   const cls = [
     "gnc",
     `gnc--${density}`,
+    isLong && "gnc--long",
     selected && "gnc--selected",
     st.outline && "gnc--overdue",
     st.warningOutline && "gnc--due-soon",
@@ -62,9 +82,12 @@ export default function GoalNodeCard({
     .filter(Boolean)
     .join(" ");
 
+  const wrapIfLong = (card: ReactNode) =>
+    isLong ? <LongTermCardWrap density={density}>{card}</LongTermCardWrap> : card;
+
   // さらに縮小：色＋アイコンだけ
   if (density === "mini") {
-    return (
+    return wrapIfLong(
       <div
         className={cls}
         onClick={onClick}
@@ -75,14 +98,14 @@ export default function GoalNodeCard({
         title={title}
       >
         <span className="gnc__bar" style={{ background: categoryColor }} aria-hidden />
-        <TypeIcon size={20} className="gnc__miniIcon" aria-hidden />
+        <TypeIcon size={20} strokeWidth={1.75} className="gnc__miniIcon" aria-hidden />
       </div>
     );
   }
 
   // 縮小：目標名だけ
   if (density === "compact") {
-    return (
+    return wrapIfLong(
       <div
         className={cls}
         onClick={onClick}
@@ -101,7 +124,7 @@ export default function GoalNodeCard({
   }
 
   // 通常：全情報
-  return (
+  return wrapIfLong(
     <div
       className={cls}
       onClick={onClick}
@@ -113,24 +136,24 @@ export default function GoalNodeCard({
 
       <div className="gnc__top">
         <span className="gnc__type">
-          <TypeIcon size={13} aria-hidden />
+          <TypeIcon size={13} strokeWidth={1.75} aria-hidden />
           {type.label}
         </span>
 
         {st.badge === "text" && <span className="gnc__statusText">{st.label}</span>}
         {st.badge === "warning" && (
           <span className="gnc__badge gnc__badge--warning">
-            <Clock size={13} aria-hidden />
+            <Clock size={13} strokeWidth={1.75} aria-hidden />
             {st.label}
           </span>
         )}
         {st.badge === "danger" && (
           <span className="gnc__badge gnc__badge--danger">
-            <Clock size={13} aria-hidden />
+            <Clock size={13} strokeWidth={1.75} aria-hidden />
             {st.label}
           </span>
         )}
-        {st.badge === "check" && <Check className="gnc__checkIcon" size={13} strokeWidth={2.5} aria-hidden />}
+        {st.badge === "check" && <Check className="gnc__checkIcon" size={13} strokeWidth={1.75} aria-hidden />}
       </div>
 
       <div className="gnc__title">{title}</div>
@@ -146,18 +169,3 @@ export default function GoalNodeCard({
     </div>
   );
 }
-
-/*
-使用例:
-<GoalNodeCard
-  goalType={goal.type}            // "long" | "mid" | "short"（将来の種別もOK）
-  status={goal.status}           // "todo" | "in_progress" | "overdue" | "done"
-  title={goal.title}
-  progress={{ done: 4, total: 7 }}   // unit 省略で goalType から自動
-  categoryColor={goal.categoryColor} // ユーザー設定の分野色（状態色とは別）
-  selected={goal.id === selectedId}
-  density={zoom < 0.5 ? "mini" : zoom < 0.8 ? "compact" : "full"}
-  onClick={() => selectGoal(goal.id)}
-  onContextMenu={(e) => openMenu(e, goal.id)}
-/>
-*/

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check, Plus, Trash2 } from 'lucide-react';
 import type { Task, MidTermGoal, LongTermGoal } from '../../../types';
 import { TaskAddModal } from '../../tasks'; 
 import { TaskDeleteConfirm } from '../../tasks';
@@ -58,7 +59,7 @@ export function TodaySection({
               style={{ flex: 1 }}
             >
               <div className={`goal-item__check${goal.completed ? ' checked' : ''}`}>
-                {goal.completed && '✓'}
+                {goal.completed && <Check size={18} strokeWidth={1.75} aria-hidden />}
               </div>
               <div className="goal-item__body">
                 <div className="goal-item__title">{goal.title}</div>
@@ -85,14 +86,15 @@ export function TodaySection({
               }}
               title="タスクを削除"
             >
-              🗑️
+              <Trash2 size={15} strokeWidth={1.75} aria-hidden />
             </button>
           </li>
         ))}
       </ul>
 
       <button className="today-goals__add-btn" onClick={() => setIsAddModalOpen(true)}>
-        <span>＋</span> 短期目標を追加
+        <Plus size={15} strokeWidth={1.75} aria-hidden />
+        タスクを追加
       </button>
 
       {/* 新規追加モーダル */}

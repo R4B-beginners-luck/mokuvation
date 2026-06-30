@@ -3,7 +3,7 @@ import type { Page, ShortTermGoal, Task, User } from './types';
 import { shortTermGoalsInitial, tasksInitial } from './data/dummy';
 import { Layout }      from './layouts/Layout';
 import { LoginPage }   from './pages/LoginPage';
-import { LoadingPage } from './pages/LoadingPage';
+import Splash from './components/Splash/Splash';
 import { TopPage }     from './pages/TopPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GoalsPage }   from './pages/GoalsPage';
@@ -14,6 +14,7 @@ export default function App() {
   const [page, setPage]           = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
   // ── Short-term goals: lifted state ─────────────────────────────────────────
@@ -22,7 +23,7 @@ export default function App() {
   // 🌟【修正】初期状態のタスクは空配列（[]）にして、DBから読み込ませる
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  // 📅【追加】日本時間の「今日」を YYYY-MM-DD で取得する共通関数
+  // 日本時間の「今日」を YYYY-MM-DD で取得する共通関数
   const getJstTodayStr = (): string => {
     const jstDate = new Date(Date.now() + ((new Date().getTimezoneOffset() + 540) * 60 * 1000));
     return jstDate.getFullYear() + '-' + 
@@ -96,6 +97,9 @@ export default function App() {
       setIsLoggedIn(false);
       setUser(null);
       setPage('login');
+      throw error;
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -144,12 +148,16 @@ export default function App() {
   };
 
   // ── Login screen (no sidebar) ────────────────────────────────────────────────
-  if (isCheckingAuth) {
-    return <LoadingPage />;
+  if (isCheckingAuth || isLoggingIn) {
+    return (
+      <Splash
+        label={isLoggingIn ? 'ログインしています…' : undefined}
+      />
+    );
   }
 
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage onLogin={handleLogin} onLoggingInChange={setIsLoggingIn} />;
   }
 
   // ── Authenticated layout ─────────────────────────────────────────────────────
