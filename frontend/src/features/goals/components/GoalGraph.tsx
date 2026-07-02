@@ -11,6 +11,9 @@ import {
   MAP_VIEWPORT_SCALE_MAX,
   MAP_VIEWPORT_SCALE_MIN,
   mergeGoalPositions,
+  computeMapFocusCenter,
+  panViewportToLogicalPoint,
+  viewportPxToCanvasPx,
   setViewportScaleAtCenter,
   toLogicalPoint,
   zoomViewportAtPoint,
@@ -41,6 +44,10 @@ interface GoalGraphProps {
   onToggleCompleted: (goal: Goal) => void;
   onDeleteGoal: (goal: Goal) => void;
   onPositionCommit: (goalId: string, position: NodePosition) => void;
+  recenterRequest?: number;
+  focusGoalId?: string | null;
+  /** スマホ詳細シートが覆う高さ（ビューポート px）。表示領域の中央へ寄せる */
+  mobileSheetObstructionPx?: number;
 }
 
 interface ContextMenuState {
@@ -74,6 +81,9 @@ export function GoalGraph({
   onToggleCompleted,
   onDeleteGoal,
   onPositionCommit,
+  recenterRequest = 0,
+  focusGoalId = null,
+  mobileSheetObstructionPx = 0,
 }: GoalGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -105,6 +115,11 @@ export function GoalGraph({
     setMapViewport(DEFAULT_MAP_VIEWPORT);
   }, [longTermGoal.id]);
 
+  useEffect(() => {
+    if (recenterRequest === 0) return;
+    setMapViewport(DEFAULT_MAP_VIEWPORT);
+  }, [recenterRequest]);
+
   const panListenersRef = useRef<{ move: (e: PointerEvent) => void; up: () => void } | null>(null);
 
   const clearPanListeners = useCallback(() => {
@@ -126,6 +141,21 @@ export function GoalGraph({
     ),
     [longTermGoal, midTermGoals, shortTermGoals, savedPositions, pendingPositions]
   );
+
+  useEffect(() => {
+    if (!focusGoalId) return;
+    const pos = mergedPositions[focusGoalId];
+    if (!pos) return;
+    const pinOffset = focusGoalId === longTermGoal.id ? GOAL_LONG_PIN_OFFSET : 0;
+    const nodeCenter = { x: pos.x, y: pos.y - pinOffset };
+    const bottomInset = mobileSheetObstructionPx > 0
+      ? viewportPxToCanvasPx(mobileSheetObstructionPx, size.h)
+      : 0;
+    const focusCenter = bottomInset > 0
+      ? computeMapFocusCenter(size.w, size.h, { bottom: bottomInset })
+      : { x: cx, y: cy };
+    setMapViewport((prev) => panViewportToLogicalPoint(nodeCenter, focusCenter.x, focusCenter.y, prev));
+  }, [focusGoalId, longTermGoal.id, mergedPositions, cx, cy, size.w, size.h, mobileSheetObstructionPx]);
 
   const goalNodeAdapter = useMemo(
     () => createGoalNodeAdapter({
@@ -192,6 +222,7 @@ export function GoalGraph({
     const startPointer = { x: clientX, y: clientY };
 
     const handlePointerMove = (ev: PointerEvent) => {
+      if (document.body.classList.contains('goal-sheet-dragging')) return;
       const dx = ev.clientX - startPointer.x;
       const dy = ev.clientY - startPointer.y;
       setMapViewport({
@@ -212,6 +243,8 @@ export function GoalGraph({
 
   const onCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
+    if (document.body.classList.contains('goal-sheet-dragging')) return;
+    if ((e.target as Element).closest?.('.goal-detail-sheet')) return;
     e.preventDefault();
     e.stopPropagation();
     beginPan(e.clientX, e.clientY);
@@ -219,6 +252,7 @@ export function GoalGraph({
 
   const onSvgPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 1) return;
+    if (document.body.classList.contains('goal-sheet-dragging')) return;
     e.preventDefault();
     beginPan(e.clientX, e.clientY);
   }, [beginPan]);
@@ -292,10 +326,13 @@ export function GoalGraph({
     dragStartRef.current = null;
   }, [mergedPositions, onPositionCommit]);
 
-  const onNodeMouseDown = useCallback((e: React.MouseEvent, id: string) => {
+  const onNodePointerDown = useCallback((e: React.PointerEvent, id: string) => {
     if (e.button !== 0) return;
+    if (document.body.classList.contains('goal-sheet-dragging')) return;
+    if ((e.target as Element).closest?.('.goal-detail-sheet')) return;
     if (!canDragGoal(id, id === longTermGoal.id)) return;
     e.stopPropagation();
+    e.preventDefault();
     clearPanListeners();
     clearDragListeners();
     dragOverlayRef.current = {};
@@ -316,6 +353,7 @@ export function GoalGraph({
     };
 
     const handlePointerMove = (ev: PointerEvent) => {
+      if (document.body.classList.contains('goal-sheet-dragging')) return;
       if (!dragRef.current || !svgRef.current) return;
       const moveSvgP = clientToSvgPoint(ev.clientX, ev.clientY);
       if (!moveSvgP) return;
@@ -488,7 +526,7 @@ export function GoalGraph({
                   placementMode && !isPlacementTarget ? 'goal-node--placement-locked' : '',
                 ].filter(Boolean).join(' ')}
                 style={{ cursor: isDraggable ? 'grab' : 'default' }}
-                onMouseDown={(e) => onNodeMouseDown(e, goal.id)}
+                onPointerDown={(e) => onNodePointerDown(e, goal.id)}
               >
                 <foreignObject
                   x={-GOAL_CARD_WIDTH / 2}

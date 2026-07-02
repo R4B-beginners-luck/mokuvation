@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task, NodePosition } from '../types';
-import { GoalGraph, GoalDetailPanel } from '../features/goals';
+import { GoalGraph, GoalDetailPanel, GoalDetailSheet } from '../features/goals';
+import { GoalLongTermTabs } from '../features/goals/components/GoalLongTermTabs';
+import { GoalsMapFab } from '../features/goals/components/GoalsMapFab';
+import { GoalPositionLeaveModal } from '../features/goals/components/GoalPositionLeaveModal';
+import { GoalPositionSaveBar } from '../features/goals/components/GoalPositionSaveBar';
+import { GoalPositionSaveToast } from '../features/goals/components/GoalPositionSaveToast';
+import { GoalsMapSecondaryPanel } from '../features/goals/components/GoalsMapSecondaryPanel';
+import { useGoalsLeaveGuardRegistrar, useGoalsLeaveRequest } from '../layouts/GoalsLeaveGuardContext';
+import { usePageSecondaryPanel } from '../layouts/PageSecondaryPanelContext';
 import { computeInitialPositions, mergeGoalPositions } from '../features/goals/utils/goalMapLayout';
 import { GoalActionModal, type GoalActionMode, type GoalActionPayload } from '../features/goals/components/GoalActionModal';
 import { goalApi, type BackendGoal, type CreateGoalPayload, type UpdateGoalPayload } from '../features/goals/api/goalApi';
@@ -8,7 +16,9 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { COLOR_PALETTE } from '../const/colors';
 import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
-import { Map, Plus } from 'lucide-react';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+
+const DETAIL_CLOSE_MS = 280;
 
 type GoalActionState = {
   mode: GoalActionMode;
@@ -244,7 +254,16 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [isSavingPositions, setIsSavingPositions] = useState(false);
   const [positionSaveNotice, setPositionSaveNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [placementSession, setPlacementSession] = useState<PlacementSession | null>(null);
+  const [recenterRequest, setRecenterRequest] = useState(0);
+  const [focusGoalId, setFocusGoalId] = useState<string | null>(null);
+  const [mobileSheetHeightPx, setMobileSheetHeightPx] = useState(0);
+  const [detailClosing, setDetailClosing] = useState(false);
+  const [leavePrompt, setLeavePrompt] = useState<{ proceed: () => void } | null>(null);
   const placementSessionRef = useRef<PlacementSession | null>(null);
+  const isMobileLayout = useMediaQuery('(max-width: 768px)');
+  const { setPanel } = usePageSecondaryPanel();
+  const registerLeaveGuard = useGoalsLeaveGuardRegistrar();
+  const requestGoalsLeave = useGoalsLeaveRequest();
   useEffect(() => {
     placementSessionRef.current = placementSession;
   }, [placementSession]);
@@ -367,9 +386,77 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     }
   }, [activeLtId, longTermGoals]);
 
+  const requestCloseDetail = useCallback(() => {
+    setDetailClosing(true);
+    setMobileSheetHeightPx(0);
+    window.setTimeout(() => {
+      setSelectedGoal(null);
+      setDetailClosing(false);
+    }, DETAIL_CLOSE_MS);
+  }, []);
+
   const handleSelectNode = (goal: Goal) => {
+    if (selectedGoal?.id === goal.id) {
+      requestCloseDetail();
+      return;
+    }
+    setDetailClosing(false);
     setSelectedGoal(goal);
+    setFocusGoalId(goal.id);
+    if (isMobileLayout) {
+      setMobileSheetHeightPx((window.innerHeight * 20) / 100);
+    }
   };
+
+  const switchActiveLongTerm = useCallback((id: string) => {
+    if (id === activeLtId) return;
+    requestGoalsLeave(() => {
+      setActiveLtId(id);
+      setSelectedGoal(null);
+      setFocusGoalId(null);
+    });
+  }, [activeLtId, requestGoalsLeave]);
+
+  const hasUnsavedChanges = useCallback(
+    () => pendingPositionCount > 0 || placementSession !== null,
+    [pendingPositionCount, placementSession],
+  );
+
+  useEffect(() => {
+    registerLeaveGuard({
+      hasUnsavedChanges,
+      requestLeave: (proceed) => setLeavePrompt({ proceed }),
+    });
+    return () => registerLeaveGuard(null);
+  }, [registerLeaveGuard, hasUnsavedChanges]);
+
+  const handleLeaveDiscard = useCallback(() => {
+    const proceed = leavePrompt?.proceed;
+    setPendingPositions({});
+    setPlacementSession(null);
+    setPositionSaveNotice(null);
+    setLeavePrompt(null);
+    proceed?.();
+  }, [leavePrompt]);
+
+  const handleLeaveCancel = useCallback(() => {
+    setLeavePrompt(null);
+  }, []);
+
+  const handleCloseDetailSheet = useCallback(() => {
+    requestCloseDetail();
+  }, [requestCloseDetail]);
+
+  const handleSheetHeightChange = useCallback((heightPx: number) => {
+    setMobileSheetHeightPx(heightPx);
+  }, []);
+
+  const handleRecenterToLongTerm = useCallback(() => {
+    setRecenterRequest((count) => count + 1);
+    if (selectedGoal) {
+      requestCloseDetail();
+    }
+  }, [selectedGoal, requestCloseDetail]);
 
   const handleEditGoal = (goal: Goal) => {
     if (placementSession) return;
@@ -419,6 +506,37 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setDemoShowCompleted((prev) => !prev);
   };
 
+  useEffect(() => {
+    if (isMobileLayout) {
+      setPanel(null);
+      return undefined;
+    }
+
+    setPanel(
+      <GoalsMapSecondaryPanel
+        longTermGoals={longTermGoals}
+        activeLtId={activeLtId}
+        showCompleted={demoShowCompleted}
+        disabled={!!placementSession}
+        onSelect={switchActiveLongTerm}
+        onAdd={handleAddLongTerm}
+        onToggleCompleted={handleDemoCompletedToggle}
+        onRecenterToLongTerm={handleRecenterToLongTerm}
+      />
+    );
+
+    return () => setPanel(null);
+  }, [
+    isMobileLayout,
+    longTermGoals,
+    activeLtId,
+    demoShowCompleted,
+    placementSession,
+    setPanel,
+    switchActiveLongTerm,
+    handleRecenterToLongTerm,
+  ]);
+
   const handlePositionCommit = useCallback((goalId: string, position: NodePosition) => {
     if (longTermGoalIds.has(goalId)) return;
 
@@ -467,7 +585,10 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         activeMidsForLt.find((m) => m.id === focusId)
         ?? activeShortsForLt.find((s) => s.id === focusId)
         ?? null;
-      if (focused) setSelectedGoal(focused);
+      if (focused) {
+        setSelectedGoal(focused);
+        setFocusGoalId(focused.id);
+      }
     }
   }, []);
 
@@ -476,8 +597,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setPositionSaveNotice(null);
   }, []);
 
-  const handleConfirmPlacement = async () => {
-    if (!placementSession || isSavingPositions) return;
+  const handleConfirmPlacement = async (options?: { suppressNotice?: boolean }): Promise<boolean> => {
+    if (!placementSession || isSavingPositions) return false;
 
     const resolvePosition = (goalId: string): NodePosition | null => {
       const raw = placementSession.draftPositions[goalId]
@@ -505,8 +626,10 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
 
     if (entries.length === 0) {
       setPlacementSession(null);
-      setPositionSaveNotice({ type: 'success', text: '配置を確定しました。' });
-      return;
+      if (!options?.suppressNotice) {
+        setPositionSaveNotice({ type: 'success', text: '配置を確定しました。' });
+      }
+      return true;
     }
 
     setIsSavingPositions(true);
@@ -529,15 +652,19 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         return next;
       });
       setPlacementSession(null);
-      setPositionSaveNotice({ type: 'success', text: '配置を確定しました。' });
+      if (!options?.suppressNotice) {
+        setPositionSaveNotice({ type: 'success', text: '配置を確定しました。' });
+      }
+      return true;
     } catch (error) {
       setPositionSaveNotice({ type: 'error', text: formatPositionSaveError(error) });
+      return false;
     } finally {
       setIsSavingPositions(false);
     }
   };
 
-  const handleSavePositions = async () => {
+  const handleSavePositions = async (options?: { suppressNotice?: boolean }): Promise<boolean> => {
     const entries = Object.entries(pendingPositions)
       .filter(([goalId]) => !longTermGoalIds.has(goalId))
       .map(([goalId, position]) => {
@@ -546,7 +673,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       })
       .filter((entry): entry is readonly [string, NodePosition] => entry !== null);
 
-    if (entries.length === 0 || isSavingPositions) return;
+    if (entries.length === 0) return true;
+    if (isSavingPositions) return false;
 
     setIsSavingPositions(true);
     setPositionSaveNotice(null);
@@ -568,12 +696,30 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         return next;
       });
       setPendingPositions({});
-      setPositionSaveNotice({ type: 'success', text: '配置を保存しました。' });
+      if (!options?.suppressNotice) {
+        setPositionSaveNotice({ type: 'success', text: '保存しました' });
+      }
+      return true;
     } catch (error) {
       setPositionSaveNotice({ type: 'error', text: formatPositionSaveError(error) });
+      return false;
     } finally {
       setIsSavingPositions(false);
     }
+  };
+
+  const handleLeaveSave = async () => {
+    if (!leavePrompt || isSavingPositions) return;
+    const proceed = leavePrompt.proceed;
+    setLeavePrompt(null);
+    const ok = placementSession
+      ? await handleConfirmPlacement({ suppressNotice: true })
+      : await handleSavePositions({ suppressNotice: true });
+    if (ok) {
+      proceed();
+      return;
+    }
+    setLeavePrompt({ proceed });
   };
 
   useEffect(() => {
@@ -587,6 +733,17 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [pendingPositionCount, placementSession]);
+
+  useEffect(() => {
+    if (!positionSaveNotice) return undefined;
+
+    const durationMs = positionSaveNotice.type === 'success' ? 1800 : 4000;
+    const timer = window.setTimeout(() => {
+      setPositionSaveNotice(null);
+    }, durationMs);
+
+    return () => window.clearTimeout(timer);
+  }, [positionSaveNotice]);
 
   const handleToggleCompleted = async (goal: Goal) => {
     const nextCompleted = !goal.completed;
@@ -745,68 +902,21 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   };
 
   return (
-    <div className="goals-page">
+    <div className={`goals-page${isMobileLayout ? ' goals-page--mobile' : ''}`}>
       {/* Graph area */}
       <div className="goals-page__graph-area">
+        {isMobileLayout && (
+          <GoalLongTermTabs
+            longTermGoals={longTermGoals}
+            activeLtId={activeLtId}
+            disabled={!!placementSession}
+            onSelect={switchActiveLongTerm}
+            onAdd={handleAddLongTerm}
+          />
+        )}
+        {placementSession && (
         <div className="goals-page__header">
-          <h1 className="goals-page__title">
-            <Map size={20} strokeWidth={1.75} aria-hidden />
-            目標マップ
-          </h1>
-          <div className="goals-page__selector">
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ whiteSpace: 'nowrap', fontSize: 13 }}
-              onClick={handleDemoCompletedToggle}
-              title="達成済みの短期目標の表示/非表示を切り替え"
-            >
-              {demoShowCompleted ? '達成済み目標の非表示' : '達成済み短期を表示'}
-            </button>
-            <select
-              id="goals-page-lt-select"
-              className="form-select goals-page__lt-select"
-              value={activeLtId}
-              disabled={!!placementSession}
-              onChange={(e) => {
-                setActiveLtId(e.target.value);
-                setSelectedGoal(null);
-              }}
-            >
-              {longTermGoals.map((lt) => (
-                <option key={lt.id} value={lt.id}>{lt.title}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn-secondary"
-              style={{ whiteSpace: 'nowrap', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              onClick={handleAddLongTerm}
-            >
-              <Plus size={15} strokeWidth={1.75} aria-hidden />
-              長期目標
-            </button>
-            {!placementSession && (
-              <button
-                type="button"
-                className="btn-secondary goals-page__save-positions-btn"
-                disabled={pendingPositionCount === 0 || isSavingPositions}
-                onClick={handleSavePositions}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                {isSavingPositions ? (
-                  <>
-                    <ButtonSpinner />
-                    保存中...
-                  </>
-                ) : pendingPositionCount > 0
-                  ? `配置を保存（${pendingPositionCount}件）`
-                  : '配置を保存'}
-              </button>
-            )}
-          </div>
-          {placementSession && (
-            <div className="goals-page__placement-bar" role="region" aria-label="配置プレビュー">
+          <div className="goals-page__placement-bar" role="region" aria-label="配置プレビュー">
               <p className="goals-page__placement-message">
                 {placementSession.type === 'add'
                   ? '追加した目標の位置を決めてください。'
@@ -825,7 +935,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
                   type="button"
                   className="btn-primary"
                   disabled={isSavingPositions}
-                  onClick={handleConfirmPlacement}
+                  onClick={() => { void handleConfirmPlacement(); }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
                   {isSavingPositions ? (
@@ -837,20 +947,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
                 </button>
               </div>
             </div>
-          )}
-          {!placementSession && pendingPositionCount > 0 && (
-            <p className="goals-page__unsaved-notice">未保存の変更があります</p>
-          )}
-          {positionSaveNotice && (
-            <p
-              className={`goals-page__position-notice goals-page__position-notice--${positionSaveNotice.type}`}
-              role="status"
-              aria-live="polite"
-            >
-              {positionSaveNotice.text}
-            </p>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className={`graph-canvas-wrap${placementSession ? ' graph-canvas-wrap--placement' : ''}`}>
           {isLoadingGoals ? (
@@ -868,6 +966,13 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               selectedId={selectedGoal?.id ?? null}
               savedPositions={savedPositions}
               pendingPositions={graphPendingPositions}
+              recenterRequest={recenterRequest}
+              focusGoalId={focusGoalId}
+              mobileSheetObstructionPx={
+                isMobileLayout && selectedGoal && !detailClosing
+                  ? mobileSheetHeightPx
+                  : 0
+              }
               placementMode={placementSession ? {
                 type: placementSession.type,
                 movableGoalIds: placementSession.movableGoalIds,
@@ -910,19 +1015,80 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         </div>
       </div>
 
-      {/* Detail panel */}
-      <GoalDetailPanel
-        selected={selectedGoal}
-        longTermGoals={longTermGoals}
-        midTermGoals={displayMidTermGoals}
-        shortTermGoals={shortTermGoalsForDisplay}
-        tasks={tasks}
-        onSelectNode={handleSelectNode}
-        onEditGoal={handleEditGoal}
-        onAddGoal={handleAddGoal}
-        onToggleCompleted={handleToggleCompleted}
-        isSaving={isSavingGoal}
-      />
+      {/* Detail panel (desktop) — 選択時のみ表示 */}
+      {selectedGoal && !isMobileLayout && (
+        <GoalDetailPanel
+          selected={selectedGoal}
+          longTermGoals={longTermGoals}
+          midTermGoals={displayMidTermGoals}
+          shortTermGoals={shortTermGoalsForDisplay}
+          tasks={tasks}
+          onSelectNode={handleSelectNode}
+          onEditGoal={handleEditGoal}
+          onAddGoal={handleAddGoal}
+          onToggleCompleted={handleToggleCompleted}
+          onClose={handleCloseDetailSheet}
+          isSaving={isSavingGoal}
+          isClosing={detailClosing}
+        />
+      )}
+
+      {isMobileLayout && selectedGoal && !placementSession && (
+        <GoalDetailSheet
+          goalId={selectedGoal.id}
+          isClosing={detailClosing}
+          onClose={handleCloseDetailSheet}
+          onSheetHeightChange={handleSheetHeightChange}
+        >
+          {(sheetLevel) => (
+            <GoalDetailPanel
+              embedded
+              sheetLevel={sheetLevel}
+              selected={selectedGoal}
+              longTermGoals={longTermGoals}
+              midTermGoals={displayMidTermGoals}
+              shortTermGoals={shortTermGoalsForDisplay}
+              tasks={tasks}
+              onSelectNode={handleSelectNode}
+              onEditGoal={handleEditGoal}
+              onAddGoal={handleAddGoal}
+              onToggleCompleted={handleToggleCompleted}
+              isSaving={isSavingGoal}
+            />
+          )}
+        </GoalDetailSheet>
+      )}
+
+      {isMobileLayout && (
+        <GoalsMapFab
+          showCompleted={demoShowCompleted}
+          onToggleCompleted={handleDemoCompletedToggle}
+          onRecenterToLongTerm={handleRecenterToLongTerm}
+        />
+      )}
+
+      {leavePrompt && (
+        <GoalPositionLeaveModal
+          isSaving={isSavingPositions}
+          onSaveAndLeave={handleLeaveSave}
+          onDiscardAndLeave={handleLeaveDiscard}
+          onCancel={handleLeaveCancel}
+        />
+      )}
+
+      {!placementSession && pendingPositionCount > 0 && (
+        <GoalPositionSaveBar
+          isSaving={isSavingPositions}
+          onSave={() => { void handleSavePositions(); }}
+        />
+      )}
+
+      {positionSaveNotice && (
+        <GoalPositionSaveToast
+          message={positionSaveNotice.text}
+          type={positionSaveNotice.type}
+        />
+      )}
 
       {goalAction && (
         <>
