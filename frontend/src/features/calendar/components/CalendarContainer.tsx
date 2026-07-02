@@ -107,9 +107,8 @@ export function CalendarContainer() {
           </button>
         </div>
       </div>
-    
-    <div className="calendar-page__content">
-      {/* Calendar grid */}
+
+      <div className="calendar-page__content">
         <div className="calendar-page__grid-col">
           <CalendarGrid
             year={year}
@@ -119,7 +118,6 @@ export function CalendarContainer() {
             onSelectDate={setSelectedDate}
           />
 
-          {/* Legend */}
           <div
             style={{
               display: 'flex',
@@ -172,7 +170,6 @@ export function CalendarContainer() {
           </div>
         </div>
 
-        {/* Day detail panel */}
         <DayGoalList
           date={selectedDate}
           tasks={calendarTasks}
@@ -181,13 +178,6 @@ export function CalendarContainer() {
           onTaskDeleted={handleTaskDeleted}
         />
       </div>
-      <DayGoalList
-        date={selectedDate}
-        tasks={calendarTasks}
-        goals={goals}
-        onTaskAdded={handleTaskAdded}
-        onTaskDeleted={handleTaskDeleted}
-      />
     </div>
   );
 }

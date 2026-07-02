@@ -124,6 +124,7 @@ a { text-decoration: none; color: inherit; }
 
 .page-content {
   flex: 1;
+  height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1463,10 +1464,11 @@ a { text-decoration: none; color: inherit; }
    ============================================================ */
 .calendar-page {
   padding: var(--sp-6) var(--sp-8);
-  display: flex;              /* grid → flex に変更 */
-  flex-direction: column;     /* 縦方向に積む */
-  height: 100%;               /* min-height:100vh → height:100% */
-  overflow: hidden;           /* ページ自体はスクロールさせない */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   gap: var(--sp-4);
 }
 
@@ -1501,13 +1503,13 @@ a { text-decoration: none; color: inherit; }
   gap: 8px;
 }
 
-.calendar-page__content {     /* TSXに既にあるラッパーdiv */
-  flex: 1;                    /* 残り高さを全部使う */
+.calendar-page__content {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: var(--sp-6);
-  overflow: hidden;           /* 子要素のスクロールに委ねる */
-  min-height: 0;              /* flexアイテムの高さ縮小を許可 */
+  overflow: hidden;
 }
 
 /* カレンダー左列（凡例 + CalendarGrid） */
