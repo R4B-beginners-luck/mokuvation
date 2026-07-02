@@ -10,7 +10,7 @@ import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
 import { Map, Plus } from 'lucide-react';
 import { db } from '../services/db';
-import type { LocalGoal } from '../services/db';
+import type { LocalGoal, SyncQueueItem } from '../services/db';
 import { isOnline } from '../services/syncService';
 
 // ─── オフライン用ユーティリティ ──────────────────────────────────
@@ -25,7 +25,7 @@ const genUUID = (): string =>
 
 const enqueueGoal = async (
   operation: 'create' | 'update' | 'delete',
-  payload: object
+  payload: SyncQueueItem['payload']
 ): Promise<void> => {
   await db.sync_queue.add({
     entity: 'goal',
