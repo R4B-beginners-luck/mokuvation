@@ -1,4 +1,5 @@
 import type { Page, User } from '../types';
+import { BrandMark } from '../components/BrandMark/BrandMark';
 import { NAV_ITEMS } from './navItems';
 
 interface SidebarProps {
@@ -8,29 +9,35 @@ interface SidebarProps {
   user: User | null;
 }
 
-// ─── 🌟 2. 引数（Destructuring）にも user をしっかり追加！
+
 export function Sidebar({ currentPage, onNavigate, onLogout, user }: SidebarProps) {
-  // ─── 🌟 3. user がいればその名前、いなければ「ゲスト」にする処理
-  const displayUserName = user?.user_name || 'ゲスト';
-  const avatarChar = displayUserName.charAt(0);
+  const displayUserName =
+    typeof user?.user_name === 'string' && user.user_name.trim()
+      ? user.user_name.trim()
+      : 'ゲスト';
+  const avatarChar = [...displayUserName][0] ?? '?';
 
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
-        <div className="sidebar__logo">M</div>
+        <div className="sidebar__logo">
+          <BrandMark size={32} />
+        </div>
         <span className="sidebar__name">
           moku<span>vation</span>
         </span>
       </div>
 
       <nav className="sidebar__nav">
-        {NAV_ITEMS.map(({ page, icon, label }) => (
+        {NAV_ITEMS.map(({ page, icon: Icon, label }) => (
           <button
             key={page}
             className={`sidebar__nav-item${currentPage === page ? ' active' : ''}`}
             onClick={() => onNavigate(page)}
           >
-            <span className="sidebar__nav-icon">{icon}</span>
+            <span className="sidebar__nav-icon">
+              <Icon size={18} strokeWidth={1.75} aria-hidden />
+            </span>
             <span>{label}</span>
           </button>
         ))}
@@ -38,10 +45,8 @@ export function Sidebar({ currentPage, onNavigate, onLogout, user }: SidebarProp
 
       <div className="sidebar__footer">
         <div className="sidebar__user">
-          {/* ─── 🌟 4. 「田」固定をやめて、名前の最初の1文字を自動表示！ ─── */}
           <div className="sidebar__avatar">{avatarChar}</div>
           <div>
-            {/* ─── 🌟 5. 「田中 一郎」固定をやめて、ログインユーザー名を表示！ ─── */}
             <div className="sidebar__username">{displayUserName}</div>
             <button className="btn-ghost" style={{ padding: '2px 0', fontSize: 11 }} onClick={onLogout}>
               ログアウト

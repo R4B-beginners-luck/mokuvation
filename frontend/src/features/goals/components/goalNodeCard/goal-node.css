@@ -1,0 +1,172 @@
+/* GoalNodeCard — 状態/分野色/選択を「色」でなく「要素」で分離 */
+.gnc{
+    /* 差し替え可能なトークン（テーマやブランド色に追従） */
+    --gnc-surface: #1A1E2E;
+    --gnc-surface-2: #222842;
+    --gnc-border: #2A2F45;
+    --gnc-text: #E7E9F2;
+    --gnc-muted: #9AA0B8;
+    --gnc-progress: #2FB3A0;   /* 進捗（ブランド/予約色） */
+    --gnc-success: #36B36A;    /* 達成（予約色） */
+    --gnc-danger: #E0533F;     /* 期限切れ（予約色） */
+    --gnc-warning: #E8B339;    /* 期限間近（予約色） */
+    --gnc-selected: #9457D8;   /* 選択UI（予約色） */
+  
+    position: relative;
+    box-sizing: border-box;
+    width: 230px;
+    min-height: 120px;
+    background: var(--gnc-surface);
+    border: 1px solid var(--gnc-border);
+    border-radius: 12px;
+    padding: 11px 14px 12px 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow .16s ease, border-color .16s ease, background .16s ease;
+  }
+  .gnc:hover{ border-color: #3A4160; }
+  .gnc:focus-visible{ outline: none; box-shadow: 0 0 0 2px var(--gnc-selected); }
+  
+  /* 左バー＝分野色（color は JS から inline で渡す） */
+  .gnc__bar{ position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  
+  .gnc__top{ display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
+  .gnc__type{
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--gnc-muted);
+    background: var(--gnc-surface-2); padding: 2px 8px; border-radius: 6px;
+  }
+  .gnc__statusText{ font-size: 11px; color: var(--gnc-muted); }
+  .gnc__badge{ display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 6px; }
+  .gnc__badge--danger{ color: #F09595; background: rgba(224,83,63,.18); }
+  .gnc__badge--warning{ color: #F5D77A; background: rgba(232,179,57,.2); }
+  /* foreignObject 内の Lucide SVG が親 canvas の svg ルールに巻き込まれないよう明示 */
+  .gnc svg{ width: auto; height: auto; max-width: none; max-height: none; cursor: inherit; }
+  .gnc__checkIcon{ color: var(--gnc-success); width: 13px; height: 13px; flex-shrink: 0; }
+  
+  .gnc__title{
+    flex: 1;
+    font-size: 14px; font-weight: 600; color: var(--gnc-text);
+    line-height: 1.35; margin: 8px 0 10px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  
+  .gnc__progress{ display: flex; align-items: center; gap: 8px; }
+  .gnc__track{ flex: 1; height: 5px; background: var(--gnc-surface-2); border-radius: 9999px; overflow: hidden; }
+  .gnc__fill{ height: 100%; background: var(--gnc-progress); border-radius: 9999px; }
+  .gnc__count{ font-size: 11px; color: var(--gnc-muted); white-space: nowrap; }
+  
+  /* --- 状態：期限切れ（赤枠＋バッジ。左バーは分野色のまま） --- */
+  .gnc--overdue{ border-color: var(--gnc-danger); }
+
+  /* --- 状態：期限間近（黄枠＋バッジ） --- */
+  .gnc--due-soon{ border-color: var(--gnc-warning); }
+  
+  /* --- 状態：達成（低彩度＋取り消し線、進捗は緑） --- */
+  .gnc--done{ filter: saturate(.5); opacity: .72; }
+  .gnc--done .gnc__title{ color: var(--gnc-muted); text-decoration: line-through; }
+  .gnc--done .gnc__fill{ background: var(--gnc-success); }
+  
+  /* --- UI操作：選択中（状態文字は出さず、紫の発光＋枠太め＋背景を明るく） --- */
+  .gnc--selected{
+    border: 2px solid var(--gnc-selected);
+    background: #232A45;
+    box-shadow: 0 0 16px rgba(148,87,216,.45);
+    padding: 10px 13px 11px 15px; /* border +1px ぶん調整 */
+  }
+  
+  /* ===== LOD：縮小（目標名だけ） ===== */
+  .gnc--compact{
+    width: 150px; min-height: 0;
+    padding: 8px 10px 9px 12px; border-radius: 10px;
+  }
+  .gnc__titleOneLine{
+    font-size: 12px; font-weight: 600; color: var(--gnc-text);
+    line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 6px;
+  }
+  .gnc__track--thin{ height: 3px; }
+  
+  /* ===== LOD：さらに縮小（色＋アイコン） ===== */
+  .gnc--mini{
+    width: 46px; height: 46px; min-height: 0;
+    padding: 0; border-radius: 12px;
+    align-items: center; justify-content: center;
+  }
+  .gnc__miniIcon{ color: #C9CDE0; }
+
+  /* ===== 長期目標：上部ピン＋ゴールド光彩 ===== */
+  .gnc-wrap--long {
+    position: relative;
+    padding-top: 16px;
+    overflow: visible;
+  }
+
+  .gnc-pin {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .gnc-pin__head {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #E8A33E;
+    box-shadow: 0 0 8px rgba(232, 163, 62, 0.7);
+    flex-shrink: 0;
+  }
+
+  .gnc-pin__shaft {
+    width: 2px;
+    height: 14px;
+    background: linear-gradient(to bottom, rgba(232, 163, 62, 0.95), transparent);
+    flex-shrink: 0;
+  }
+
+  .gnc--long {
+    border: 1px solid rgba(232, 163, 62, 0.45);
+    box-shadow: 0 0 20px rgba(232, 163, 62, 0.15);
+  }
+
+  .gnc--long .gnc__type {
+    color: #E8C97A;
+    background: rgba(232, 163, 62, 0.16);
+  }
+
+  .gnc--long.gnc--overdue {
+    border-color: var(--gnc-danger);
+    box-shadow: 0 0 20px rgba(232, 163, 62, 0.15), 0 0 10px rgba(224, 83, 63, 0.2);
+  }
+
+  .gnc--long.gnc--due-soon {
+    border-color: var(--gnc-warning);
+    box-shadow: 0 0 20px rgba(232, 163, 62, 0.15), 0 0 10px rgba(232, 179, 57, 0.15);
+  }
+
+  .gnc--long.gnc--selected {
+    border: 2px solid var(--gnc-selected);
+    box-shadow: 0 0 16px rgba(148, 87, 216, 0.45), 0 0 20px rgba(232, 163, 62, 0.12);
+  }
+
+  .gnc-wrap--long.gnc-wrap--mini .gnc-pin__head {
+    width: 8px;
+    height: 8px;
+    box-shadow: 0 0 6px rgba(232, 163, 62, 0.65);
+  }
+
+  .gnc-wrap--long.gnc-wrap--mini .gnc-pin__shaft {
+    height: 10px;
+  }
+
+  .gnc-wrap--long.gnc-wrap--mini {
+    padding-top: 12px;
+  }

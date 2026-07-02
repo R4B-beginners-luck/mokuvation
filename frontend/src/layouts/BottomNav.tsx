@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Menu, X } from 'lucide-react';
 import type { Page, User } from '../types';
 import { NAV_ITEMS } from './navItems';
 
@@ -11,8 +12,11 @@ interface BottomNavProps {
 
 export function BottomNav({ currentPage, onNavigate, onLogout, user }: BottomNavProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const displayUserName = user?.user_name || 'ゲスト';
-  const avatarChar = displayUserName.charAt(0);
+  const displayUserName =
+    typeof user?.user_name === 'string' && user.user_name.trim()
+      ? user.user_name.trim()
+      : 'ゲスト';
+  const avatarChar = [...displayUserName][0] ?? '?';
 
   const handleNavigate = (page: Page) => {
     setIsMenuOpen(false);
@@ -27,7 +31,7 @@ export function BottomNav({ currentPage, onNavigate, onLogout, user }: BottomNav
   return (
     <>
       <nav className="bottom-nav" aria-label="メインナビゲーション">
-        {NAV_ITEMS.map(({ page, icon, label }) => (
+        {NAV_ITEMS.map(({ page, icon: Icon, label }) => (
           <button
             key={page}
             type="button"
@@ -35,7 +39,9 @@ export function BottomNav({ currentPage, onNavigate, onLogout, user }: BottomNav
             onClick={() => handleNavigate(page)}
             aria-current={currentPage === page ? 'page' : undefined}
           >
-            <span className="bottom-nav__icon" aria-hidden="true">{icon}</span>
+            <span className="bottom-nav__icon" aria-hidden="true">
+              <Icon size={18} strokeWidth={1.75} aria-hidden />
+            </span>
             <span className="bottom-nav__label">{label}</span>
           </button>
         ))}
@@ -46,7 +52,9 @@ export function BottomNav({ currentPage, onNavigate, onLogout, user }: BottomNav
           aria-expanded={isMenuOpen}
           aria-haspopup="dialog"
         >
-          <span className="bottom-nav__icon" aria-hidden="true">☰</span>
+          <span className="bottom-nav__icon" aria-hidden="true">
+            <Menu size={18} strokeWidth={1.75} aria-hidden />
+          </span>
           <span className="bottom-nav__label">メニュー</span>
         </button>
       </nav>
@@ -69,7 +77,7 @@ export function BottomNav({ currentPage, onNavigate, onLogout, user }: BottomNav
                 aria-label="閉じる"
                 onClick={() => setIsMenuOpen(false)}
               >
-                ×
+                <X size={18} strokeWidth={1.75} aria-hidden />
               </button>
             </div>
             <div className="bottom-sheet__user">

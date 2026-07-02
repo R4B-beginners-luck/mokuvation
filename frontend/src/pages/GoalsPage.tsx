@@ -6,6 +6,9 @@ import { GoalActionModal, type GoalActionMode, type GoalActionPayload } from '..
 import { goalApi, type BackendGoal, type CreateGoalPayload, type UpdateGoalPayload } from '../features/goals/api/goalApi';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { COLOR_PALETTE } from '../const/colors';
+import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
+import { ButtonSpinner } from '../components/ui/ButtonSpinner';
+import { Map, Plus } from 'lucide-react';
 
 type GoalActionState = {
   mode: GoalActionMode;
@@ -30,13 +33,6 @@ type LoadedGoalsData = {
 interface GoalsPageProps {
   shortTermGoals: ShortTermGoal[];
   tasks: Task[];
-}
-
-function getLoadingProgressLabel(progress: number): string {
-  if (progress < 30) return '長期目標を取得しています';
-  if (progress < 60) return '中期・短期目標を整理しています';
-  if (progress < 90) return '目標マップを組み立てています';
-  return '表示の最終調整をしています';
 }
 
 function resolveGoalFromState(
@@ -240,7 +236,6 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalAction, setGoalAction] = useState<GoalActionState | null>(null);
   const [isLoadingGoals, setIsLoadingGoals] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState(16);
   const [isSavingGoal, setIsSavingGoal] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [goalLoadError, setGoalLoadError] = useState<string | null>(null);
@@ -320,23 +315,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     }
   }, [demoShowCompleted, selectedGoal, hiddenLongTermIds, hiddenMidTermIds, hiddenShortTermIds]);
 
-  useEffect(() => {
-    if (!isLoadingGoals) return undefined;
-
-    const timer = window.setInterval(() => {
-      setLoadingProgress((prev) => {
-        if (prev >= 94) return prev;
-        const step = prev < 45 ? 10 : prev < 75 ? 6 : 3;
-        return Math.min(prev + step, 94);
-      });
-    }, 120);
-
-    return () => window.clearInterval(timer);
-  }, [isLoadingGoals]);
-
   const loadGoals = async (preferredActiveLtId?: string, showLoadingUI = false): Promise<LoadedGoalsData | null> => {
     if (showLoadingUI) {
-      setLoadingProgress(16);
       setIsLoadingGoals(true);
     }
     setGoalLoadError(null);
@@ -372,8 +352,6 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       return null;
     } finally {
       if (showLoadingUI) {
-        setLoadingProgress(100);
-        await new Promise((resolve) => window.setTimeout(resolve, 90));
         setIsLoadingGoals(false);
       }
     }
@@ -771,7 +749,10 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       {/* Graph area */}
       <div className="goals-page__graph-area">
         <div className="goals-page__header">
-          <h1 className="goals-page__title">🗺️ 目標マップ</h1>
+          <h1 className="goals-page__title">
+            <Map size={20} strokeWidth={1.75} aria-hidden />
+            目標マップ
+          </h1>
           <div className="goals-page__selector">
             <button
               type="button"
@@ -799,10 +780,11 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
             <button
               type="button"
               className="btn-secondary"
-              style={{ whiteSpace: 'nowrap', fontSize: 13 }}
+              style={{ whiteSpace: 'nowrap', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
               onClick={handleAddLongTerm}
             >
-              ＋ 長期目標
+              <Plus size={15} strokeWidth={1.75} aria-hidden />
+              長期目標
             </button>
             {!placementSession && (
               <button
@@ -810,12 +792,16 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
                 className="btn-secondary goals-page__save-positions-btn"
                 disabled={pendingPositionCount === 0 || isSavingPositions}
                 onClick={handleSavePositions}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                {isSavingPositions
-                  ? '保存中...'
-                  : pendingPositionCount > 0
-                    ? `配置を保存（${pendingPositionCount}件）`
-                    : '配置を保存'}
+                {isSavingPositions ? (
+                  <>
+                    <ButtonSpinner />
+                    保存中...
+                  </>
+                ) : pendingPositionCount > 0
+                  ? `配置を保存（${pendingPositionCount}件）`
+                  : '配置を保存'}
               </button>
             )}
           </div>
@@ -840,8 +826,14 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
                   className="btn-primary"
                   disabled={isSavingPositions}
                   onClick={handleConfirmPlacement}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  {isSavingPositions ? '保存中...' : '配置を確定'}
+                  {isSavingPositions ? (
+                    <>
+                      <ButtonSpinner />
+                      保存中...
+                    </>
+                  ) : '配置を確定'}
                 </button>
               </div>
             </div>
@@ -863,21 +855,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         <div className={`graph-canvas-wrap${placementSession ? ' graph-canvas-wrap--placement' : ''}`}>
           {isLoadingGoals ? (
             <div className="goals-page__loading" role="status" aria-live="polite">
-              <div className="goals-page__loading-card">
-                <div className="goals-page__loading-header">
-                  <div className="goals-page__loading-title">目標を読み込み中です...</div>
-                  <div className="goals-page__loading-percent">{loadingProgress}%</div>
-                </div>
-                <div className="goals-page__loading-bar">
-                  <div
-                    className="goals-page__loading-bar-fill"
-                    style={{ width: `${loadingProgress}%` }}
-                  />
-                </div>
-                <div className="goals-page__loading-subtext">
-                  {getLoadingProgressLabel(loadingProgress)}
-                </div>
-              </div>
+              <GoalsPageSkeleton />
             </div>
           ) : goalLoadError ? (
             <div className="goals-page__error">{goalLoadError}</div>
@@ -886,6 +864,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               longTermGoal={activeLt}
               midTermGoals={activeMids}
               shortTermGoals={activeShorts}
+              tasks={tasks}
               selectedId={selectedGoal?.id ?? null}
               savedPositions={savedPositions}
               pendingPositions={graphPendingPositions}

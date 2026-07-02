@@ -1,3 +1,4 @@
+import { Calendar, Check, Circle, MapPin, Pencil, Plus, Trash2, Undo2 } from 'lucide-react';
 import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../../../types';
 import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
 
@@ -63,10 +64,17 @@ function isGoal(goal: Goal | null): goal is Goal {
   return goal !== null;
 }
 
-function getDueDateText(goal: MidTermGoal | ShortTermGoal): { text: string; tone: DueDateTone } {
+function getDueDateText(goal: MidTermGoal | ShortTermGoal): { text: string; tone: DueDateTone; date: string } {
   const { label, tone } = getDueDateMeta(goal.dueDate!);
-  return { text: `📅 ${goal.dueDate} · ${label}`, tone };
+  return { text: `${goal.dueDate} · ${label}`, tone, date: goal.dueDate! };
 }
+
+const iconBtnStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+} as const;
 
 export function GoalDetailPanel({
   selected,
@@ -84,7 +92,9 @@ export function GoalDetailPanel({
     return (
       <aside className="detail-panel">
         <div className="detail-panel__empty">
-          <div className="detail-panel__empty-icon">🗺️</div>
+          <div className="detail-panel__empty-icon">
+            <MapPin size={32} strokeWidth={1.75} aria-hidden />
+          </div>
           <p style={{ fontSize: 13, lineHeight: 1.6 }}>
             ノードをクリックすると<br />詳細が表示されます
           </p>
@@ -128,17 +138,13 @@ export function GoalDetailPanel({
     ]
   );
 
-  // タスクの集計
   let relatedTasks: Task[] = [];
   if (selected.type === 'short') {
-    // 短期目標：直接紐づくタスク
     relatedTasks = tasks.filter(t => t.goalId === selected.id);
   } else if (selected.type === 'mid') {
-    // 中期目標：自身に紐づくタスク＋配下の短期目標に紐づくタスク
     const childShortIds = shortTermGoals.filter(s => s.midTermGoalId === selected.id).map(s => s.id);
     relatedTasks = tasks.filter(t => t.goalId === selected.id || (t.goalId && childShortIds.includes(t.goalId)));
   } else if (selected.type === 'long') {
-    // 長期目標：自身＋配下の中期・短期目標に紐づくタスク
     const childMidIds = midTermGoals.filter(m => m.longTermGoalId === selected.id).map(m => m.id);
     const childShortIds = shortTermGoals.filter(s => s.longTermGoalId === selected.id).map(s => s.id);
     relatedTasks = tasks.filter(t => t.goalId === selected.id || (t.goalId && childMidIds.includes(t.goalId)) || (t.goalId && childShortIds.includes(t.goalId)));
@@ -192,7 +198,9 @@ export function GoalDetailPanel({
         {dueDateInfo && (
           <div
             className={`detail-panel__due-date detail-panel__due-date--${dueDateInfo.tone}`}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
+            <Calendar size={13} strokeWidth={1.75} aria-hidden />
             {dueDateInfo.text}
           </div>
         )}
@@ -209,11 +217,22 @@ export function GoalDetailPanel({
             textAlign: 'center',
             fontSize: 13,
             gridColumn: '1 / -1',
+            ...iconBtnStyle,
           }}
           onClick={() => onToggleCompleted(selected)}
           disabled={isSaving}
         >
-          {selected.completed ? '✅ 未達成に戻す' : '✔️ 達成済みにする'}
+          {selected.completed ? (
+            <>
+              <Undo2 size={15} strokeWidth={1.75} aria-hidden />
+              未達成に戻す
+            </>
+          ) : (
+            <>
+              <Check size={15} strokeWidth={1.75} aria-hidden />
+              達成済みにする
+            </>
+          )}
         </button>
         <button
           className="btn-secondary"
@@ -222,36 +241,41 @@ export function GoalDetailPanel({
             textAlign: 'center',
             fontSize: 13,
             gridColumn: '1 / -1',
+            ...iconBtnStyle,
           }}
           onClick={() => onEditGoal(selected)}
         >
-          ✏️ 編集する
+          <Pencil size={15} strokeWidth={1.75} aria-hidden />
+          編集する
         </button>
         {selected.type === 'long' && (
           <>
             <button
               className="btn-ghost"
-              style={{ width: '100%', textAlign: 'center', fontSize: 13 }}
+              style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
               onClick={() => onAddGoal(selected, 'mid')}
             >
-              ＋ 中期目標
+              <Plus size={15} strokeWidth={1.75} aria-hidden />
+              中期目標
             </button>
             <button
               className="btn-ghost"
-              style={{ width: '100%', textAlign: 'center', fontSize: 13 }}
+              style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
               onClick={() => onAddGoal(selected, 'short')}
             >
-              ＋ 短期目標
+              <Plus size={15} strokeWidth={1.75} aria-hidden />
+              短期目標
             </button>
           </>
         )}
         {selected.type === 'mid' && (
           <button
             className="btn-ghost"
-            style={{ width: '100%', textAlign: 'center', fontSize: 13 }}
+            style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
             onClick={() => onAddGoal(selected, 'short')}
           >
-            ＋ 短期目標
+            <Plus size={15} strokeWidth={1.75} aria-hidden />
+            短期目標
           </button>
         )}
       </div>
@@ -362,7 +386,13 @@ export function GoalDetailPanel({
             <ul style={{ listStyle: 'none', margin: '8px 0 0 0', padding: 0 }}>
               {relatedTasks.map(t => (
                 <li key={t.id} className="detail-panel__task-item">
-                  <span style={{ color: t.completed ? 'var(--color-success)' : 'var(--text-muted)' }}>{t.completed ? '✓' : '○'}</span>
+                  <span style={{ color: t.completed ? 'var(--color-success)' : 'var(--text-muted)', display: 'inline-flex' }}>
+                    {t.completed ? (
+                      <Check size={13} strokeWidth={1.75} aria-hidden />
+                    ) : (
+                      <Circle size={13} strokeWidth={1.75} aria-hidden />
+                    )}
+                  </span>
                   <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? 'var(--text-muted)' : 'inherit' }}>{t.title}</span>
                   <span className="detail-panel__task-date">{t.date}</span>
                 </li>

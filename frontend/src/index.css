@@ -168,15 +168,9 @@ a { text-decoration: none; color: inherit; }
 .sidebar__logo {
   width: 32px;
   height: 32px;
-  background: var(--accent-gold);
-  border-radius: var(--r-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 14px;
-  color: #16151a;
   flex-shrink: 0;
 }
 
@@ -190,7 +184,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 .sidebar__name span {
-  color: var(--accent-gold);
+  color: var(--accent-teal);
 }
 
 .sidebar__nav {
@@ -328,7 +322,9 @@ a { text-decoration: none; color: inherit; }
 }
 
 .bottom-nav__icon {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
 }
 
@@ -520,15 +516,9 @@ a { text-decoration: none; color: inherit; }
 .login-card__logo {
   width: 52px;
   height: 52px;
-  background: var(--accent-gold);
-  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 22px;
-  color: #16151a;
   margin: 0 auto var(--sp-4);
 }
 
@@ -539,7 +529,7 @@ a { text-decoration: none; color: inherit; }
   letter-spacing: -0.03em;
 }
 
-.login-card__title span { color: var(--accent-gold); }
+.login-card__title span { color: var(--accent-teal); }
 
 .login-card__subtitle {
   font-size: 13px;
@@ -859,6 +849,50 @@ a { text-decoration: none; color: inherit; }
   .week-check-map__day { min-width: 32px; }
 }
 
+@media (max-width: 768px) {
+  /* 達成マップの親ラッパー（インラインで flex:1 / justify-content:center が付いている div）を左寄せに上書き */
+  .top-page__header > div[style*="justify-content: center"],
+  .top-page__header > div[style*="justify-content:center"] {
+    
+    display: block ;
+    width: 100% ;
+    justify-content: flex-start ;
+  }
+
+  /* 達成マップカード自体を全幅・左寄せに、はみ出し防止 */
+  .week-check-map {
+    min-width: 0 ;
+    width: 100% ;
+    max-width: 100% ;
+    margin-left: 0 ;
+    flex: none ;
+    box-sizing: border-box ;
+    overflow: hidden ;
+    gap: var(--sp-2);
+    padding: var(--sp-3) ;
+  }
+
+  /* 曜日ドットをさらに小さく、間隔を詰める */
+  .week-check-map__checks {
+    gap: 4px ;
+  }
+
+  .week-check-map__dot {
+    width: 22px ;
+    height: 22px ;
+    font-size: 11px ;
+  }
+
+  .week-check-map__day {
+    min-width: 0 ;
+    flex: 1 ;
+  }
+
+  .week-check-map__weekday {
+    font-size: 10px;
+  }
+}
+
 .top-page__main {
   display: flex;
   flex-direction: column;
@@ -1062,14 +1096,14 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  max-height: 280px;
+  height: 400px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
 @media (max-width: 768px) {
   .today-goals__list {
-    max-height: 200px;
+    max-height: 300px;
   }
 }
 
@@ -1087,6 +1121,9 @@ a { text-decoration: none; color: inherit; }
 }
 
 .today-goals__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: 100%;
   padding: var(--sp-3);
   border-radius: var(--r-md);
@@ -1140,7 +1177,7 @@ a { text-decoration: none; color: inherit; }
 
 @media (max-width: 768px) {
   .weekly-chart {
-    height: 50px;
+    height: 300px;
     margin-bottom: var(--sp-5);
   }
 }
@@ -1440,78 +1477,7 @@ a { text-decoration: none; color: inherit; }
   align-items: center;
   justify-content: center;
   padding: var(--sp-6);
-}
-
-.calendar-page__loading-card {
-  width: min(420px, 100%);
-  padding: 24px 22px;
-  border-radius: var(--r-lg);
-  border: 1px solid rgba(240,236,224,0.08);
-  background: rgba(255,255,255,0.03);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-}
-
-.calendar-page__loading-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-3);
-}
-
-.calendar-page__loading-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.calendar-page__loading-percent {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--accent-gold);
-  flex-shrink: 0;
-}
-
-.calendar-page__loading-bar {
   width: 100%;
-  height: 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(240,236,224,0.08);
-}
-
-.calendar-page__loading-bar-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent-gold), var(--accent-violet));
-  transition: width 180ms ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.calendar-page__loading-bar-fill::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
-  animation: calendar-loading-shimmer 1.2s linear infinite;
-}
-
-.calendar-page__loading-subtext {
-  margin-top: var(--sp-3);
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-@keyframes calendar-loading-shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
 }
 
 .calendar-page__header {
@@ -1530,6 +1496,9 @@ a { text-decoration: none; color: inherit; }
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .calendar-page__content {     /* TSXに既にあるラッパーdiv */
@@ -1964,8 +1933,13 @@ a { text-decoration: none; color: inherit; }
 
 .goal-node--placement-focus polygon,
 .goal-node--placement-focus circle,
-.goal-node--placement-focus rect {
+.goal-node--placement-focus rect,
+.goal-node--placement-focus .gnc {
   filter: url(#glow-gold);
+}
+
+.goal-node--placement-focus .gnc {
+  box-shadow: 0 0 20px rgba(232, 162, 52, 0.55);
 }
 
 .goal-node--placement-target {
@@ -1976,8 +1950,8 @@ a { text-decoration: none; color: inherit; }
   opacity: 0.45;
 }
 
-.goal-node--placement-locked text {
-  opacity: 0.7;
+.goal-node--placement-locked .gnc {
+  opacity: 0.85;
 }
 
 .goals-page__title {
@@ -1985,6 +1959,9 @@ a { text-decoration: none; color: inherit; }
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .goals-page__selector {
@@ -2028,124 +2005,75 @@ a { text-decoration: none; color: inherit; }
   position: relative;
 }
 
-.graph-canvas-wrap svg {
+.graph-canvas-wrap svg.goal-graph__canvas {
   width: 100%;
   height: 100%;
   cursor: grab;
 }
 
-.graph-canvas-wrap svg:active { cursor: grabbing; }
+.graph-canvas-wrap svg.goal-graph__canvas:active { cursor: grabbing; }
+
+.goal-graph__background {
+  cursor: default;
+}
+
+.goal-graph__zoom-control {
+  position: absolute;
+  top: auto;
+  right: var(--sp-4);
+  bottom: var(--sp-4);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(31, 30, 36, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  user-select: none;
+}
+
+.goal-graph__zoom-label {
+  flex-shrink: 0;
+  min-width: 3.25rem;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.goal-graph__zoom-slider {
+  width: 200px;
+  height: 6px;
+  margin: 0;
+  accent-color: var(--accent-gold);
+  cursor: pointer;
+}
+
+.goal-graph__zoom-slider:focus-visible {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
+}
 
 .goals-page__loading,
 .goals-page__error,
 .goals-page__empty {
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   padding: var(--sp-6);
-}
-
-.goals-page__loading-card {
-  width: min(420px, 100%);
-  padding: 24px 22px;
-  border-radius: var(--r-lg);
-  border: 1px solid rgba(240,236,224,0.08);
-  background: rgba(255,255,255,0.03);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-}
-
-.goals-page__loading-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-3);
-}
-
-.goals-page__loading-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.goals-page__loading-percent {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--accent-gold);
-  flex-shrink: 0;
-}
-
-.goals-page__loading-bar {
   width: 100%;
-  height: 10px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(240,236,224,0.08);
 }
 
-.goals-page__loading-bar-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent-gold), var(--accent-teal));
-  transition: width 180ms ease;
-  position: relative;
-  overflow: hidden;
-}
 
-.goals-page__loading-bar-fill::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
-  animation: goals-loading-shimmer 1.2s linear infinite;
-}
 
-.goals-page__loading-subtext {
-  margin-top: var(--sp-3);
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
 
-@keyframes goals-loading-shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
 
-/* Graph legend */
-.graph-legend {
-  position: absolute;
-  bottom: var(--sp-4);
-  left: var(--sp-4);
-  display: flex;
-  gap: var(--sp-4);
-  background: rgba(31, 30, 36, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: var(--sp-2) var(--sp-4);
-}
 
-.graph-legend__item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.graph-legend__dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
 
 /* Goal map node context menu (right-click on long/mid/short icons) */
 .goal-graph-context-menu {
@@ -2191,6 +2119,7 @@ a { text-decoration: none; color: inherit; }
 .goal-graph-context-menu__item {
   display: flex;
   align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: left;
   background: transparent;
@@ -2238,7 +2167,12 @@ a { text-decoration: none; color: inherit; }
   gap: var(--sp-3);
 }
 
-.detail-panel__empty-icon { font-size: 40px; opacity: 0.4; }
+.detail-panel__empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+}
 
 .detail-panel__section-title {
   font-size: 12px;
@@ -2566,5 +2500,242 @@ a { text-decoration: none; color: inherit; }
 
   .day-detail {
     padding: var(--sp-3);
+  }
+}
+
+.demo-toggle:hover { background: var(--bg-hover); }
+
+
+/* ============================================================
+   RESPONSIVE: MOBILE & TABLET (768px以下)
+   ============================================================ */
+@media (max-width: 768px) {
+  /* 1. PC用の画面固定を解除し、スマホ本来の縦スクロールを有効化 */
+  html, body {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    overflow-x: hidden;
+  }
+  
+  #root {
+    height: auto;
+    min-height: 100vh;
+    display: block;
+    width: 100vw;
+  }
+
+  /* 2. 全体コンテナの縦並び化と、下部ナビゲーション分の底上げ余白 */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    padding-bottom: 84px;
+  }
+
+  /* 3. メインコンテンツのパディング調整（左右の余白をすっきり均等に） */
+  .page-content {
+    width: 100%;
+    max-width: 100%;
+    padding: var(--sp-4);
+    box-sizing: border-box;
+    overflow-y: visible;
+    overflow-x: hidden;
+  }
+
+  /* 4. TopPage内の大枠コンテナを綺麗な1列のカード並びに */
+  .top-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  /* 5. ヘッダー部分の横並び(flex)を完全に解除し、強制的に縦並びにする */
+  .top-page__header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--sp-4);
+    width: 100%;
+    height: auto;
+  }
+
+  /* 6. 挨拶テキスト部分も横いっぱいに広げる */
+  .top-page__header-text {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* 7. 引き伸ばされていた「継続状況」の親コンテナを完全に全幅にする */
+  .top-page__header > div[style*="width: 340px"],
+  .top-page__header > div[style*="flex-shrink"] {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    flex: none;
+    flex-shrink: 1;
+    flex-basis: auto;
+    box-sizing: border-box;
+    margin: 0;
+  }
+
+  /* 8. 「継続状況（StreakDisplay）」カード自体のサイズを整列 */
+  .streak-display {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    box-sizing: border-box;
+    margin: 0;
+  }
+
+  /* 9. 【全面改修】目標マップ（達成マップ）の親要素とカード全体のズレ・はみ出しを完全解消 */
+  .goals-page,
+  .goal-map,
+  .goals-container,
+  .goals-header {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch; /* 左寄せではなく、カードの横幅を100%に広げる */
+  }
+
+  /* 10. 【最重要】目標マップの3×3マトリクスグリッドをスマホ画面幅内に100%自動収縮させる */
+  .matrix-container,
+  .goal-grid,
+  .map-grid {
+    display: grid;
+    width: 100%;
+    max-width: 100%;
+    /* PC版の固定ピクセル幅を破壊し、3列に均等自動分割 */
+    grid-template-columns: repeat(3, minmax(0, 1fr)); 
+    gap: var(--sp-2);
+    margin: var(--sp-3) 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* マップ内の各マス（セル）の横幅制限も解除して等倍フィットさせる */
+  .matrix-cell,
+  .goal-card,
+  .map-item {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: var(--sp-2); /* スマホ用にマス内の余白を少しコンパクトに */
+    margin: 0;
+  }
+
+  /* 11. その他のセクション（タスク一覧・チャート・長期目標）もすべて全幅の縦1列に統一 */
+  .top-page__main,
+  .top-page__sidebar,
+  .today-section,
+  .weekly-progress-chart,
+  .long-term-summary {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+  }
+
+  /* 12. ボタン類の最大幅制限を解除 */
+  .top-page button {
+    max-width: 100%;
+  }
+
+
+  /* ============================================================
+      SIDEBAR -> BOTTOM NAVIGATION VARIATION
+     ============================================================ */
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    height: 64px;
+    min-height: 64px;
+    flex-direction: row;
+    background: var(--bg-surface);
+    border-right: none;
+    border-top: 1px solid var(--border);
+    padding: 0;
+    overflow: visible;
+    z-index: 1000;
+  }
+
+  .sidebar__brand,
+  .sidebar__footer {
+    display: none;
+  }
+
+  .sidebar__nav {
+    flex: 1 ;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 var(--sp-2);
+    gap: 0;
+    margin: 0;
+    height: 100%;
+  }
+
+  .sidebar__nav-item {
+    flex: 1;
+    display: flex ;
+    flex-direction: column ;
+    align-items: center ;
+    justify-content: center ;
+    gap: 4px ;
+    height: 100%;
+    padding: var(--sp-1) 0 ;
+    font-size: 11px ;
+    color: var(--text-secondary);
+    border-radius: 0 ;
+    background: transparent ;
+  }
+
+  .sidebar__nav-item.active {
+    color: var(--accent-gold);
+    background: rgba(232, 162, 52, 0.05) ;
+  }
+
+  .sidebar__nav-item.active::before {
+    top: 0 ;
+    left: 50% ;
+    transform: translateX(-50%) ;
+    width: 40px ;
+    height: 3px ;
+    border-radius: 0 0 4px 4px ;
+  }
+
+  .sidebar__nav-icon {
+    font-size: 18px;
+    width: auto ;
+    margin: 0 ;
+    line-height: 1 ;
+  }
+}
+
+.top-page__streak-wrapper {
+  flex-shrink: 0;
+  width: 340px;
+}
+
+@media (max-width: 768px) {
+  .top-page__streak-wrapper {
+    width: 100%;
   }
 }
