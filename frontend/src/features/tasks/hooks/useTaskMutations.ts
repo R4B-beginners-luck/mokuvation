@@ -56,14 +56,18 @@ export const useTaskMutations = () => {
       updated_at:   now,
     };
 
-    await db.tasks.put(localTask);
-
-    await db.sync_queue.add({
-      entity:    'task',
-      operation: 'create',
-      payload:   localTask,
-      created_at: now,
-    });
+    try {
+      await db.tasks.put(localTask);
+      await db.sync_queue.add({
+        entity:    'task',
+        operation: 'create',
+        payload:   localTask,
+        created_at: now,
+      });
+    } catch (err) {
+      console.error('[useTaskMutations] ローカルDB保存に失敗しました', err);
+      throw err;
+    }
 
     return localTask as unknown as Task;
   };

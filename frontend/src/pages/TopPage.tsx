@@ -6,6 +6,9 @@ import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongT
 import { TopPageSkeleton } from '../components/ui/TopPageSkeleton';
 import type { Task, User, ShortTermGoal, LongTermGoal, MidTermGoal } from '../types';
 import { goalApi, type BackendGoal } from '../features/goals/api/goalApi';
+import { db } from '../services/db';
+import { isOnline } from '../services/syncService';
+import { localTaskToTask } from '../hooks/useLocalData';
 
 const MOTIVATIONAL_MESSAGES = [
   '小さな一歩が、大きな目標への道になる。',
@@ -53,25 +56,47 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
         setIsLoadingTasks(true);
         setTaskLoadError(null);
 
-        const [fetchedTasks, summaryResponse] = await Promise.all([
-          taskApi.getTasks(),
-          fetch(`${API_BASE_URL}/api/dashboard/summary`, { 
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } 
-          })
-        ]);
+        let fetchedTasks: any[] | null = null;
+        let summaryResponse: Response | null = null;
+
+        const localDbTasks = (await db.tasks.toArray()).map(localTaskToTask);
+
+        if (isOnline()) {
+          try {
+            [fetchedTasks, summaryResponse] = await Promise.all([
+              taskApi.getTasks(),
+              fetch(`${API_BASE_URL}/api/dashboard/summary`, {
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+              }),
+            ]);
+          } catch (err) {
+            console.warn('サーバー取得に失敗したため、Dexie のローカルデータを使用します。', err);
+          }
+        }
 
         if (!mounted) return;
 
-        const formattedTasks: Task[] = fetchedTasks.map((t: any) => ({
+        const serverTasks = (fetchedTasks ?? []).map((t: any) => ({
           id: String(t.id),
           title: t.title,
           goalId: (t.goal_id && String(t.goal_id) !== '0') ? String(t.goal_id) : undefined,
           completed: Boolean(t.is_completed ?? t.completed),
           date: t.scheduled_at ? String(t.scheduled_at).substring(0, 10) : TODAY,
         }));
+
+        const taskById = new Map<string, Task>();
+        for (const task of serverTasks) {
+          taskById.set(task.id, task);
+        }
+        for (const task of localDbTasks) {
+          taskById.set(task.id, task);
+        }
+
+        const formattedTasks = Array.from(taskById.values());
+
         setLocalTasks(formattedTasks);
 
-        if (summaryResponse.ok) {
+        if (summaryResponse?.ok) {
           const summaryData = await summaryResponse.json();
           setSummary(summaryData);
         }
@@ -153,7 +178,11 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
 
     loadDashboardData();
     return () => { mounted = false; };
-  }, []);
+  }, [tasks]);
+
+  useEffect(() => {
+    setLocalTasks(tasks);
+  }, [tasks]);
 
   const handleToggleWrapper = (id: string) => {
     setLocalTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));

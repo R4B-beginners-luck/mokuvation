@@ -45,6 +45,35 @@ type GoalEntry = {
   updated_at: string;
 };
 
+const normalizeTaskEntry = (task: Partial<LocalTask> | TaskEntry): TaskEntry => ({
+  id: String(task.id ?? ''),
+  user_id: String(task.user_id ?? ''),
+  goal_id: String(task.goal_id ?? ''),
+  title: task.title ?? '',
+  description: task.description ?? '',
+  scheduled_at: task.scheduled_at ?? '',
+  is_completed: Boolean(task.is_completed),
+  completed_at: task.completed_at ?? '',
+  created_at: task.created_at ?? new Date().toISOString(),
+  updated_at: task.updated_at ?? task.created_at ?? new Date().toISOString(),
+});
+
+const normalizeGoalEntry = (goal: Partial<LocalGoal> | GoalEntry): GoalEntry => ({
+  id: String(goal.id ?? ''),
+  user_id: String(goal.user_id ?? ''),
+  title: goal.title ?? '',
+  description: goal.description ?? '',
+  parent_goal_id: String(goal.parent_goal_id ?? ''),
+  period_type: String(goal.period_type ?? 'short'),
+  due_at: goal.due_at ?? '',
+  is_completed: Boolean(goal.is_completed),
+  color_code: Number(goal.color_code ?? 0),
+  position_x: Number(goal.position_x ?? 0),
+  position_y: Number(goal.position_y ?? 0),
+  created_at: goal.created_at ?? new Date().toISOString(),
+  updated_at: goal.updated_at ?? goal.created_at ?? new Date().toISOString(),
+});
+
 export type MokuDoc = {
   tasks: Record<string, TaskEntry>;
   goals: Record<string, GoalEntry>;
@@ -68,36 +97,11 @@ export const initDoc = (tasks: LocalTask[], goals: LocalGoal[]): void => {
     d.goals = {} as Record<string, GoalEntry>;
 
     for (const t of tasks) {
-      d.tasks[t.id] = {
-        id:           t.id,
-        user_id:      t.user_id,
-        goal_id:      t.goal_id ?? '',
-        title:        t.title,
-        description:  t.description ?? '',
-        scheduled_at: t.scheduled_at ?? '',
-        is_completed: t.is_completed,
-        completed_at: t.completed_at ?? '',
-        created_at:   t.created_at,
-        updated_at:   t.updated_at,
-      };
+      d.tasks[t.id] = normalizeTaskEntry(t);
     }
 
     for (const g of goals) {
-      d.goals[g.id] = {
-        id:             g.id,
-        user_id:        g.user_id,
-        title:          g.title,
-        description:    g.description ?? '',
-        parent_goal_id: g.parent_goal_id ?? '',
-        period_type:    g.period_type,
-        due_at:         g.due_at ?? '',
-        is_completed:   g.is_completed,
-        color_code:     g.color_code ?? 0,
-        position_x:     g.position_x ?? 0,
-        position_y:     g.position_y ?? 0,
-        created_at:     g.created_at,
-        updated_at:     g.updated_at,
-      };
+      d.goals[g.id] = normalizeGoalEntry(g);
     }
   });
 
@@ -120,32 +124,37 @@ export const crdtToggleTask = (taskId: string, isCompleted: boolean): void => {
   _persistChanges();
 };
 
-/** タスクを CRDT ドキュメントに追加 */
-export const crdtAddTask = (task: LocalTask): void => {
-  // Automerge は undefined を許容しない（null か値そのもの以外を書き込むと例外）。
-  // 呼び出し元のデータ不備で undefined が紛れ込んでも落ちないよう、ここでも防御する。
-  const now = new Date().toISOString();
+/** タスクを CRDT ドキュメントに追加・更新 */
+export const crdtUpsertTask = (task: LocalTask): void => {
   doc = Automerge.change(doc, (d) => {
-    d.tasks[task.id] = {
-      id:           task.id,
-      user_id:      task.user_id ?? '',
-      goal_id:      task.goal_id ?? '',
-      title:        task.title ?? '',
-      description:  task.description ?? '',
-      scheduled_at: task.scheduled_at ?? '',
-      is_completed: task.is_completed ?? false,
-      completed_at: task.completed_at ?? '',
-      created_at:   task.created_at ?? now,
-      updated_at:   task.updated_at ?? now,
-    };
+    d.tasks[task.id] = normalizeTaskEntry(task);
   });
   _persistChanges();
 };
+
+/** タスクを CRDT ドキュメントに追加 */
+export const crdtAddTask = (task: LocalTask): void => crdtUpsertTask(task);
 
 /** タスクを CRDT ドキュメントから削除 */
 export const crdtDeleteTask = (taskId: string): void => {
   doc = Automerge.change(doc, (d) => {
     delete d.tasks[taskId];
+  });
+  _persistChanges();
+};
+
+/** 目標を CRDT ドキュメントに追加・更新 */
+export const crdtUpsertGoal = (goal: LocalGoal): void => {
+  doc = Automerge.change(doc, (d) => {
+    d.goals[goal.id] = normalizeGoalEntry(goal);
+  });
+  _persistChanges();
+};
+
+/** 目標を CRDT ドキュメントから削除 */
+export const crdtDeleteGoal = (goalId: string): void => {
+  doc = Automerge.change(doc, (d) => {
+    delete d.goals[goalId];
   });
   _persistChanges();
 };

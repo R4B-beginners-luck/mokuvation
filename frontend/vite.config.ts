@@ -11,7 +11,11 @@ export default defineConfig({
     topLevelAwait(),
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: false,
+      devOptions: {
+        enabled: false,
+      },
       workbox: {
         // キャッシュ対象ファイル
         // ⚠️ wasm が抜けていたため、Automerge(CRDT)が使う .wasm 本体が

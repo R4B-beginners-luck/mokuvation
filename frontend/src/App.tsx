@@ -149,11 +149,16 @@ export default function App() {
       updated_at:   rawTask.updated_at ?? now,
     };
 
-    // Dexie に保存
-    await db.tasks.put(localTask);
+    try {
+      // Dexie に保存
+      await db.tasks.put(localTask);
 
-    // CRDT Doc に追加
-    crdtAddTask(localTask);
+      // CRDT Doc に追加
+      crdtAddTask(localTask);
+    } catch (err) {
+      console.error('[App] タスク追加時のローカル保存に失敗しました', err);
+      throw err;
+    }
 
     optimisticAddTask(localTaskToTask(localTask));
   };
