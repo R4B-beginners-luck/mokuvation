@@ -42,8 +42,8 @@ export interface SyncQueueItem {
   id?: number; // auto-increment
   entity: 'task' | 'goal';
   operation: 'create' | 'update' | 'delete';
-  payload: LocalTask | LocalGoal | { id: string }; // delete は id だけ
-  created_at: string; // キュー積み時刻
+  payload: LocalTask | LocalGoal | { id: string } | Record<string, unknown>; // GoalsPage等でobjectを渡すケースに対応
+  created_at: string;
 }
 
 // ─── Dexie クラス ────────────────────────────────────────────────

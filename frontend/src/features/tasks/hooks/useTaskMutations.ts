@@ -3,7 +3,7 @@ import { taskApi } from '../api/taskApi';
 import type { CreateTaskPayload, Task } from '../types';
 import { db } from '../../../services/db';
 import type { LocalTask } from '../../../services/db';
-import { isOnline, cacheUserId, getCachedUserId } from '../../../services/syncService';
+import { isOnline, cacheUserId, getCachedUserId, isNetworkFailure } from '../../../services/syncService';
 
 // ─── ID 生成（オンライン・オフライン共通） ─────────────────────
 // crypto.randomUUID() で本物の UUID を生成し、作成時点でクライアントと
@@ -30,79 +30,92 @@ export const useTaskMutations = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]         = useState<string | null>(null);
 
+  /** オフライン作成（Dexie + sync_queue）。フォールバック先としても使う */
+  const createTaskOffline = async (
+    payload: Omit<CreateTaskPayload, 'user_id'>
+  ): Promise<Task | null> => {
+    const userId = getCachedUserId();
+    if (!userId) {
+      setError('オフライン中はユーザー情報が取得できません。一度オンラインでログインしてください。');
+      return null;
+    }
+
+    const taskId = generateTaskId();
+    const now    = new Date().toISOString();
+
+    const localTask: LocalTask = {
+      id:           taskId,
+      user_id:      userId,
+      goal_id:      payload.goal_id ?? null,
+      title:        payload.title,
+      description:  payload.description ?? null,
+      scheduled_at: payload.scheduled_at ?? null,
+      is_completed: false,
+      completed_at: null,
+      created_at:   now,
+      updated_at:   now,
+    };
+
+    await db.tasks.put(localTask);
+
+    await db.sync_queue.add({
+      entity:    'task',
+      operation: 'create',
+      payload:   localTask,
+      created_at: now,
+    });
+
+    return localTask as unknown as Task;
+  };
+
   const addTask = async (payload: Omit<CreateTaskPayload, 'user_id'>): Promise<Task | null> => {
     setIsLoading(true);
     setError(null);
 
     try {
       if (isOnline()) {
-        // ── オンライン：従来通り API 経由で作成 ──────────────────
-        const currentUser = await taskApi.getCurrentUser();
+        try {
+          // ── オンライン：従来通り API 経由で作成 ──────────────────
+          const currentUser = await taskApi.getCurrentUser();
 
-        // user_id をキャッシュ（次回オフライン時に使う）
-        cacheUserId(currentUser.user_id);
+          // user_id をキャッシュ（次回オフライン時に使う）
+          cacheUserId(currentUser.user_id);
 
-        const fullPayload: CreateTaskPayload = {
-          ...payload,
-          id: generateTaskId(),
-          user_id: currentUser.user_id,
-        };
+          const fullPayload: CreateTaskPayload = {
+            ...payload,
+            id: generateTaskId(),
+            user_id: currentUser.user_id,
+          };
 
-        const newTask = await taskApi.create(fullPayload);
+          const newTask = await taskApi.create(fullPayload);
 
-        // Dexie にもキャッシュ
-        await db.tasks.put({
-          id:           String(newTask.id),
-          user_id:      String(newTask.user_id),
-          goal_id:      newTask.goal_id ?? null,
-          title:        newTask.title,
-          description:  newTask.description ?? null,
-          scheduled_at: newTask.scheduled_at ?? null,
-          is_completed: Boolean(newTask.is_completed),
-          completed_at: newTask.completed_at ?? null,
-          created_at:   newTask.created_at,
-          updated_at:   newTask.updated_at,
-        });
+          // Dexie にもキャッシュ
+          await db.tasks.put({
+            id:           String(newTask.id),
+            user_id:      String(newTask.user_id),
+            goal_id:      newTask.goal_id ?? null,
+            title:        newTask.title,
+            description:  newTask.description ?? null,
+            scheduled_at: newTask.scheduled_at ?? null,
+            is_completed: Boolean(newTask.is_completed),
+            completed_at: newTask.completed_at ?? null,
+            created_at:   newTask.created_at,
+            updated_at:   newTask.updated_at,
+          });
 
-        return newTask;
-
-      } else {
-        // ── オフライン：Dexie + sync_queue に積む ────────────────
-        const userId = getCachedUserId();
-        if (!userId) {
-          setError('オフライン中はユーザー情報が取得できません。一度オンラインでログインしてください。');
-          return null;
+          return newTask;
+        } catch (err: any) {
+          if (!isNetworkFailure(err)) {
+            // サーバーには届いたが拒否された（バリデーションエラー等）→ そのまま投げる
+            throw err;
+          }
+          // 本当はオフラインだった → オフラインパスにフォールバック
+          console.warn('[useTaskMutations] navigator.onLine=true だが実際は通信不可。オフライン扱いにフォールバックします。', err);
         }
-
-        const taskId = generateTaskId();
-        const now    = new Date().toISOString();
-
-        const localTask: LocalTask = {
-          id:           taskId,
-          user_id:      userId,
-          goal_id:      payload.goal_id ?? null,
-          title:        payload.title,
-          description:  payload.description ?? null,
-          scheduled_at: payload.scheduled_at ?? null,
-          is_completed: false,
-          completed_at: null,
-          created_at:   now,
-          updated_at:   now,
-        };
-
-        // Dexie に保存
-        await db.tasks.put(localTask);
-
-        // sync_queue に create 操作を積む
-        await db.sync_queue.add({
-          entity:    'task',
-          operation: 'create',
-          payload:   localTask,
-          created_at: now,
-        });
-
-        return localTask as unknown as Task;
       }
+
+      // ── オフライン（または上記でネットワーク失敗と判定された場合） ──
+      return await createTaskOffline(payload);
 
     } catch (err: any) {
       setError(err.data?.message || err.message || 'タスクの作成に失敗しました');
@@ -117,7 +130,19 @@ export const useTaskMutations = () => {
     setError(null);
     try {
       if (isOnline()) {
-        await taskApi.delete(taskId);
+        try {
+          await taskApi.delete(taskId);
+        } catch (err: any) {
+          if (!isNetworkFailure(err)) throw err;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[useTaskMutations] navigator.onLine=true だが実際は通信不可。オフライン扱いにフォールバックします。', err);
+          await db.sync_queue.add({
+            entity:    'task',
+            operation: 'delete',
+            payload:   { id: taskId },
+            created_at: new Date().toISOString(),
+          });
+        }
       } else {
         // オフライン：sync_queue に delete を積む
         await db.sync_queue.add({

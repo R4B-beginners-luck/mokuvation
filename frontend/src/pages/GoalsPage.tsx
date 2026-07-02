@@ -9,6 +9,48 @@ import { COLOR_PALETTE } from '../const/colors';
 import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
 import { Map, Plus } from 'lucide-react';
+import { db } from '../services/db';
+import type { LocalGoal } from '../services/db';
+import { isOnline } from '../services/syncService';
+
+// ─── オフライン用ユーティリティ ──────────────────────────────────
+
+const genUUID = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+      });
+
+const enqueueGoal = async (
+  operation: 'create' | 'update' | 'delete',
+  payload: object
+): Promise<void> => {
+  await db.sync_queue.add({
+    entity: 'goal',
+    operation,
+    payload,
+    created_at: new Date().toISOString(),
+  });
+};
+
+/** BackendGoal → LocalGoal 変換 */
+const toLocalGoal = (g: BackendGoal): LocalGoal => ({
+  id:             g.id,
+  user_id:        '',
+  title:          g.title,
+  description:    g.description ?? null,
+  parent_goal_id: g.parent_goal_id ?? null,
+  period_type:    g.period_type,
+  due_at:         g.due_at ?? null,
+  is_completed:   g.is_completed,
+  color_code:     g.color_code ?? null,
+  position_x:     g.position_x ?? null,
+  position_y:     g.position_y ?? null,
+  created_at:     g.created_at,
+  updated_at:     g.created_at,
+});
 
 type GoalActionState = {
   mode: GoalActionMode;
@@ -323,7 +365,29 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setShowCompletedGoals(showCompletedGoals);
     
     try {
-      const goals = await goalApi.getAll();
+      let goals: BackendGoal[];
+
+      if (isOnline()) {
+        goals = await goalApi.getAll();
+        // Dexieにキャッシュ
+        await db.goals.bulkPut(goals.map(toLocalGoal));
+      } else {
+        // オフライン：Dexieからフォールバック
+        const local = await db.goals.toArray();
+        goals = local.map((g) => ({
+          id:             g.id,
+          title:          g.title,
+          description:    g.description ?? null,
+          parent_goal_id: g.parent_goal_id ?? null,
+          period_type:    g.period_type as 'short' | 'middle' | 'long',
+          due_at:         g.due_at ?? null,
+          created_at:     g.created_at,
+          is_completed:   g.is_completed,
+          color_code:     g.color_code ?? null,
+          position_x:     g.position_x ?? null,
+          position_y:     g.position_y ?? null,
+        }));
+      }
       const { longTermGoals, midTermGoals, shortTermGoals } = buildGoalTree(goals);
       const validGoalIds = new Set(goals.map((goal) => goal.id));
       const apiLongTermIds = new Set(
@@ -513,13 +577,28 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setPositionSaveNotice(null);
 
     try {
-      await goalApi.updatePositions({
-        positions: entries.map(([goal_id, position]) => ({
-          goal_id,
-          x: position.x,
-          y: position.y,
-        })),
-      });
+      if (isOnline()) {
+        await goalApi.updatePositions({
+          positions: entries.map(([goal_id, position]) => ({
+            goal_id,
+            x: position.x,
+            y: position.y,
+          })),
+        });
+      } else {
+        // オフライン：Dexieに位置を保存 + キューイング
+        for (const [goalId, position] of entries) {
+          const dbGoal = await db.goals.get(goalId);
+          if (dbGoal) {
+            await db.goals.put({ ...dbGoal, position_x: position.x, position_y: position.y });
+          }
+        }
+        await enqueueGoal('update', {
+          positions: entries.map(([goal_id, position]) => ({
+            goal_id, x: position.x, y: position.y,
+          })),
+        });
+      }
 
       setSavedPositions((prev) => {
         const next = { ...prev };
@@ -552,13 +631,28 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setPositionSaveNotice(null);
 
     try {
-      await goalApi.updatePositions({
-        positions: entries.map(([goal_id, position]) => ({
-          goal_id,
-          x: position.x,
-          y: position.y,
-        })),
-      });
+      if (isOnline()) {
+        await goalApi.updatePositions({
+          positions: entries.map(([goal_id, position]) => ({
+            goal_id,
+            x: position.x,
+            y: position.y,
+          })),
+        });
+      } else {
+        // オフライン：Dexieに位置を保存 + キューイング
+        for (const [goalId, position] of entries) {
+          const dbGoal = await db.goals.get(goalId);
+          if (dbGoal) {
+            await db.goals.put({ ...dbGoal, position_x: position.x, position_y: position.y });
+          }
+        }
+        await enqueueGoal('update', {
+          positions: entries.map(([goal_id, position]) => ({
+            goal_id, x: position.x, y: position.y,
+          })),
+        });
+      }
 
       setSavedPositions((prev) => {
         const next = { ...prev };
@@ -606,22 +700,34 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     ));
 
     try {
-      const updatedGoal = await goalApi.update(goal.id, { is_completed: nextCompleted });
+      if (isOnline()) {
+        const updatedGoal = await goalApi.update(goal.id, { is_completed: nextCompleted });
 
-      if (updatedGoal.is_completed !== nextCompleted) {
-        if (goal.type === 'long') {
-          setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
-        } else if (goal.type === 'mid') {
-          setMidTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
-        } else {
-          setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+        if (updatedGoal.is_completed !== nextCompleted) {
+          if (goal.type === 'long') {
+            setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+          } else if (goal.type === 'mid') {
+            setMidTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+          } else {
+            setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+          }
+          setSelectedGoal((prev) => (
+            prev?.id === goal.id ? { ...prev, completed: updatedGoal.is_completed } as Goal : prev
+          ));
         }
-
-        setSelectedGoal((prev) => (
-          prev?.id === goal.id ? { ...prev, completed: updatedGoal.is_completed } as Goal : prev
-        ));
+        // Dexieも更新
+        const dbGoal = await db.goals.get(goal.id);
+        if (dbGoal) await db.goals.put({ ...dbGoal, is_completed: nextCompleted });
+      } else {
+        // オフライン：Dexie更新 + キューイング
+        const dbGoal = await db.goals.get(goal.id);
+        if (dbGoal) {
+          await db.goals.put({ ...dbGoal, is_completed: nextCompleted });
+          await enqueueGoal('update', { id: goal.id, is_completed: nextCompleted });
+        }
       }
     } catch (error) {
+      // ロールバック
       if (goal.type === 'long') {
         setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, goal.completed ?? false));
       } else if (goal.type === 'mid') {
@@ -629,11 +735,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       } else {
         setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, goal.completed));
       }
-
       setSelectedGoal((prev) => (
         prev?.id === goal.id ? { ...prev, completed: goal.completed } as Goal : prev
       ));
-
       console.error('Goal completion toggle failed', error);
       setGoalLoadError('達成状態の更新に失敗しました。再度お試しください。');
     } finally {
@@ -651,7 +755,14 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setIsSavingGoal(true);
     try {
       const { goal } = goalAction;
-      await goalApi.delete(goal.id);
+
+      if (isOnline()) {
+        await goalApi.delete(goal.id);
+      } else {
+        // オフライン：Dexie削除 + キューイング
+        await db.goals.delete(goal.id);
+        await enqueueGoal('delete', { id: goal.id });
+      }
 
       const preferredActiveLtId = goal.type === 'long'
         ? undefined
@@ -684,7 +795,24 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           is_completed: payload.completed,
           color_code: payload.color_code ?? null,
         };
-        await goalApi.update(goal.id, updatePayload);
+
+        if (isOnline()) {
+          await goalApi.update(goal.id, updatePayload);
+        } else {
+          // オフライン：Dexie更新 + キューイング
+          const dbGoal = await db.goals.get(goal.id);
+          if (dbGoal) {
+            await db.goals.put({
+              ...dbGoal,
+              title:        updatePayload.title ?? dbGoal.title,
+              description:  updatePayload.description ?? null,
+              due_at:       updatePayload.due_at ?? null,
+              is_completed: updatePayload.is_completed ?? dbGoal.is_completed,
+              color_code:   updatePayload.color_code ?? null,
+            });
+            await enqueueGoal('update', { id: goal.id, ...updatePayload });
+          }
+        }
 
         const preferredActiveLtId = goal.type === 'long'
           ? goal.id
@@ -707,32 +835,61 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         return;
       }
 
+      // ── create ──
+      const periodType = mode === 'add-long' || payload.goalType === 'long'
+        ? 'long'
+        : payload.goalType === 'mid' ? 'middle' : 'short';
+
       const createPayload: CreateGoalPayload = {
         title: payload.title,
         description: payload.description ?? null,
-        period_type: mode === 'add-long' || payload.goalType === 'long'
-          ? 'long'
-          : payload.goalType === 'mid'
-            ? 'middle'
-            : 'short',
+        period_type: periodType,
         due_at: payload.dueDate ?? null,
         parent_goal_id: payload.goalType === 'short'
           ? payload.midTermGoalId ?? payload.longTermGoalId ?? undefined
           : payload.longTermGoalId ?? undefined,
         color_code: payload.color_code ?? null,
       };
-      const createdGoal = await goalApi.create(createPayload);
 
-      const preferredActiveLtId = createdGoal.period_type === 'long'
-        ? createdGoal.id
+      let createdId: string;
+
+      if (isOnline()) {
+        const createdGoal = await goalApi.create(createPayload);
+        createdId = createdGoal.id;
+        // Dexieにキャッシュ
+        await db.goals.put(toLocalGoal(createdGoal));
+      } else {
+        // オフライン：UUID生成してDexie保存 + キューイング
+        createdId = genUUID();
+        const now = new Date().toISOString();
+        await db.goals.put({
+          id:             createdId,
+          user_id:        '',
+          title:          createPayload.title,
+          description:    createPayload.description ?? null,
+          parent_goal_id: createPayload.parent_goal_id ?? null,
+          period_type:    createPayload.period_type,
+          due_at:         createPayload.due_at ?? null,
+          is_completed:   false,
+          color_code:     createPayload.color_code ?? null,
+          position_x:     null,
+          position_y:     null,
+          created_at:     now,
+          updated_at:     now,
+        });
+        await enqueueGoal('create', { id: createdId, ...createPayload });
+      }
+
+      const preferredActiveLtId = periodType === 'long'
+        ? createdId
         : payload.longTermGoalId;
 
       const data = await loadGoals(preferredActiveLtId);
       setGoalAction(null);
 
-      if (data && createdGoal.period_type !== 'long') {
+      if (data && periodType !== 'long') {
         const activeLongTermId = preferredActiveLtId ?? data.longTermGoals[0]?.id ?? '';
-        beginPlacementSession('add', [createdGoal.id], data, activeLongTermId);
+        beginPlacementSession('add', [createdId], data, activeLongTermId);
       } else {
         setSelectedGoal(null);
       }

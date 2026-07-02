@@ -192,7 +192,13 @@ export const getGoalsFromDoc = (): LocalGoal[] =>
 const _persistChanges = (): void => {
   try {
     const binary = Automerge.save(doc);
-    const b64 = btoa(String.fromCharCode(...binary));
+    // spread演算子(...binary)はデータ量が多いとスタックオーバーフローするため
+    // チャンク分割で安全にBase64変換する
+    const CHUNK = 8192;
+    let b64 = '';
+    for (let i = 0; i < binary.length; i += CHUNK) {
+      b64 += btoa(String.fromCharCode(...binary.subarray(i, i + CHUNK)));
+    }
     localStorage.setItem(STORAGE_KEY, b64);
   } catch (e) {
     console.warn('[crdtStore] 差分の保存に失敗:', e);
@@ -205,10 +211,10 @@ const _applyStoredChanges = (): void => {
     const b64 = localStorage.getItem(STORAGE_KEY);
     if (!b64) return;
 
+    // チャンク分割で保存されたBase64を結合してからデコード
     const binary = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
     const savedDoc = Automerge.load<MokuDoc>(binary);
 
-    // マージ：サーバーデータ（doc）にローカル変更（savedDoc）を合成
     doc = Automerge.merge(doc, savedDoc);
   } catch (e) {
     console.warn('[crdtStore] 差分の復元に失敗（無視して続行）:', e);

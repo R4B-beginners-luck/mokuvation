@@ -10,7 +10,79 @@ import { taskApi } from '../features/tasks/api/taskApi';
 import { goalApi } from '../features/goals/api/goalApi';
 import { initDoc, clearPersistedChanges } from './crdtStore';
 
-export const isOnline = (): boolean => navigator.onLine;
+// ─── オンライン状態管理 ──────────────────────────────────────────
+// navigator.onLine は「ネットワークインターフェースが有効か」を返すだけで、
+// 実際にサーバーへ到達できるかどうかは関係ない。
+// WiFiとキャリア両方OFFにしてもしばらくtrueのままになることもある。
+// そのため、/api/health への実際のfetchで疎通を確認する方式に切り替える。
+
+const HEALTH_URL = `${import.meta.env.VITE_API_URL}/api/health`;
+const HEALTH_TIMEOUT_MS = 3000;
+
+// 最後に確認したオンライン状態をメモリに保持（初期値はnavigator.onLineで仮置き）
+let _isOnline: boolean = navigator.onLine;
+
+/**
+ * サーバーへの実際の疎通確認。
+ * タイムアウト(3秒)またはfetch失敗でオフライン判定。
+ */
+export const checkConnectivity = async (): Promise<boolean> => {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+    const res = await fetch(HEALTH_URL, {
+      method: 'HEAD',
+      cache:  'no-store',
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    _isOnline = res.ok;
+  } catch {
+    _isOnline = false;
+  }
+  return _isOnline;
+};
+
+/**
+ * 最後の疎通確認結果を返す（同期）。
+ * 最新の状態が必要な場合は checkConnectivity() を先に呼ぶこと。
+ */
+export const isOnline = (): boolean => _isOnline;
+
+// ブラウザの online/offline イベントでも即座に状態を更新
+window.addEventListener('online',  () => { void checkConnectivity(); });
+window.addEventListener('offline', () => { _isOnline = false; });
+
+// 30秒ごとに定期チェック（タブがフォアグラウンドにある時のみ）
+let _healthTimer: ReturnType<typeof setInterval> | null = null;
+const startHealthCheck = () => {
+  if (_healthTimer) return;
+  _healthTimer = setInterval(() => {
+    if (!document.hidden) void checkConnectivity();
+  }, 30_000);
+};
+const stopHealthCheck = () => {
+  if (_healthTimer) { clearInterval(_healthTimer); _healthTimer = null; }
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopHealthCheck();
+  } else {
+    void checkConnectivity();
+    startHealthCheck();
+  }
+});
+
+// 起動時に即チェック開始
+void checkConnectivity();
+startHealthCheck();
+
+/**
+ * fetch がネットワーク層で失敗したかどうかを判定する。
+ * サーバーに届いてHTTPエラーになった場合（4xx/5xx）は status がセットされるので false。
+ * ネットワーク疎通自体が失敗した場合（TypeError等）は status が undefined になるので true。
+ */
+export const isNetworkFailure = (err: any): boolean => err?.status === undefined;
 
 // ─── ユーザーID キャッシュ ────────────────────────────────────────
 // ログイン時に保存しておき、オフライン時に使う
@@ -64,8 +136,50 @@ export const syncFromServer = async (): Promise<void> => {
       updated_at:     g.updated_at,
     }));
 
-    await db.tasks.bulkPut(localTasks);
-    await db.goals.bulkPut(localGoals);
+    // ── Dexie へ反映（オフライン操作を消さないマージ方式） ──
+    // bulkPut でサーバーデータをそのまま上書きすると、
+    // sync_queue にまだ残っているオフライン操作（create/update/delete）が
+    // Dexie から消えてしまい、ページ遷移後に画面から消える。
+    // - create pending → サーバー未登録のタスクを上書き削除してしまう
+    // - update pending → サーバー側の古い値で上書きされ変更が消える
+    // - delete pending → サーバーから再取得されて復活してしまう
+    // そのため操作種別ごとに適切な保護を行う。
+
+    const pendingQueue = await db.sync_queue.toArray();
+
+    // create pending: そのIDはサーバーに存在しないのでbulkPutに含まれないが念のため除外
+    const pendingCreateIds = new Set(
+      pendingQueue
+        .filter((q) => q.operation === 'create')
+        .map((q) => (q.payload as any)?.id)
+        .filter(Boolean)
+    );
+
+    // delete pending: サーバーから取得されても上書きしてはいけない（削除が復活する）
+    const pendingDeleteIds = new Set(
+      pendingQueue
+        .filter((q) => q.operation === 'delete')
+        .map((q) => (q.payload as any)?.id)
+        .filter(Boolean)
+    );
+
+    // update pending: サーバーの古い値で上書きしてはいけない（変更が消える）
+    const pendingUpdateIds = new Set(
+      pendingQueue
+        .filter((q) => q.operation === 'update')
+        .map((q) => (q.payload as any)?.id)
+        .filter(Boolean)
+    );
+
+    const tasksToUpsert = localTasks.filter(
+      (t) => !pendingCreateIds.has(t.id) && !pendingDeleteIds.has(t.id) && !pendingUpdateIds.has(t.id)
+    );
+    const goalsToUpsert = localGoals.filter(
+      (g) => !pendingCreateIds.has(g.id) && !pendingDeleteIds.has(g.id) && !pendingUpdateIds.has(g.id)
+    );
+
+    await db.tasks.bulkPut(tasksToUpsert);
+    await db.goals.bulkPut(goalsToUpsert);
 
     // ✅ Automerge Doc を最新データで初期化（オフライン差分もここでマージされる）
     initDoc(localTasks, localGoals);
@@ -81,15 +195,9 @@ export const getLocalTasks = (): Promise<LocalTask[]> => db.tasks.toArray();
 export const getLocalGoals = (): Promise<LocalGoal[]> => db.goals.toArray();
 
 // ─── 個別操作 ────────────────────────────────────────────────────
-
-export const saveTaskLocally = async (task: LocalTask): Promise<void> => {
-  await db.tasks.put(task);
-  if (!isOnline()) {
-    // ここが抜けていたため、未使用ながらも「オフライン作成は同期されない」
-    // 実装になっていた（update/delete だけ enqueue されていた）。
-    await enqueue({ entity: 'task', operation: 'create', payload: task });
-  }
-};
+// オンライン時の作成は useTaskMutations が API 経由で行い、
+// レスポンスを直接 db.tasks.put() する。
+// saveTaskLocally は不要なため削除済み。
 
 export const updateTaskLocally = async (task: LocalTask): Promise<void> => {
   await db.tasks.put(task);

@@ -12,7 +12,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Task } from '../types';
 import type { LocalTask, LocalGoal } from '../services/db';
 import { db } from '../services/db';
-import { syncFromServer, flushQueue, isOnline } from '../services/syncService';
+import { syncFromServer, flushQueue, isOnline, checkConnectivity } from '../services/syncService';
 
 // ─── DB の LocalTask → フロント共通型 Task への変換 ─────────────
 
@@ -39,9 +39,40 @@ export const localTaskToTask = (t: LocalTask): Task => ({
 // ─── hook 本体 ───────────────────────────────────────────────────
 
 export const useLocalData = (enabled: boolean = false) => {
-  const [tasks, setTasks]   = useState<Task[]>([]);
-  const [goals, setGoals]   = useState<LocalGoal[]>([]);
+  const [tasks, setTasks]         = useState<Task[]>([]);
+  const [goals, setGoals]         = useState<LocalGoal[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  // isOnline() は同期関数だが、値の変化でReactを再レンダリングさせるためstateに持つ
+  const [online, setOnline]       = useState<boolean>(isOnline());
+
+  // checkConnectivity の結果を state に反映するラッパー
+  const refreshOnlineState = useCallback(async () => {
+    const result = await checkConnectivity();
+    setOnline(result);
+    return result;
+  }, []);
+
+  // ── online/offline イベント & 定期チェック結果をstateに反映 ──
+  useEffect(() => {
+    const handleOnlineEvent  = () => { void refreshOnlineState(); };
+    const handleOfflineEvent = () => { setOnline(false); };
+
+    window.addEventListener('online',  handleOnlineEvent);
+    window.addEventListener('offline', handleOfflineEvent);
+
+    // 30秒ごとのヘルスチェック結果もUIに反映
+    // 値が変わった時だけ setOnline を呼んで無駄な再レンダリングを防ぐ
+    const timer = setInterval(() => {
+      const current = isOnline();
+      setOnline((prev) => (prev !== current ? current : prev));
+    }, 5_000);
+
+    return () => {
+      window.removeEventListener('online',  handleOnlineEvent);
+      window.removeEventListener('offline', handleOfflineEvent);
+      clearInterval(timer);
+    };
+  }, [refreshOnlineState]);
 
   /** Dexie から読み出して state にセット */
   const loadFromDB = useCallback(async () => {
@@ -74,12 +105,14 @@ export const useLocalData = (enabled: boolean = false) => {
   useEffect(() => {
     if (!enabled) return;
     const handleOnline = async () => {
+      const nowOnline = await refreshOnlineState();
+      if (!nowOnline) return;
       await flushQueue();
       await sync();
     };
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
-  }, [sync, enabled]);
+  }, [sync, enabled, refreshOnlineState]);
 
   // ── tasks の楽観的更新ヘルパー ───────────────────────────────
 
@@ -105,6 +138,6 @@ export const useLocalData = (enabled: boolean = false) => {
     optimisticUpdateTask,
     optimisticAddTask,
     optimisticDeleteTask,
-    isOnline: isOnline(),
+    isOnline: online,
   };
 };

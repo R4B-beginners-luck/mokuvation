@@ -57,6 +57,9 @@ class SyncController extends Controller
                 $entity === 'task' && $operation === 'update' => $this->taskService->update($payload['id'], $payload),
                 $entity === 'task' && $operation === 'delete' => $this->taskService->delete($payload['id']),
                 $entity === 'goal' && $operation === 'create' => $this->goalService->create($payload),
+                // positions キーがある場合は一括位置更新（目標マップのドラッグ配置）
+                $entity === 'goal' && $operation === 'update' && isset($payload['positions'])
+                    => $this->goalService->updatePositions($payload['positions']),
                 $entity === 'goal' && $operation === 'update' => $this->goalService->update($payload['id'], $payload),
                 $entity === 'goal' && $operation === 'delete' => $this->goalService->delete($payload['id']),
                 default => ['error' => '不明な操作です', 'status' => 400],

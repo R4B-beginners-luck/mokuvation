@@ -95,6 +95,20 @@ class GoalService
         return true;
     }
 
+    /** 複数目標の位置を一括更新（目標マップのドラッグ配置・オフライン同期用） */
+    public function updatePositions(array $positions): array|bool
+    {
+        foreach ($positions as $item) {
+            $goal = Goal::find($item['goal_id'] ?? null);
+            if (!$goal || $goal->user_id !== Auth::id()) continue;
+            $goal->update([
+                'position_x' => $item['x'],
+                'position_y' => $item['y'],
+            ]);
+        }
+        return true;
+    }
+
     private function deleteRecursively(Goal $goal): void
     {
         foreach ($goal->children as $child) {

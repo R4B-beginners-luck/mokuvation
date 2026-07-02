@@ -11,7 +11,7 @@ import { authApi }     from './features/auth/api/authApi';
 import { taskApi }     from './features/tasks/api/taskApi';
 import { useLocalData, localTaskToTask } from './hooks/useLocalData';
 import { db }          from './services/db';
-import { updateTaskLocally, deleteTaskLocally, cacheUserId } from './services/syncService';
+import { updateTaskLocally, deleteTaskLocally, cacheUserId, isOnline, isNetworkFailure } from './services/syncService';
 import { crdtToggleTask, crdtAddTask, crdtDeleteTask } from './services/crdtStore';
 
 export default function App() {
@@ -41,6 +41,7 @@ export default function App() {
         try {
           const userData = await authApi.getMe();
           setUser(userData);
+          cacheUserId(userData.user_id); // オフライン作成用にキャッシュ
           setIsLoggedIn(true);
           setPage('top');
         } catch {
@@ -94,12 +95,21 @@ export default function App() {
     crdtToggleTask(id, nextCompleted);
 
     try {
-      if (navigator.onLine) {
-        // 3a. オンライン：API で更新 → Dexie にも反映
-        const raw = await taskApi.update(id, { is_completed: nextCompleted });
-        const dbTask = await db.tasks.get(id);
-        if (dbTask) {
-          await db.tasks.put({ ...dbTask, is_completed: nextCompleted, updated_at: raw.updated_at ?? dbTask.updated_at });
+      if (isOnline()) {
+        try {
+          // 3a. オンライン：API で更新 → Dexie にも反映
+          const raw = await taskApi.update(id, { is_completed: nextCompleted });
+          const dbTask = await db.tasks.get(id);
+          if (dbTask) {
+            await db.tasks.put({ ...dbTask, is_completed: nextCompleted, updated_at: raw.updated_at ?? dbTask.updated_at });
+          }
+        } catch (error: any) {
+          if (!isNetworkFailure(error)) throw error;
+          // 実際はオフライン → Dexie + キューに積む
+          const dbTask = await db.tasks.get(id);
+          if (dbTask) {
+            await updateTaskLocally({ ...dbTask, is_completed: nextCompleted });
+          }
         }
       } else {
         // 3b. オフライン：Dexie + sync_queue に積む
@@ -151,29 +161,40 @@ export default function App() {
   // ── タスク削除 ───────────────────────────────────────────────
   const handleDeleteTask = async (taskId: string) => {
     optimisticDeleteTask(taskId);
-
-    // CRDT Doc から削除
     crdtDeleteTask(taskId);
 
     try {
-      if (navigator.onLine) {
-        await taskApi.delete(taskId);
+      if (isOnline()) {
+        try {
+          await taskApi.delete(taskId);
+        } catch (error: any) {
+          if (error?.status === 404) {
+            // サーバー側に存在しない＝ローカルのみ作成されたタスク。正常扱い。
+            await db.tasks.delete(taskId);
+            return;
+          }
+          if (!isNetworkFailure(error)) throw error;
+          // 実際はオフライン → キューに積んでDexieから削除
+          await db.sync_queue.add({
+            entity:     'task',
+            operation:  'delete',
+            payload:    { id: taskId },
+            created_at: new Date().toISOString(),
+          });
+        }
       } else {
-        await deleteTaskLocally(taskId);
+        // オフライン：sync_queue に delete を積む
+        await db.sync_queue.add({
+          entity:     'task',
+          operation:  'delete',
+          payload:    { id: taskId },
+          created_at: new Date().toISOString(),
+        });
       }
+      // Dexieから削除（delete pending IDとして保護されるので、次のsyncFromServerで復活しない）
       await db.tasks.delete(taskId);
     } catch (error: any) {
-      if (error?.status === 404) {
-        // サーバー側にそのタスクが存在しない＝もともとローカルだけで
-        // 作られたタスク（例：今日の目標を追加 UI から作られたもの）が
-        // 削除された、というだけなので異常ではない。
-        // ローカル状態（Dexie・CRDT・UI）からは既に消えているので、
-        // ログを出さずに静かに完了させる。
-        await db.tasks.delete(taskId);
-        return;
-      }
       console.error('タスク削除に失敗しました', error);
-      // 404以外（ネットワークエラー等）の場合のみ、サーバーと再同期して状態を合わせる
       await sync();
     }
   };
@@ -194,7 +215,7 @@ export default function App() {
   return (
     <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout} user={user}>
       {/* オフライン表示バナー */}
-      {!navigator.onLine && (
+      {!isOnline() && (
         <div style={{
           background: '#b45309',
           color: '#fff',
