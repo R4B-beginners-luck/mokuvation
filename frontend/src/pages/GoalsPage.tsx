@@ -11,7 +11,7 @@ import { ButtonSpinner } from '../components/ui/ButtonSpinner';
 import { Map, Plus } from 'lucide-react';
 import { db } from '../services/db';
 import type { LocalGoal, SyncQueueItem } from '../services/db';
-import { isOnline } from '../services/syncService';
+import { isOnline, isNetworkFailure } from '../services/syncService';
 
 // ─── オフライン用ユーティリティ ──────────────────────────────────
 
@@ -577,16 +577,27 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setPositionSaveNotice(null);
 
     try {
+      let wentOffline = false;
+
       if (isOnline()) {
-        await goalApi.updatePositions({
-          positions: entries.map(([goal_id, position]) => ({
-            goal_id,
-            x: position.x,
-            y: position.y,
-          })),
-        });
-      } else {
-        // オフライン：Dexieに位置を保存 + キューイング
+        try {
+          await goalApi.updatePositions({
+            positions: entries.map(([goal_id, position]) => ({
+              goal_id,
+              x: position.x,
+              y: position.y,
+            })),
+          });
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleConfirmPlacement: オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOffline = true;
+        }
+      }
+
+      if (!isOnline() || wentOffline) {
+        // オフライン（または送信失敗）：Dexieに位置を保存 + キューイング
         for (const [goalId, position] of entries) {
           const dbGoal = await db.goals.get(goalId);
           if (dbGoal) {
@@ -631,16 +642,27 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setPositionSaveNotice(null);
 
     try {
+      let wentOffline = false;
+
       if (isOnline()) {
-        await goalApi.updatePositions({
-          positions: entries.map(([goal_id, position]) => ({
-            goal_id,
-            x: position.x,
-            y: position.y,
-          })),
-        });
-      } else {
-        // オフライン：Dexieに位置を保存 + キューイング
+        try {
+          await goalApi.updatePositions({
+            positions: entries.map(([goal_id, position]) => ({
+              goal_id,
+              x: position.x,
+              y: position.y,
+            })),
+          });
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleSavePositions: オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOffline = true;
+        }
+      }
+
+      if (!isOnline() || wentOffline) {
+        // オフライン（または送信失敗）：Dexieに位置を保存 + キューイング
         for (const [goalId, position] of entries) {
           const dbGoal = await db.goals.get(goalId);
           if (dbGoal) {
@@ -700,26 +722,37 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     ));
 
     try {
-      if (isOnline()) {
-        const updatedGoal = await goalApi.update(goal.id, { is_completed: nextCompleted });
+      let wentOffline = false;
 
-        if (updatedGoal.is_completed !== nextCompleted) {
-          if (goal.type === 'long') {
-            setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
-          } else if (goal.type === 'mid') {
-            setMidTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
-          } else {
-            setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+      if (isOnline()) {
+        try {
+          const updatedGoal = await goalApi.update(goal.id, { is_completed: nextCompleted });
+
+          if (updatedGoal.is_completed !== nextCompleted) {
+            if (goal.type === 'long') {
+              setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+            } else if (goal.type === 'mid') {
+              setMidTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+            } else {
+              setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+            }
+            setSelectedGoal((prev) => (
+              prev?.id === goal.id ? { ...prev, completed: updatedGoal.is_completed } as Goal : prev
+            ));
           }
-          setSelectedGoal((prev) => (
-            prev?.id === goal.id ? { ...prev, completed: updatedGoal.is_completed } as Goal : prev
-          ));
+          // Dexieも更新
+          const dbGoal = await db.goals.get(goal.id);
+          if (dbGoal) await db.goals.put({ ...dbGoal, is_completed: nextCompleted });
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleToggleCompleted: オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOffline = true;
         }
-        // Dexieも更新
-        const dbGoal = await db.goals.get(goal.id);
-        if (dbGoal) await db.goals.put({ ...dbGoal, is_completed: nextCompleted });
-      } else {
-        // オフライン：Dexie更新 + キューイング
+      }
+
+      if (!isOnline() || wentOffline) {
+        // オフライン（または送信失敗）：Dexie更新 + キューイング
         const dbGoal = await db.goals.get(goal.id);
         if (dbGoal) {
           await db.goals.put({ ...dbGoal, is_completed: nextCompleted });
@@ -755,11 +788,21 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setIsSavingGoal(true);
     try {
       const { goal } = goalAction;
+      let wentOffline = false;
 
       if (isOnline()) {
-        await goalApi.delete(goal.id);
-      } else {
-        // オフライン：Dexie削除 + キューイング
+        try {
+          await goalApi.delete(goal.id);
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleConfirmDeleteGoal: オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOffline = true;
+        }
+      }
+
+      if (!isOnline() || wentOffline) {
+        // オフライン（または送信失敗）：Dexie削除 + キューイング
         await db.goals.delete(goal.id);
         await enqueueGoal('delete', { id: goal.id });
       }
@@ -796,10 +839,21 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           color_code: payload.color_code ?? null,
         };
 
+        let wentOfflineOnEdit = false;
+
         if (isOnline()) {
-          await goalApi.update(goal.id, updatePayload);
-        } else {
-          // オフライン：Dexie更新 + キューイング
+          try {
+            await goalApi.update(goal.id, updatePayload);
+          } catch (error) {
+            if (!isNetworkFailure(error)) throw error;
+            // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+            console.warn('[GoalsPage] handleSaveGoalAction(edit): オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+            wentOfflineOnEdit = true;
+          }
+        }
+
+        if (!isOnline() || wentOfflineOnEdit) {
+          // オフライン（または送信失敗）：Dexie更新 + キューイング
           const dbGoal = await db.goals.get(goal.id);
           if (dbGoal) {
             await db.goals.put({
@@ -852,15 +906,28 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       };
 
       let createdId: string;
+      let wentOfflineOnCreate = false;
 
       if (isOnline()) {
-        const createdGoal = await goalApi.create(createPayload);
-        createdId = createdGoal.id;
-        // Dexieにキャッシュ
-        await db.goals.put(toLocalGoal(createdGoal));
+        try {
+          const createdGoal = await goalApi.create(createPayload);
+          createdId = createdGoal.id;
+          // Dexieにキャッシュ
+          await db.goals.put(toLocalGoal(createdGoal));
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleSaveGoalAction(create): オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOfflineOnCreate = true;
+          createdId = genUUID();
+        }
       } else {
-        // オフライン：UUID生成してDexie保存 + キューイング
         createdId = genUUID();
+      }
+
+      if (!isOnline() || wentOfflineOnCreate) {
+        // オフライン（または送信失敗）：生成済みUUIDでDexie保存 + キューイング
+        // ※ createdId はオンライン分岐のcatch内、またはelse分岐で既に生成済み
         const now = new Date().toISOString();
         await db.goals.put({
           id:             createdId,
