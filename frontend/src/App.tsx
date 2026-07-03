@@ -104,11 +104,20 @@ export default function App() {
             await db.tasks.put({ ...dbTask, is_completed: nextCompleted, updated_at: raw.updated_at ?? dbTask.updated_at });
           }
         } catch (error: any) {
-          if (!isNetworkFailure(error)) throw error;
-          // 実際はオフライン → Dexie + キューに積む
-          const dbTask = await db.tasks.get(id);
-          if (dbTask) {
-            await updateTaskLocally({ ...dbTask, is_completed: nextCompleted });
+          if (error?.status === 404) {
+            // サーバー未登録（オフライン作成分がまだ未送信）→ ロールバックせずローカル更新+キューへ
+            const dbTask = await db.tasks.get(id);
+            if (dbTask) {
+              await updateTaskLocally({ ...dbTask, is_completed: nextCompleted });
+            }
+          } else if (!isNetworkFailure(error)) {
+            throw error;
+          } else {
+            // 実際はオフライン → Dexie + キューに積む
+            const dbTask = await db.tasks.get(id);
+            if (dbTask) {
+              await updateTaskLocally({ ...dbTask, is_completed: nextCompleted });
+            }
           }
         }
       } else {
@@ -188,15 +197,12 @@ export default function App() {
           });
         }
       } else {
-        // オフライン：sync_queue に delete を積む
-        await db.sync_queue.add({
-          entity:     'task',
-          operation:  'delete',
-          payload:    { id: taskId },
-          created_at: new Date().toISOString(),
-        });
+        // オフライン：deleteTaskLocally が Dexie削除 + キューイング + CRDT反映をまとめて行う
+        await deleteTaskLocally(taskId);
       }
       // Dexieから削除（delete pending IDとして保護されるので、次のsyncFromServerで復活しない）
+      // ※ オフライン分岐は deleteTaskLocally 内で既に削除済みだが、
+      //    Dexieのdeleteは存在しないキーに対しても安全（no-op）なのでそのまま呼んでOK
       await db.tasks.delete(taskId);
     } catch (error: any) {
       console.error('タスク削除に失敗しました', error);

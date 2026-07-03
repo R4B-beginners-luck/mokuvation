@@ -8,7 +8,7 @@
  * - オンライン復帰時に再同期 & flushQueue() でキューを送信
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Task } from '../types';
 import type { LocalTask, LocalGoal } from '../services/db';
 import { db } from '../services/db';
@@ -96,23 +96,41 @@ export const useLocalData = (enabled: boolean = false) => {
   }, [loadFromDB]);
 
   // ── 初回マウント時に同期（ログイン済みのときだけ） ──────────
+  // navigator.onLine=true のままリロードされたケースでも、
+  // 前回オフライン中に積んだキューが残っている可能性があるため、
+  // 同期の前に一度 flushQueue() を試みる。
   useEffect(() => {
     if (!enabled) return;
-    sync();
+    (async () => {
+      if (isOnline()) {
+        await flushQueue();
+      }
+      await sync();
+    })();
   }, [sync, enabled]);
 
   // ── オンライン復帰時に再同期 & キューを送信 ──────────────────
+  // ⚠️ 以前は window の 'online' イベントだけを見ていたが、これは
+  // 「ネットワークインターフェースが有効になった瞬間」にしか発火しない。
+  // Wi-Fiには繋がったままサーバー側だけ落ちていた・復旧した、というケースでは
+  // 'online' イベントは発火せず、health check（isOnline() の定期チェック）で
+  // しか復帰を検知できない。そのため、上の useEffect で state 化している
+  // `online` の値が false → true に変わった瞬間を監視して発火させる。
+  // これにより、ブラウザのネイティブイベント経由の復帰も、
+  // health check経由の復帰も、どちらも取りこぼさずキューを送信できる。
+  const prevOnlineRef = useRef<boolean>(online);
   useEffect(() => {
+    const wasOffline = !prevOnlineRef.current;
+    prevOnlineRef.current = online;
+
     if (!enabled) return;
-    const handleOnline = async () => {
-      const nowOnline = await refreshOnlineState();
-      if (!nowOnline) return;
-      await flushQueue();
-      await sync();
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [sync, enabled, refreshOnlineState]);
+    if (wasOffline && online) {
+      (async () => {
+        await flushQueue();
+        await sync();
+      })();
+    }
+  }, [online, enabled, sync]);
 
   // ── tasks の楽観的更新ヘルパー ───────────────────────────────
 

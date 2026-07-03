@@ -24,20 +24,32 @@ const getFetchOptions = (method: string, body?: any): RequestInit => {
 export const taskApi = {
   getCurrentUser: async () => {
     const response = await fetch(`${API_BASE_URL}/users/me`, getFetchOptions('GET'));
-    if (!response.ok) throw new Error('ユーザー情報の取得に失敗しました');
+    if (!response.ok) {
+      // ⚠️ 以前は `throw new Error(...)` で status を付けていなかったため、
+      // isNetworkFailure(err) が「status === undefined」を見て
+      // 401等の“サーバーには届いたが拒否された”エラーまで
+      // “ネットワーク失敗（＝実はオフライン）”と誤判定してしまっていた。
+      // 他のAPIメソッドと同様に { status, data } 形式で投げるよう統一する。
+      const errorData = await response.json().catch(() => ({}));
+      throw { status: response.status, data: errorData };
+    }
     return response.json();
   },
 
   getGoals: async () => {
     const response = await fetch(`${API_BASE_URL}/goals`, getFetchOptions('GET'));
-    if (!response.ok) throw new Error('目標の取得に失敗しました');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw { status: response.status, data: errorData };
+    }
     return response.json();
   },
 
   getTasks: async (): Promise<Task[]> => {
     const response = await fetch(`${API_BASE_URL}/tasks`, getFetchOptions('GET'));
     if (!response.ok) {
-      throw new Error('タスクの取得に失敗しました');
+      const errorData = await response.json().catch(() => ({}));
+      throw { status: response.status, data: errorData };
     }
     const resData = await response.json();
     

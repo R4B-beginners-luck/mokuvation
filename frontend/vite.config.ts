@@ -25,10 +25,25 @@ export default defineConfig({
         // デフォルトの上限(2MB)だと automerge の wasm(約1.8MB)がギリギリ／
         // 将来的なバージョンアップで超える可能性があるため余裕を持たせる
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // ⚠️ これが無いと、SPAのナビゲーションリクエスト（リロード/画面遷移）に
+        // 対するフォールバックルートがSWに生成されず、オフライン時にリロードすると
+        // アプリのindex.htmlではなくブラウザのネイティブ「オフライン」エラー画面
+        // （ERR_INTERNET_DISCONNECTED）が表示されてしまう。
+        // precacheされたindex.htmlを常に返すことでSPAとして正しく起動できるようにする。
+        navigateFallback: '/index.html',
+        // /api/ 宛のリクエストはnavigation(ページ遷移)ではないので通常は該当しないが、
+        // 念のため明示的にfallback対象から除外しておく。
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             // API は NetworkFirst（オフライン時のみキャッシュ使用）
+            // ⚠️ method指定が無いとPATCH/POST/DELETEまでSWが横取りしてしまう。
+            // Cache APIはGET以外をcache.put()できず、更新系リクエストがSW経由だと
+            // 素のfetch失敗と異なる壊れ方をして isNetworkFailure() の判定が
+            // すり抜け、オフラインフォールバックが効かないバグの原因になっていた。
+            // 更新系はキャッシュ不要なのでそもそもSWを通す必要がなく、GETのみに限定する。
             urlPattern: /^https?:\/\/.*\/api\/.*/i,
+            method: 'GET',
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',

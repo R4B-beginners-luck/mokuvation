@@ -8,7 +8,7 @@ import { db } from './db';
 import type { LocalTask, LocalGoal, SyncQueueItem } from './db';
 import { taskApi } from '../features/tasks/api/taskApi';
 import { goalApi } from '../features/goals/api/goalApi';
-import { initDoc, clearPersistedChanges, crdtUpsertGoal, crdtDeleteGoal, crdtUpsertTask, crdtDeleteTask } from './crdtStore';
+import { initDoc, clearPersistedChanges, crdtUpsertTask, crdtDeleteTask } from './crdtStore';
 
 // ─── オンライン状態管理 ──────────────────────────────────────────
 // navigator.onLine は「ネットワークインターフェースが有効か」を返すだけで、

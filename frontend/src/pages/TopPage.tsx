@@ -178,7 +178,15 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
 
     loadDashboardData();
     return () => { mounted = false; };
-  }, [tasks]);
+    // ⚠️ 依存配列に `tasks` を入れていたため、タスクの完了トグル・追加・削除の
+    // たびに（optimisticUpdateTask等が新しい配列参照を作るせいで）この
+    // useEffectが再発火し、isLoadingTasks(true) でスケルトンに戻った上、
+    // タスク/ダッシュボードサマリー/目標のAPIを毎回叩き直していた。
+    // → 操作するたびに画面がチラつく原因だったため、初回マウント時のみ実行する。
+    // ローカル操作後の表示更新は下の useEffect（setLocalTasks(tasks)）で
+    // 軽量に反映されるので、ここで tasks を監視する必要はない。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     setLocalTasks(tasks);

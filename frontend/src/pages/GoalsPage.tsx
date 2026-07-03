@@ -12,6 +12,7 @@ import { Map, Plus } from 'lucide-react';
 import { db } from '../services/db';
 import type { LocalGoal, SyncQueueItem } from '../services/db';
 import { isOnline, isNetworkFailure } from '../services/syncService';
+import { crdtUpsertGoal, crdtDeleteGoal } from '../services/crdtStore';
 
 // ─── オフライン用ユーティリティ ──────────────────────────────────
 
@@ -357,6 +358,24 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     }
   }, [demoShowCompleted, selectedGoal, hiddenLongTermIds, hiddenMidTermIds, hiddenShortTermIds]);
 
+  /** Dexie保存済みのGoalをBackendGoal形式に変換して返す（オフライン/フォールバック共用） */
+  const loadGoalsFromDexie = async (): Promise<BackendGoal[]> => {
+    const local = await db.goals.toArray();
+    return local.map((g) => ({
+      id:             g.id,
+      title:          g.title,
+      description:    g.description ?? null,
+      parent_goal_id: g.parent_goal_id ?? null,
+      period_type:    g.period_type as 'short' | 'middle' | 'long',
+      due_at:         g.due_at ?? null,
+      created_at:     g.created_at,
+      is_completed:   g.is_completed,
+      color_code:     g.color_code ?? null,
+      position_x:     g.position_x ?? null,
+      position_y:     g.position_y ?? null,
+    }));
+  };
+
   const loadGoals = async (preferredActiveLtId?: string, showLoadingUI = false): Promise<LoadedGoalsData | null> => {
     if (showLoadingUI) {
       setIsLoadingGoals(true);
@@ -368,25 +387,21 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       let goals: BackendGoal[];
 
       if (isOnline()) {
-        goals = await goalApi.getAll();
-        // Dexieにキャッシュ
-        await db.goals.bulkPut(goals.map(toLocalGoal));
+        try {
+          goals = await goalApi.getAll();
+          // Dexieにキャッシュ
+          await db.goals.bulkPut(goals.map(toLocalGoal));
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → Dexieからフォールバック
+          // （CalendarPage側と同様の挙動に揃える。ここでフォールバックしないと
+          //   一時的な通信不良だけで目標マップが丸ごとエラー画面になってしまう）
+          console.warn('[GoalsPage] loadGoals: オンラインだが取得に失敗。Dexieからフォールバックします。', error);
+          goals = await loadGoalsFromDexie();
+        }
       } else {
         // オフライン：Dexieからフォールバック
-        const local = await db.goals.toArray();
-        goals = local.map((g) => ({
-          id:             g.id,
-          title:          g.title,
-          description:    g.description ?? null,
-          parent_goal_id: g.parent_goal_id ?? null,
-          period_type:    g.period_type as 'short' | 'middle' | 'long',
-          due_at:         g.due_at ?? null,
-          created_at:     g.created_at,
-          is_completed:   g.is_completed,
-          color_code:     g.color_code ?? null,
-          position_x:     g.position_x ?? null,
-          position_y:     g.position_y ?? null,
-        }));
+        goals = await loadGoalsFromDexie();
       }
       const { longTermGoals, midTermGoals, shortTermGoals } = buildGoalTree(goals);
       const validGoalIds = new Set(goals.map((goal) => goal.id));
@@ -601,7 +616,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         for (const [goalId, position] of entries) {
           const dbGoal = await db.goals.get(goalId);
           if (dbGoal) {
-            await db.goals.put({ ...dbGoal, position_x: position.x, position_y: position.y });
+            const updated = { ...dbGoal, position_x: position.x, position_y: position.y };
+            await db.goals.put(updated);
+            crdtUpsertGoal(updated);
           }
         }
         await enqueueGoal('update', {
@@ -666,7 +683,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         for (const [goalId, position] of entries) {
           const dbGoal = await db.goals.get(goalId);
           if (dbGoal) {
-            await db.goals.put({ ...dbGoal, position_x: position.x, position_y: position.y });
+            const updated = { ...dbGoal, position_x: position.x, position_y: position.y };
+            await db.goals.put(updated);
+            crdtUpsertGoal(updated);
           }
         }
         await enqueueGoal('update', {
@@ -742,7 +761,11 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           }
           // Dexieも更新
           const dbGoal = await db.goals.get(goal.id);
-          if (dbGoal) await db.goals.put({ ...dbGoal, is_completed: nextCompleted });
+          if (dbGoal) {
+            const updated = { ...dbGoal, is_completed: nextCompleted };
+            await db.goals.put(updated);
+            crdtUpsertGoal(updated);
+          }
         } catch (error) {
           if (!isNetworkFailure(error)) throw error;
           // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
@@ -755,7 +778,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         // オフライン（または送信失敗）：Dexie更新 + キューイング
         const dbGoal = await db.goals.get(goal.id);
         if (dbGoal) {
-          await db.goals.put({ ...dbGoal, is_completed: nextCompleted });
+          const updated = { ...dbGoal, is_completed: nextCompleted };
+          await db.goals.put(updated);
+          crdtUpsertGoal(updated);
           await enqueueGoal('update', { id: goal.id, is_completed: nextCompleted });
         }
       }
@@ -802,10 +827,16 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       }
 
       if (!isOnline() || wentOffline) {
-        // オフライン（または送信失敗）：Dexie削除 + キューイング
-        await db.goals.delete(goal.id);
+        // オフライン（または送信失敗）：キューイング
         await enqueueGoal('delete', { id: goal.id });
       }
+
+      // ⚠️ 以前はオフライン分岐でしか db.goals.delete() していなかったため、
+      // オンラインで削除に成功した場合はDexieにゴーストレコードが残っていた
+      // （loadGoals() は bulkPut のみで、サーバーから消えたレコードの削除は行わないため）。
+      // 成功パスならどちらでも必ずローカルからも削除する。
+      await db.goals.delete(goal.id);
+      crdtDeleteGoal(goal.id);
 
       const preferredActiveLtId = goal.type === 'long'
         ? undefined
@@ -856,14 +887,16 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           // オフライン（または送信失敗）：Dexie更新 + キューイング
           const dbGoal = await db.goals.get(goal.id);
           if (dbGoal) {
-            await db.goals.put({
+            const updated = {
               ...dbGoal,
               title:        updatePayload.title ?? dbGoal.title,
               description:  updatePayload.description ?? null,
               due_at:       updatePayload.due_at ?? null,
               is_completed: updatePayload.is_completed ?? dbGoal.is_completed,
               color_code:   updatePayload.color_code ?? null,
-            });
+            };
+            await db.goals.put(updated);
+            crdtUpsertGoal(updated);
             await enqueueGoal('update', { id: goal.id, ...updatePayload });
           }
         }
@@ -913,7 +946,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           const createdGoal = await goalApi.create(createPayload);
           createdId = createdGoal.id;
           // Dexieにキャッシュ
-          await db.goals.put(toLocalGoal(createdGoal));
+          const localGoal = toLocalGoal(createdGoal);
+          await db.goals.put(localGoal);
+          crdtUpsertGoal(localGoal);
         } catch (error) {
           if (!isNetworkFailure(error)) throw error;
           // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
@@ -929,7 +964,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         // オフライン（または送信失敗）：生成済みUUIDでDexie保存 + キューイング
         // ※ createdId はオンライン分岐のcatch内、またはelse分岐で既に生成済み
         const now = new Date().toISOString();
-        await db.goals.put({
+        const newLocalGoal: LocalGoal = {
           id:             createdId,
           user_id:        '',
           title:          createPayload.title,
@@ -943,7 +978,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           position_y:     null,
           created_at:     now,
           updated_at:     now,
-        });
+        };
+        await db.goals.put(newLocalGoal);
+        crdtUpsertGoal(newLocalGoal);
         await enqueueGoal('create', { id: createdId, ...createPayload });
       }
 
