@@ -452,6 +452,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   }, []);
 
   const handleRecenterToLongTerm = useCallback(() => {
+    setFocusGoalId(null);
     setRecenterRequest((count) => count + 1);
     if (selectedGoal) {
       requestCloseDetail();
