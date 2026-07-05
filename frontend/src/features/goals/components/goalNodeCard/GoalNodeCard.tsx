@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Check, Clock } from "lucide-react";
 import "./goal-node.css";
 import {
@@ -26,11 +26,19 @@ export interface GoalNodeCardProps {
   progress: GoalProgress;
   /** ユーザーが設定する分野色（左バー）。状態色とは別管理＝混在させない */
   categoryColor: string;
-  /** 一時的なUI操作の状態。状態テキストは出さず枠の発光だけで表す */
+  /** 一時的なUI操作の状態。選択時は着地バウンス＋控えめな枠で表す */
   selected?: boolean;
   density?: NodeDensity;
   onClick?: () => void;
   onContextMenu?: (e: MouseEvent) => void;
+}
+
+/** 着地バウンスの CSS 時間と揃える（animationend 未発火時のフォールバック用） */
+const LANDING_ANIMATION_MS = 420;
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 function LongTermPin() {
@@ -42,9 +50,29 @@ function LongTermPin() {
   );
 }
 
-function LongTermCardWrap({ density, children }: { density: NodeDensity; children: ReactNode }) {
+function LongTermCardWrap({
+  density,
+  isLanding,
+  onLandingEnd,
+  children,
+}: {
+  density: NodeDensity;
+  isLanding: boolean;
+  onLandingEnd: () => void;
+  children: ReactNode;
+}) {
   return (
-    <div className={`gnc-wrap gnc-wrap--long gnc-wrap--${density}`}>
+    <div
+      className={[
+        "gnc-wrap",
+        "gnc-wrap--long",
+        `gnc-wrap--${density}`,
+        isLanding && "gnc-wrap--landing",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      onAnimationEnd={isLanding ? onLandingEnd : undefined}
+    >
       <LongTermPin />
       {children}
     </div>
@@ -63,6 +91,36 @@ export default function GoalNodeCard({
   onContextMenu,
 }: GoalNodeCardProps) {
   const isLong = goalType === "long";
+  const prevSelectedRef = useRef(selected);
+  const [isLanding, setIsLanding] = useState(false);
+
+  // selected が false→true になった瞬間だけ着地バウンスを再生（選択中はループしない）
+  useEffect(() => {
+    if (selected && !prevSelectedRef.current) {
+      // 動きを減らす設定では CSS animation が走らず animationend も来ないため、
+      // isLanding を立てない（gnc--selected の枠だけで選択を示す）
+      if (!prefersReducedMotion()) {
+        setIsLanding(true);
+      }
+    }
+    prevSelectedRef.current = selected;
+  }, [selected]);
+
+  // animationend のフォールバック（環境差・子要素からのバブル漏れ対策）
+  useEffect(() => {
+    if (!isLanding) return undefined;
+    if (prefersReducedMotion()) {
+      setIsLanding(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setIsLanding(false), LANDING_ANIMATION_MS + 80);
+    return () => window.clearTimeout(timer);
+  }, [isLanding]);
+
+  const endLanding = useCallback(() => {
+    setIsLanding(false);
+  }, []);
+
   const type = GOAL_TYPE_CONFIG[goalType] ?? FALLBACK_TYPE;
   const st = STATUS_CONFIG[status];
   const TypeIcon = type.icon;
@@ -75,6 +133,7 @@ export default function GoalNodeCard({
     `gnc--${density}`,
     isLong && "gnc--long",
     selected && "gnc--selected",
+    !isLong && isLanding && "gnc--landing",
     st.outline && "gnc--overdue",
     st.warningOutline && "gnc--due-soon",
     st.dimmed && "gnc--done",
@@ -83,7 +142,17 @@ export default function GoalNodeCard({
     .join(" ");
 
   const wrapIfLong = (card: ReactNode) =>
-    isLong ? <LongTermCardWrap density={density}>{card}</LongTermCardWrap> : card;
+    isLong ? (
+      <LongTermCardWrap density={density} isLanding={isLanding} onLandingEnd={endLanding}>
+        {card}
+      </LongTermCardWrap>
+    ) : (
+      card
+    );
+
+  const landingProps = isLong
+    ? {}
+    : { onAnimationEnd: isLanding ? endLanding : undefined };
 
   // さらに縮小：色＋アイコンだけ
   if (density === "mini") {
@@ -92,6 +161,7 @@ export default function GoalNodeCard({
         className={cls}
         onClick={onClick}
         onContextMenu={onContextMenu}
+        {...landingProps}
         role="button"
         tabIndex={0}
         aria-label={`${type.label}：${title}`}
@@ -110,6 +180,7 @@ export default function GoalNodeCard({
         className={cls}
         onClick={onClick}
         onContextMenu={onContextMenu}
+        {...landingProps}
         role="button"
         tabIndex={0}
         title={title}
@@ -129,6 +200,7 @@ export default function GoalNodeCard({
       className={cls}
       onClick={onClick}
       onContextMenu={onContextMenu}
+      {...landingProps}
       role="button"
       tabIndex={0}
     >
