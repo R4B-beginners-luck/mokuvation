@@ -20,6 +20,7 @@ import {
   type MapViewport,
 } from '../utils/goalMapLayout';
 import { animateMapViewport } from '../utils/animateMapViewport';
+import type { GoalDisplayMode } from '../utils/resolveGoalVisibility';
 import { getCardBoundaryPoint, getGoalCardBounds } from '../utils/goalEdgeLayout';
 import { createGoalNodeAdapter } from '../utils/goalNodeAdapter';
 import GoalNodeCard from './goalNodeCard/GoalNodeCard';
@@ -49,6 +50,8 @@ interface GoalGraphProps {
   focusGoalId?: string | null;
   /** スマホ詳細シートが覆う高さ（ビューポート px）。表示領域の中央へ寄せる */
   mobileSheetObstructionPx?: number;
+  /** 達成済み非表示ルール適用後の各ノード表示モード */
+  goalDisplayModes?: Record<string, GoalDisplayMode>;
 }
 
 interface ContextMenuState {
@@ -85,6 +88,7 @@ export function GoalGraph({
   recenterRequest = 0,
   focusGoalId = null,
   mobileSheetObstructionPx = 0,
+  goalDisplayModes = {},
 }: GoalGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -420,6 +424,16 @@ export function GoalGraph({
     setContextMenu({ goal, x, y });
   }, [onSelectNode, clearDragListeners]);
 
+  const getDisplayMode = useCallback(
+    (goalId: string): GoalDisplayMode => goalDisplayModes[goalId] ?? 'full',
+    [goalDisplayModes],
+  );
+
+  const isNodeVisible = useCallback(
+    (goalId: string) => getDisplayMode(goalId) !== 'hidden',
+    [getDisplayMode],
+  );
+
   const goalById = useMemo(() => {
     const map = new Map<string, Goal>();
     map.set(longTermGoal.id, longTermGoal);
@@ -437,6 +451,9 @@ export function GoalGraph({
     fromId: string, toId: string,
     dashed: boolean, color: string, opacity: number
   ) => {
+    // どちらかが hidden なら線も描かない（ghost↔full などは維持）
+    if (!isNodeVisible(fromId) || !isNodeVisible(toId)) return;
+
     const a = displayPositions[fromId];
     const b = displayPositions[toId];
     if (!a || !b) return;
@@ -532,7 +549,10 @@ export function GoalGraph({
           {allGoals.map((goal) => {
             const p = displayPositions[goal.id];
             if (!p) return null;
+            if (!isNodeVisible(goal.id)) return null;
 
+            const displayMode = getDisplayMode(goal.id);
+            const isGhost = displayMode === 'ghost';
             const isLongTerm = goal.type === 'long';
             const isPlacementTarget = placementMode
               ? movableGoalIdSet.has(goal.id)
@@ -570,6 +590,7 @@ export function GoalGraph({
                       progress={progress}
                       categoryColor={goalNodeAdapter.toCategoryColor(goal)}
                       selected={goal.id === selectedId}
+                      variant={isGhost ? 'ghost' : 'default'}
                       density="full"
                       onClick={() => {
                         if (skipClickRef.current) {

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Check, Clock } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type AnimationEvent, type MouseEvent, type ReactNode } from "react";
+import { Check, Clock, MapPin } from "lucide-react";
 import "./goal-node.css";
 import {
   GOAL_TYPE_CONFIG,
@@ -26,15 +26,21 @@ export interface GoalNodeCardProps {
   progress: GoalProgress;
   /** ユーザーが設定する分野色（左バー）。状態色とは別管理＝混在させない */
   categoryColor: string;
-  /** 一時的なUI操作の状態。選択時は着地バウンス＋控えめな枠で表す */
+  /** 一時的なUI操作の状態。中期・短期は紫ピン、長期は枠発光のみ */
   selected?: boolean;
+  /** ghost = 達成済み親の痕跡表示（点線枠・薄い文字・進捗非表示） */
+  variant?: 'default' | 'ghost';
   density?: NodeDensity;
   onClick?: () => void;
   onContextMenu?: (e: MouseEvent) => void;
 }
 
-/** 着地バウンスの CSS 時間と揃える（animationend 未発火時のフォールバック用） */
-const LANDING_ANIMATION_MS = 420;
+/** CSS の gnc-select-pin-drop / lift と揃える（animationend 未発火時のフォールバック） */
+const PIN_ENTER_MS = 380;
+const PIN_EXIT_MS = 280;
+
+/** 中期・短期の選択ピン：入場→留まる→退場 */
+type SelectionPinPhase = "idle" | "entering" | "pinned" | "exiting";
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
@@ -52,13 +58,11 @@ function LongTermPin() {
 
 function LongTermCardWrap({
   density,
-  isLanding,
-  onLandingEnd,
+  isGhost = false,
   children,
 }: {
   density: NodeDensity;
-  isLanding: boolean;
-  onLandingEnd: () => void;
+  isGhost?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -67,13 +71,72 @@ function LongTermCardWrap({
         "gnc-wrap",
         "gnc-wrap--long",
         `gnc-wrap--${density}`,
-        isLanding && "gnc-wrap--landing",
+        isGhost && "gnc-wrap--ghost",
       ]
         .filter(Boolean)
         .join(" ")}
-      onAnimationEnd={isLanding ? onLandingEnd : undefined}
     >
       <LongTermPin />
+      {children}
+    </div>
+  );
+}
+
+function SelectionPin({
+  phase,
+  density,
+  onAnimationEnd,
+}: {
+  phase: SelectionPinPhase;
+  density: NodeDensity;
+  onAnimationEnd: (e: AnimationEvent<HTMLDivElement>) => void;
+}) {
+  const iconSize = density === "mini" ? 22 : density === "compact" ? 24 : 28;
+
+  return (
+    <div
+      className={[
+        "gnc-select-pin",
+        phase === "entering" && "gnc-select-pin--entering",
+        phase === "pinned" && "gnc-select-pin--pinned",
+        phase === "exiting" && "gnc-select-pin--exiting",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-hidden
+      onAnimationEnd={phase === "entering" || phase === "exiting" ? onAnimationEnd : undefined}
+    >
+      <MapPin size={iconSize} strokeWidth={2.25} className="gnc-select-pin__icon" />
+    </div>
+  );
+}
+
+function SelectableCardWrap({
+  density,
+  pinPhase,
+  onPinAnimationEnd,
+  children,
+}: {
+  density: NodeDensity;
+  pinPhase: SelectionPinPhase;
+  onPinAnimationEnd: (e: AnimationEvent<HTMLDivElement>) => void;
+  children: ReactNode;
+}) {
+  const showPin = pinPhase !== "idle";
+
+  return (
+    <div
+      className={[
+        "gnc-wrap",
+        "gnc-wrap--selectable",
+        `gnc-wrap--${density}`,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {showPin && (
+        <SelectionPin phase={pinPhase} density={density} onAnimationEnd={onPinAnimationEnd} />
+      )}
       {children}
     </div>
   );
@@ -86,39 +149,74 @@ export default function GoalNodeCard({
   progress,
   categoryColor,
   selected = false,
+  variant = "default",
   density = "full",
   onClick,
   onContextMenu,
 }: GoalNodeCardProps) {
   const isLong = goalType === "long";
   const prevSelectedRef = useRef(selected);
-  const [isLanding, setIsLanding] = useState(false);
+  const isFirstSelectionEffect = useRef(true);
+  /** タイムアウトと animationend の競合を generation で無効化する */
+  const pinAnimGenRef = useRef(0);
+  const [pinPhase, setPinPhase] = useState<SelectionPinPhase>(() => (
+    !isLong && selected ? "pinned" : "idle"
+  ));
 
-  // selected が false→true になった瞬間だけ着地バウンスを再生（選択中はループしない）
+  // 長期は金色ピンが種別表示のため、選択ピン演出は中期・短期のみ
   useEffect(() => {
-    if (selected && !prevSelectedRef.current) {
-      // 動きを減らす設定では CSS animation が走らず animationend も来ないため、
-      // isLanding を立てない（gnc--selected の枠だけで選択を示す）
-      if (!prefersReducedMotion()) {
-        setIsLanding(true);
+    if (isLong) return;
+
+    if (isFirstSelectionEffect.current) {
+      isFirstSelectionEffect.current = false;
+      prevSelectedRef.current = selected;
+      if (selected) {
+        setPinPhase("pinned");
       }
+      return;
     }
+
+    const wasSelected = prevSelectedRef.current;
+    if (selected === wasSelected) return;
+
     prevSelectedRef.current = selected;
-  }, [selected]);
+    pinAnimGenRef.current += 1;
 
-  // animationend のフォールバック（環境差・子要素からのバブル漏れ対策）
-  useEffect(() => {
-    if (!isLanding) return undefined;
-    if (prefersReducedMotion()) {
-      setIsLanding(false);
-      return undefined;
+    if (selected) {
+      setPinPhase(prefersReducedMotion() ? "pinned" : "entering");
+      return;
     }
-    const timer = window.setTimeout(() => setIsLanding(false), LANDING_ANIMATION_MS + 80);
-    return () => window.clearTimeout(timer);
-  }, [isLanding]);
 
-  const endLanding = useCallback(() => {
-    setIsLanding(false);
+    setPinPhase((current) => {
+      if (current === "idle") return "idle";
+      return prefersReducedMotion() ? "idle" : "exiting";
+    });
+  }, [selected, isLong]);
+
+  // animationend 未発火環境向けフォールバック
+  useEffect(() => {
+    if (isLong) return undefined;
+    if (pinPhase !== "entering" && pinPhase !== "exiting") return undefined;
+
+    const gen = pinAnimGenRef.current;
+    const durationMs = pinPhase === "entering" ? PIN_ENTER_MS : PIN_EXIT_MS;
+    const timer = window.setTimeout(() => {
+      if (pinAnimGenRef.current !== gen) return;
+      setPinPhase(pinPhase === "entering" ? "pinned" : "idle");
+    }, durationMs + 80);
+
+    return () => window.clearTimeout(timer);
+  }, [pinPhase, isLong]);
+
+  const handlePinAnimationEnd = useCallback((e: AnimationEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+
+    const name = e.animationName;
+    if (name.includes("gnc-select-pin-drop")) {
+      setPinPhase((current) => (current === "entering" ? "pinned" : current));
+    } else if (name.includes("gnc-select-pin-lift")) {
+      setPinPhase((current) => (current === "exiting" ? "idle" : current));
+    }
   }, []);
 
   const type = GOAL_TYPE_CONFIG[goalType] ?? FALLBACK_TYPE;
@@ -128,40 +226,48 @@ export default function GoalNodeCard({
   const pct =
     progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
+  const isGhost = variant === 'ghost';
+
   const cls = [
     "gnc",
     `gnc--${density}`,
     isLong && "gnc--long",
+    isGhost && "gnc--ghost",
     selected && "gnc--selected",
-    !isLong && isLanding && "gnc--landing",
-    st.outline && "gnc--overdue",
-    st.warningOutline && "gnc--due-soon",
-    st.dimmed && "gnc--done",
+    !isGhost && st.outline && "gnc--overdue",
+    !isGhost && st.warningOutline && "gnc--due-soon",
+    !isGhost && st.dimmed && "gnc--done",
   ]
     .filter(Boolean)
     .join(" ");
 
-  const wrapIfLong = (card: ReactNode) =>
-    isLong ? (
-      <LongTermCardWrap density={density} isLanding={isLanding} onLandingEnd={endLanding}>
+  const wrapCard = (card: ReactNode) => {
+    if (isLong) {
+      return (
+        <LongTermCardWrap density={density} isGhost={isGhost}>
+          {card}
+        </LongTermCardWrap>
+      );
+    }
+    // 中期・短期は常に同じラッパーで包み、ピンだけ absolute 表示（padding を増やさない）
+    return (
+      <SelectableCardWrap
+        density={density}
+        pinPhase={pinPhase}
+        onPinAnimationEnd={handlePinAnimationEnd}
+      >
         {card}
-      </LongTermCardWrap>
-    ) : (
-      card
+      </SelectableCardWrap>
     );
-
-  const landingProps = isLong
-    ? {}
-    : { onAnimationEnd: isLanding ? endLanding : undefined };
+  };
 
   // さらに縮小：色＋アイコンだけ
   if (density === "mini") {
-    return wrapIfLong(
+    return wrapCard(
       <div
         className={cls}
         onClick={onClick}
         onContextMenu={onContextMenu}
-        {...landingProps}
         role="button"
         tabIndex={0}
         aria-label={`${type.label}：${title}`}
@@ -175,12 +281,11 @@ export default function GoalNodeCard({
 
   // 縮小：目標名だけ
   if (density === "compact") {
-    return wrapIfLong(
+    return wrapCard(
       <div
         className={cls}
         onClick={onClick}
         onContextMenu={onContextMenu}
-        {...landingProps}
         role="button"
         tabIndex={0}
         title={title}
@@ -195,12 +300,11 @@ export default function GoalNodeCard({
   }
 
   // 通常：全情報
-  return wrapIfLong(
+  return wrapCard(
     <div
       className={cls}
       onClick={onClick}
       onContextMenu={onContextMenu}
-      {...landingProps}
       role="button"
       tabIndex={0}
     >

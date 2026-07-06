@@ -10,6 +10,7 @@ import { GoalsMapSecondaryPanel } from '../features/goals/components/GoalsMapSec
 import { useGoalsLeaveGuardRegistrar, useGoalsLeaveRequest } from '../layouts/GoalsLeaveGuardContext';
 import { usePageSecondaryPanel } from '../layouts/PageSecondaryPanelContext';
 import { computeInitialPositions, mergeGoalPositions } from '../features/goals/utils/goalMapLayout';
+import { isGoalHiddenOnMap, resolveGoalVisibilities } from '../features/goals/utils/resolveGoalVisibility';
 import { GoalActionModal, type GoalActionMode, type GoalActionPayload } from '../features/goals/components/GoalActionModal';
 import { goalApi, type BackendGoal, type CreateGoalPayload, type UpdateGoalPayload } from '../features/goals/api/goalApi';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -280,28 +281,25 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   );
 
   const activeLt = longTermGoals.find((l) => l.id === activeLtId) ?? longTermGoals[0] ?? null;
-  const hiddenLongTermIds = new Set(longTermGoals.filter((l) => l.completed).map((l) => l.id));
-  const hiddenMidTermIds = new Set(
-    midTermGoals
-      .filter((m) => m.completed || hiddenLongTermIds.has(m.longTermGoalId))
-      .map((m) => m.id)
+
+  const activeMids = useMemo(
+    () => midTermGoals.filter((m) => m.longTermGoalId === activeLt?.id),
+    [midTermGoals, activeLt?.id],
   );
-  const hiddenShortTermIds = new Set(
-    shortTermGoalsState
-      .filter((s) => s.completed || hiddenLongTermIds.has(s.longTermGoalId) || (s.midTermGoalId ? hiddenMidTermIds.has(s.midTermGoalId) : false))
-      .map((s) => s.id)
+  const activeShorts = useMemo(
+    () => shortTermGoalsState.filter((s) => s.longTermGoalId === activeLt?.id),
+    [shortTermGoalsState, activeLt?.id],
   );
 
-  const displayMidTermGoals = demoShowCompleted
-    ? midTermGoals
-    : midTermGoals.filter((m) => !hiddenMidTermIds.has(m.id));
-
-  const shortTermGoalsForDisplay = demoShowCompleted
-    ? shortTermGoalsState
-    : shortTermGoalsState.filter((s) => !hiddenShortTermIds.has(s.id));
-
-  const activeMids = displayMidTermGoals.filter((m) => m.longTermGoalId === activeLt?.id);
-  const activeShorts = shortTermGoalsForDisplay.filter((s) => s.longTermGoalId === activeLt?.id);
+  const goalDisplayModes = useMemo(() => {
+    if (!activeLt) return {};
+    return resolveGoalVisibilities(
+      activeLt,
+      activeMids,
+      activeShorts,
+      !demoShowCompleted,
+    );
+  }, [activeLt, activeMids, activeShorts, demoShowCompleted]);
 
   useEffect(() => {
     const stored = localStorage.getItem('goals-show-completed');
@@ -319,20 +317,10 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   }, [showCompletedGoals, selectedGoal]);
 
   useEffect(() => {
-    if (!demoShowCompleted && selectedGoal) {
-      const selectedIsHidden = selectedGoal.type === 'short'
-        ? hiddenShortTermIds.has(selectedGoal.id)
-        : selectedGoal.type === 'mid'
-          ? hiddenMidTermIds.has(selectedGoal.id)
-          : selectedGoal.type === 'long'
-            ? hiddenLongTermIds.has(selectedGoal.id)
-            : false;
-
-      if (selectedIsHidden) {
-        setSelectedGoal(null);
-      }
+    if (!demoShowCompleted && selectedGoal && isGoalHiddenOnMap(selectedGoal.id, goalDisplayModes)) {
+      setSelectedGoal(null);
     }
-  }, [demoShowCompleted, selectedGoal, hiddenLongTermIds, hiddenMidTermIds, hiddenShortTermIds]);
+  }, [demoShowCompleted, selectedGoal, goalDisplayModes]);
 
   const loadGoals = async (preferredActiveLtId?: string, showLoadingUI = false): Promise<LoadedGoalsData | null> => {
     if (showLoadingUI) {
@@ -987,6 +975,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               onAddGoal={handleAddGoal}
               onDeleteGoal={handleDeleteGoalFromMap}
               onPositionCommit={handlePositionCommit}
+              goalDisplayModes={goalDisplayModes}
             />
           ) : (
             <div className="goals-page__empty">長期目標がありません。</div>
@@ -1021,8 +1010,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         <GoalDetailPanel
           selected={selectedGoal}
           longTermGoals={longTermGoals}
-          midTermGoals={displayMidTermGoals}
-          shortTermGoals={shortTermGoalsForDisplay}
+          midTermGoals={midTermGoals}
+          shortTermGoals={shortTermGoalsState}
           tasks={tasks}
           onSelectNode={handleSelectNode}
           onEditGoal={handleEditGoal}
@@ -1047,8 +1036,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               sheetLevel={sheetLevel}
               selected={selectedGoal}
               longTermGoals={longTermGoals}
-              midTermGoals={displayMidTermGoals}
-              shortTermGoals={shortTermGoalsForDisplay}
+              midTermGoals={midTermGoals}
+              shortTermGoals={shortTermGoalsState}
               tasks={tasks}
               onSelectNode={handleSelectNode}
               onEditGoal={handleEditGoal}
