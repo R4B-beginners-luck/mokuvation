@@ -18,6 +18,12 @@ import { COLOR_PALETTE } from '../const/colors';
 import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import {
+  GoalCelebrationOverlay,
+  pickRandomGoalMessage,
+  prefetchGoalCelebrationLottie,
+  type GoalCelebrationSession,
+} from '../components/ui/celebration';
 
 const DETAIL_CLOSE_MS = 280;
 
@@ -254,6 +260,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [pendingPositions, setPendingPositions] = useState<Record<string, NodePosition>>({});
   const [isSavingPositions, setIsSavingPositions] = useState(false);
   const [positionSaveNotice, setPositionSaveNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [goalCelebration, setGoalCelebration] = useState<GoalCelebrationSession | null>(null);
   const [placementSession, setPlacementSession] = useState<PlacementSession | null>(null);
   const [recenterRequest, setRecenterRequest] = useState(0);
   const [focusGoalId, setFocusGoalId] = useState<string | null>(null);
@@ -268,6 +275,15 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   useEffect(() => {
     placementSessionRef.current = placementSession;
   }, [placementSession]);
+
+  // 達成演出の初回表示を軽くするため、目標マップ表示中に Lottie を先読みする
+  useEffect(() => {
+    prefetchGoalCelebrationLottie();
+  }, []);
+
+  const dismissGoalCelebration = useCallback(() => {
+    setGoalCelebration(null);
+  }, []);
 
   const graphPendingPositions = placementSession?.draftPositions ?? pendingPositions;
 
@@ -739,6 +755,16 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setGoalLoadError(null);
     setIsSavingGoal(true);
 
+    // 右クリック・詳細パネル・詳細シートはすべてここを通る。達成にする瞬間だけ中央演出を出す
+    if (nextCompleted) {
+      setGoalCelebration({
+        goalId: goal.id,
+        goalTitle: goal.title,
+        message: pickRandomGoalMessage(goal.title),
+        sessionId: Date.now(),
+      });
+    }
+
     if (goal.type === 'long') {
       setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, nextCompleted));
     } else if (goal.type === 'mid') {
@@ -1079,6 +1105,11 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           type={positionSaveNotice.type}
         />
       )}
+
+      <GoalCelebrationOverlay
+        session={goalCelebration}
+        onDismissed={dismissGoalCelebration}
+      />
 
       {goalAction && (
         <>
