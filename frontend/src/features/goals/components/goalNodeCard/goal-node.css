@@ -24,15 +24,36 @@
     flex-direction: column;
     overflow: hidden;
     cursor: pointer;
-    transition: box-shadow .16s ease, border-color .16s ease, background .16s ease;
+    transition:
+      background 0.45s ease,
+      border-color 0.45s ease,
+      box-shadow 0.45s ease,
+      filter 0.45s ease;
+  }
+  /* ghost 点線枠は solid→dashed が補間できないため、疑似要素で後からフェードイン */
+  .gnc::before{
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px dashed rgba(154, 160, 184, 0.55);
+    opacity: 0;
+    transition: opacity 0.4s ease 0.12s;
+    pointer-events: none;
   }
   .gnc:hover{ border-color: #3A4160; }
   .gnc:focus-visible{ outline: none; box-shadow: 0 0 0 2px var(--gnc-selected); }
   
   /* 左バー＝分野色（color は JS から inline で渡す） */
-  .gnc__bar{ position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .gnc__bar{
+    position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    transition: opacity 0.38s ease;
+  }
   
-  .gnc__top{ display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
+  .gnc__top{
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px;
+    transition: opacity 0.38s ease;
+  }
   .gnc__type{
     display: inline-flex; align-items: center; gap: 5px;
     font-size: 11px; color: var(--gnc-muted);
@@ -51,9 +72,13 @@
     font-size: 14px; font-weight: 600; color: var(--gnc-text);
     line-height: 1.35; margin: 8px 0 10px;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    transition: color 0.45s ease, opacity 0.45s ease;
   }
   
-  .gnc__progress{ display: flex; align-items: center; gap: 8px; }
+  .gnc__progress{
+    display: flex; align-items: center; gap: 8px;
+    transition: opacity 0.38s ease;
+  }
   .gnc__track{ flex: 1; height: 5px; background: var(--gnc-surface-2); border-radius: 9999px; overflow: hidden; }
   .gnc__fill{ height: 100%; background: var(--gnc-progress); border-radius: 9999px; }
   .gnc__count{ font-size: 11px; color: var(--gnc-muted); white-space: nowrap; }
@@ -68,13 +93,160 @@
   .gnc--done{ filter: saturate(.5); opacity: .72; }
   .gnc--done .gnc__title{ color: var(--gnc-muted); text-decoration: line-through; }
   .gnc--done .gnc__fill{ background: var(--gnc-success); }
+
+  .gnc__miniIcon{
+    color: #C9CDE0;
+    transition: opacity 0.38s ease;
+  }
+
+  /* --- 達成済み親の痕跡（配下に未達成が残るときだけ表示） --- */
+  @keyframes gnc-ghost-settle {
+    0% { transform: scale(1); }
+    45% { transform: scale(0.985); }
+    100% { transform: scale(1); }
+  }
+
+  .gnc--ghost{
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    /* ghost 専用の控えめな settle のみ */
+    animation: gnc-ghost-settle 0.48s ease-out;
+  }
+  .gnc--ghost::before{
+    opacity: 1;
+  }
+  /* 中身を先に薄く → 枠は ::before で後追い。レイアウトは維持したまま opacity のみ */
+  .gnc--ghost .gnc__bar,
+  .gnc--ghost .gnc__top,
+  .gnc--ghost .gnc__progress,
+  .gnc--ghost .gnc__miniIcon{
+    opacity: 0;
+    pointer-events: none;
+  }
+  .gnc--ghost .gnc__title,
+  .gnc--ghost .gnc__titleOneLine{
+    color: var(--gnc-muted);
+    opacity: 0.72;
+    text-decoration: none;
+  }
+  .gnc--ghost:hover::before{ border-color: rgba(154, 160, 184, 0.75); }
+  .gnc--ghost.gnc--selected{
+    border-color: transparent;
+    background: rgba(35, 42, 69, 0.45);
+    box-shadow: 0 0 6px rgba(148, 87, 216, 0.18);
+    padding: 10px 13px 11px 15px;
+  }
+  .gnc--ghost.gnc--selected::before{
+    border: 2px dashed var(--gnc-selected);
+    opacity: 1;
+  }
+  .gnc-wrap--ghost .gnc-pin__head{
+    background: rgba(154, 160, 184, 0.55);
+    box-shadow: none;
+  }
+  .gnc-wrap--ghost .gnc-pin__shaft{
+    background: linear-gradient(to bottom, rgba(154, 160, 184, 0.45), transparent);
+  }
+  .gnc-pin__head,
+  .gnc-pin__shaft{
+    transition: background 0.45s ease, box-shadow 0.45s ease;
+  }
+  .gnc--long.gnc--ghost{
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gnc,
+    .gnc::before,
+    .gnc__bar,
+    .gnc__top,
+    .gnc__progress,
+    .gnc__title,
+    .gnc__titleOneLine,
+    .gnc__miniIcon,
+    .gnc-pin__head,
+    .gnc-pin__shaft{
+      transition: none;
+    }
+    .gnc--ghost{
+      animation: none;
+    }
+  }
   
-  /* --- UI操作：選択中（状態文字は出さず、紫の発光＋枠太め＋背景を明るく） --- */
+  /* --- UI操作：選択中（中期・短期は紫ピン、長期は枠発光のみ） --- */
   .gnc--selected{
     border: 2px solid var(--gnc-selected);
     background: #232A45;
-    box-shadow: 0 0 16px rgba(148,87,216,.45);
+    box-shadow: 0 0 6px rgba(148, 87, 216, 0.18);
     padding: 10px 13px 11px 15px; /* border +1px ぶん調整 */
+  }
+
+  /* ===== 中期・短期：選択ピン（Lucide MapPin・カード上に absolute で重ねる） ===== */
+  /* 先端がカード上辺に触れる位置。padding-top は使わずレイアウトを動かさない */
+  @keyframes gnc-select-pin-drop {
+    0% { transform: translate(-50%, calc(-100% - 36px)); opacity: 0.35; }
+    72% { transform: translate(-50%, calc(-100% + 3px)); opacity: 1; }
+    100% { transform: translate(-50%, -100%); opacity: 1; }
+  }
+
+  @keyframes gnc-select-pin-lift {
+    0% { transform: translate(-50%, -100%); opacity: 1; }
+    100% { transform: translate(-50%, calc(-100% - 36px)); opacity: 0; }
+  }
+
+  .gnc-wrap--selectable {
+    position: relative;
+    overflow: visible;
+  }
+
+  .gnc-select-pin {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -100%);
+    z-index: 3;
+    pointer-events: none;
+    line-height: 0;
+    filter: drop-shadow(0 0 10px rgba(184, 117, 255, 0.95))
+            drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+  }
+
+  .gnc-select-pin__icon {
+    color: #C894FF;
+    fill: rgba(148, 87, 216, 0.72);
+    stroke: #F0E0FF;
+    display: block;
+  }
+
+  .gnc-select-pin--entering {
+    animation: gnc-select-pin-drop 0.38s cubic-bezier(0.34, 1.15, 0.64, 1) forwards;
+  }
+
+  .gnc-select-pin--pinned {
+    transform: translate(-50%, -100%);
+    opacity: 1;
+  }
+
+  .gnc-select-pin--exiting {
+    animation: gnc-select-pin-lift 0.28s ease-in forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .gnc-select-pin--entering,
+    .gnc-select-pin--exiting {
+      animation: none;
+    }
+    .gnc-select-pin--pinned,
+    .gnc-select-pin--entering {
+      transform: translate(-50%, -100%);
+      opacity: 1;
+    }
+    .gnc-select-pin--exiting {
+      transform: translate(-50%, -100%);
+      opacity: 0;
+    }
   }
   
   /* ===== LOD：縮小（目標名だけ） ===== */
@@ -86,6 +258,7 @@
     font-size: 12px; font-weight: 600; color: var(--gnc-text);
     line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     margin-bottom: 6px;
+    transition: color 0.45s ease, opacity 0.45s ease;
   }
   .gnc__track--thin{ height: 3px; }
   
@@ -95,7 +268,6 @@
     padding: 0; border-radius: 12px;
     align-items: center; justify-content: center;
   }
-  .gnc__miniIcon{ color: #C9CDE0; }
 
   /* ===== 長期目標：上部ピン＋ゴールド光彩 ===== */
   .gnc-wrap--long {
@@ -154,7 +326,10 @@
 
   .gnc--long.gnc--selected {
     border: 2px solid var(--gnc-selected);
-    box-shadow: 0 0 16px rgba(148, 87, 216, 0.45), 0 0 20px rgba(232, 163, 62, 0.12);
+    /* ゴールド基調の長期カードでも紫枠が視認できるよう、控えめな紫を残す */
+    box-shadow:
+      0 0 10px rgba(148, 87, 216, 0.28),
+      0 0 20px rgba(232, 163, 62, 0.12);
   }
 
   .gnc-wrap--long.gnc-wrap--mini .gnc-pin__head {

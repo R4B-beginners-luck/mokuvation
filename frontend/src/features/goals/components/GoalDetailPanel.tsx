@@ -1,6 +1,9 @@
-import { Calendar, Check, Circle, MapPin, Pencil, Plus, Trash2, Undo2 } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Calendar, Check, Circle, MapPin, Pencil, Plus, Undo2, X } from 'lucide-react';
 import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../../../types';
 import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
+import { createGoalNodeAdapter } from '../utils/goalNodeAdapter';
+import type { GoalDetailSheetLevel } from './GoalDetailSheet';
 
 interface GoalDetailPanelProps {
   selected: Goal | null;
@@ -12,7 +15,37 @@ interface GoalDetailPanelProps {
   onEditGoal: (goal: Goal) => void;
   onAddGoal: (goal: Goal, presetGoalType?: 'mid' | 'short') => void;
   onToggleCompleted: (goal: Goal) => void;
+  onClose?: () => void;
   isSaving?: boolean;
+  isClosing?: boolean;
+  embedded?: boolean;
+  sheetLevel?: GoalDetailSheetLevel;
+}
+
+function DetailPanelRoot({
+  embedded,
+  isClosing = false,
+  children,
+}: {
+  embedded?: boolean;
+  isClosing?: boolean;
+  children: ReactNode;
+}) {
+  if (embedded) {
+    return <div className="detail-panel detail-panel--embedded">{children}</div>;
+  }
+
+  return (
+    <aside
+      className={[
+        'detail-panel',
+        'goals-page__desktop-detail',
+        isClosing ? 'goals-page__desktop-detail--closing' : '',
+      ].filter(Boolean).join(' ')}
+    >
+      {children}
+    </aside>
+  );
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -76,6 +109,17 @@ const iconBtnStyle = {
   gap: 6,
 } as const;
 
+function resolveRootLongTerm(
+  selected: Goal,
+  longTermGoals: LongTermGoal[]
+): LongTermGoal | null {
+  if (selected.type === 'long') {
+    return selected;
+  }
+  const longId = selected.longTermGoalId;
+  return longTermGoals.find((goal) => goal.id === longId) ?? null;
+}
+
 export function GoalDetailPanel({
   selected,
   longTermGoals,
@@ -86,11 +130,15 @@ export function GoalDetailPanel({
   onEditGoal,
   onAddGoal,
   onToggleCompleted,
+  onClose,
   isSaving,
+  isClosing = false,
+  embedded = false,
+  sheetLevel,
 }: GoalDetailPanelProps) {
   if (!selected) {
     return (
-      <aside className="detail-panel">
+      <DetailPanelRoot embedded={embedded} isClosing={isClosing}>
         <div className="detail-panel__empty">
           <div className="detail-panel__empty-icon">
             <MapPin size={32} strokeWidth={1.75} aria-hidden />
@@ -99,7 +147,7 @@ export function GoalDetailPanel({
             ノードをクリックすると<br />詳細が表示されます
           </p>
         </div>
-      </aside>
+      </DetailPanelRoot>
     );
   }
 
@@ -159,8 +207,84 @@ export function GoalDetailPanel({
     background: 'rgba(255,255,255,0.08)',
     color: 'var(--text-secondary)',
   } as const;
+
+  const showPeek = sheetLevel === 'peek';
+  const showActions = sheetLevel === undefined || sheetLevel === 'half' || sheetLevel === 'full';
+  const showFullExtras = sheetLevel === undefined || sheetLevel === 'full';
+
+  const rootLong = resolveRootLongTerm(selected, longTermGoals);
+  const peekProgress = rootLong
+    ? createGoalNodeAdapter({
+        longTermGoal: rootLong,
+        midTermGoals,
+        shortTermGoals,
+        tasks,
+      }).toProgress(selected.id)
+    : { done: 0, total: 0, unit: '子目標' };
+  const peekPct = peekProgress.total > 0
+    ? Math.round((peekProgress.done / peekProgress.total) * 100)
+    : 0;
+
+  if (showPeek) {
+    return (
+      <DetailPanelRoot embedded={embedded} isClosing={isClosing}>
+        <div className="detail-panel__peek">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
+            <span
+              className="tag"
+              style={{
+                ...neutralTagStyle,
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '4px 11px',
+                borderRadius: 'var(--r-full)',
+              }}
+            >
+              {TYPE_LABEL[selected.type]}
+            </span>
+            {selected.completed !== undefined && (
+              <span className="detail-panel__status" style={{ fontSize: 12 }}>
+                {selected.completed ? '達成済み' : '未達成'}
+              </span>
+            )}
+          </div>
+          <div
+            className="detail-panel__title detail-panel__title--peek"
+            style={{ borderLeft: `3px solid ${accentColor}`, paddingLeft: 'var(--sp-3)', color: accentColor }}
+          >
+            {selected.title}
+          </div>
+          <div className="detail-panel__peek-progress">
+            <div className="detail-panel__peek-progress-label">
+              {peekProgress.done} / {peekProgress.total} {peekProgress.unit}
+            </div>
+            <div className="detail-panel__peek-track">
+              <div
+                className="detail-panel__peek-fill"
+                style={{ width: `${peekPct}%`, background: accentColor }}
+              />
+            </div>
+          </div>
+        </div>
+      </DetailPanelRoot>
+    );
+  }
+
   return (
-    <aside className="detail-panel">
+    <DetailPanelRoot embedded={embedded} isClosing={isClosing}>
+      {!embedded && onClose && (
+        <div className="detail-panel__header-bar">
+          <span className="detail-panel__header-label">目標の詳細</span>
+          <button
+            type="button"
+            className="detail-panel__close"
+            onClick={onClose}
+            aria-label="閉じる"
+          >
+            <X size={18} strokeWidth={1.75} aria-hidden />
+          </button>
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
         <span
           className="tag"
@@ -206,58 +330,70 @@ export function GoalDetailPanel({
         )}
       </div>
 
-      <div
-        className="detail-panel__actions"
-        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-2)' }}
-      >
-        <button
-          className="btn-secondary"
-          style={{
-            width: '100%',
-            textAlign: 'center',
-            fontSize: 13,
-            gridColumn: '1 / -1',
-            ...iconBtnStyle,
-          }}
-          onClick={() => onToggleCompleted(selected)}
-          disabled={isSaving}
+      {showActions && (
+        <div
+          className="detail-panel__actions"
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-2)' }}
         >
-          {selected.completed ? (
+          <button
+            className="btn-secondary"
+            style={{
+              width: '100%',
+              textAlign: 'center',
+              fontSize: 13,
+              gridColumn: '1 / -1',
+              ...iconBtnStyle,
+            }}
+            onClick={() => onToggleCompleted(selected)}
+            disabled={isSaving}
+          >
+            {selected.completed ? (
+              <>
+                <Undo2 size={15} strokeWidth={1.75} aria-hidden />
+                未達成に戻す
+              </>
+            ) : (
+              <>
+                <Check size={15} strokeWidth={1.75} aria-hidden />
+                達成済みにする
+              </>
+            )}
+          </button>
+          <button
+            className="btn-secondary"
+            style={{
+              width: '100%',
+              textAlign: 'center',
+              fontSize: 13,
+              gridColumn: '1 / -1',
+              ...iconBtnStyle,
+            }}
+            onClick={() => onEditGoal(selected)}
+          >
+            <Pencil size={15} strokeWidth={1.75} aria-hidden />
+            編集する
+          </button>
+          {selected.type === 'long' && (
             <>
-              <Undo2 size={15} strokeWidth={1.75} aria-hidden />
-              未達成に戻す
-            </>
-          ) : (
-            <>
-              <Check size={15} strokeWidth={1.75} aria-hidden />
-              達成済みにする
+              <button
+                className="btn-ghost"
+                style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
+                onClick={() => onAddGoal(selected, 'mid')}
+              >
+                <Plus size={15} strokeWidth={1.75} aria-hidden />
+                中期目標
+              </button>
+              <button
+                className="btn-ghost"
+                style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
+                onClick={() => onAddGoal(selected, 'short')}
+              >
+                <Plus size={15} strokeWidth={1.75} aria-hidden />
+                短期目標
+              </button>
             </>
           )}
-        </button>
-        <button
-          className="btn-secondary"
-          style={{
-            width: '100%',
-            textAlign: 'center',
-            fontSize: 13,
-            gridColumn: '1 / -1',
-            ...iconBtnStyle,
-          }}
-          onClick={() => onEditGoal(selected)}
-        >
-          <Pencil size={15} strokeWidth={1.75} aria-hidden />
-          編集する
-        </button>
-        {selected.type === 'long' && (
-          <>
-            <button
-              className="btn-ghost"
-              style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
-              onClick={() => onAddGoal(selected, 'mid')}
-            >
-              <Plus size={15} strokeWidth={1.75} aria-hidden />
-              中期目標
-            </button>
+          {selected.type === 'mid' && (
             <button
               className="btn-ghost"
               style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
@@ -266,27 +402,18 @@ export function GoalDetailPanel({
               <Plus size={15} strokeWidth={1.75} aria-hidden />
               短期目標
             </button>
-          </>
-        )}
-        {selected.type === 'mid' && (
-          <button
-            className="btn-ghost"
-            style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
-            onClick={() => onAddGoal(selected, 'short')}
-          >
-            <Plus size={15} strokeWidth={1.75} aria-hidden />
-            短期目標
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      {selected.description && (
+      {showFullExtras && selected.description && (
         <div>
           <div className="detail-panel__section-title">説明</div>
           <p className="detail-panel__desc">{selected.description}</p>
         </div>
       )}
 
+      {showFullExtras && (
       <div>
         <div className="detail-panel__section-title">関係性</div>
         <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
@@ -342,8 +469,9 @@ export function GoalDetailPanel({
           </details>
         </div>
       </div>
+      )}
 
-      {relatedGoals.length > 0 && (
+      {showFullExtras && relatedGoals.length > 0 && (
         <div>
           <div className="detail-panel__section-title">
             関連目標（{relatedGoals.length}件）
@@ -374,7 +502,7 @@ export function GoalDetailPanel({
         </div>
       )}
 
-      {relatedTasks.length > 0 && (
+      {showFullExtras && relatedTasks.length > 0 && (
         <div style={{ marginTop: 'var(--sp-4)' }}>
           <div className="detail-panel__section-title">
             関連タスク（{completedTasks} / {relatedTasks.length}件完了）
@@ -401,6 +529,6 @@ export function GoalDetailPanel({
           </details>
         </div>
       )}
-    </aside>
+    </DetailPanelRoot>
   );
 }

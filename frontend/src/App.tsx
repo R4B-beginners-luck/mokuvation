@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Page, ShortTermGoal, Task, User } from './types';
 import { shortTermGoalsInitial } from './data/dummy';
 import { Layout }      from './layouts/Layout';
+import { GoalsLeaveGuardProvider, useGoalsLeaveRequest } from './layouts/GoalsLeaveGuardContext';
 import { LoginPage }   from './pages/LoginPage';
 import Splash from './components/Splash/Splash';
 import { TopPage }     from './pages/TopPage';
@@ -33,6 +34,14 @@ function getJstTodayStr(): string {
 }
 
 export default function App() {
+  return (
+    <GoalsLeaveGuardProvider>
+      <AppContent />
+    </GoalsLeaveGuardProvider>
+  );
+}
+
+function AppContent() {
   const [page, setPage]             = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -41,13 +50,22 @@ export default function App() {
 
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const requestGoalsLeave = useGoalsLeaveRequest();
 
+  const handleNavigate = useCallback((nextPage: Page) => {
+    if (nextPage === page) return;
+    if (page === 'goals' && nextPage !== 'goals') {
+      requestGoalsLeave(() => setPage(nextPage));
+      return;
+    }
+    setPage(nextPage);
+  }, [page, requestGoalsLeave]);
 
   // 日本時間の「今日」を YYYY-MM-DD で取得する共通関数
   const getJstTodayStr = (): string => {
     const jstDate = new Date(Date.now() + ((new Date().getTimezoneOffset() + 540) * 60 * 1000));
-    return jstDate.getFullYear() + '-' + 
-           String(jstDate.getMonth() + 1).padStart(2, '0') + '-' + 
+    return jstDate.getFullYear() + '-' +
+           String(jstDate.getMonth() + 1).padStart(2, '0') + '-' +
            String(jstDate.getDate()).padStart(2, '0');
   };
 
@@ -166,7 +184,7 @@ export default function App() {
   }
 
   return (
-    <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout} user={user}>
+    <Layout currentPage={page} onNavigate={handleNavigate} onLogout={handleLogout} user={user}>
       {page === 'top' && (
         <TopPage
           tasks={tasks}
