@@ -10,6 +10,7 @@ use App\Http\Controllers\GoalController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SyncController;
+use App\Http\Controllers\CrdtSyncController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,6 +67,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // --- オフライン同期 (Sync) ---
     // フロントの sync_queue に積まれたオフライン操作を一括処理する
     Route::post('/sync', [SyncController::class, 'handle']);
+
+    // --- CRDTオフライン同期 (Automergeの変更バイナリの配送) ---
+    // サーバー側ではchange_blobの中身を一切解釈せず、ただの配送係として扱う。
+    // マージ処理は必ずクライアント側（Automerge JS）が担当する。
+    Route::post('/crdt/push', [CrdtSyncController::class, 'push']); // 自端末発の変更を追記
+    Route::get('/crdt/pull', [CrdtSyncController::class, 'pull']);  // since以降の変更（他端末発を含む）を取得
 
     // --- 集計・ダッシュボード (Dashboard) ---
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']); // グラフ用データや連続達成日数を取得

@@ -8,7 +8,16 @@ import { db } from './db';
 import type { LocalTask, LocalGoal, SyncQueueItem } from './db';
 import { taskApi } from '../features/tasks/api/taskApi';
 import { goalApi } from '../features/goals/api/goalApi';
-import { initDoc, clearPersistedChanges, crdtUpsertTask, crdtDeleteTask } from './crdtStore';
+import {
+  initDoc,
+  crdtUpsertTask,
+  crdtDeleteTask,
+  getDeviceId,
+  getPullCursor,
+  setPullCursor,
+  applyRemoteChanges,
+} from './crdtStore';
+import { crdtSyncApi } from './crdtSyncApi';
 
 // ─── オンライン状態管理 ──────────────────────────────────────────
 // navigator.onLine は「ネットワークインターフェースが有効か」を返すだけで、
@@ -231,9 +240,14 @@ export const syncFromServer = async (): Promise<void> => {
     await db.tasks.bulkPut(tasksToUpsert);
     await db.goals.bulkPut(goalsToUpsert);
 
-    // ✅ Automerge Doc を「サーバー + 未送信キュー反映済み」の状態で初期化する
-    initDoc(tasksToUpsert, goalsToUpsert);
-    clearPersistedChanges();
+    // ✅ Automerge Doc の初期化。
+    // 既にDexie(crdt_meta)へ永続化済みのdocがあればそれをそのまま使い、
+    // 無い場合（新規ログイン端末など）だけ「サーバー + 未送信キュー反映済み」の
+    // 状態で新規作成する。
+    await initDoc(tasksToUpsert, goalsToUpsert);
+
+    // ✅ 他端末発の変更をサーバー経由で取り込む
+    await pullCrdtChanges();
   } catch (err) {
     console.warn('[syncService] syncFromServer 失敗:', err);
   }
@@ -252,7 +266,7 @@ export const getLocalGoals = (): Promise<LocalGoal[]> => db.goals.toArray();
 export const updateTaskLocally = async (task: LocalTask): Promise<void> => {
   const normalizedTask = normalizeTaskForStorage(task);
   await db.tasks.put(normalizedTask);
-  crdtUpsertTask(normalizedTask);
+  await crdtUpsertTask(normalizedTask);
   if (!isOnline()) {
     await enqueue({ entity: 'task', operation: 'update', payload: normalizedTask });
   }
@@ -260,7 +274,7 @@ export const updateTaskLocally = async (task: LocalTask): Promise<void> => {
 
 export const deleteTaskLocally = async (taskId: string): Promise<void> => {
   await db.tasks.delete(taskId);
-  crdtDeleteTask(taskId);
+  await crdtDeleteTask(taskId);
   if (!isOnline()) {
     await enqueue({ entity: 'task', operation: 'delete', payload: { id: taskId } });
   }
@@ -272,10 +286,76 @@ const enqueue = async (item: Omit<SyncQueueItem, 'id' | 'created_at'>): Promise<
   await db.sync_queue.add({ ...item, created_at: new Date().toISOString() });
 };
 
+// ─── CRDT変更の送受信 ─────────────────────────────────────────────
+
+/**
+ * sync_queue に溜まった entity: 'crdt_change'（Automergeの変更バイナリ）を
+ * /api/crdt/push へ送る。task/goalの素のCRUD操作（/api/sync）とは別の
+ * エンドポイントを使うため、flushQueue() の本処理より先に片付けておく。
+ */
+const flushCrdtChanges = async (): Promise<void> => {
+  const items = await db.sync_queue
+    .where('entity')
+    .equals('crdt_change')
+    .sortBy('created_at');
+
+  if (items.length === 0) return;
+
+  const blobs = items
+    .map((item) => (item.payload as { blob?: string })?.blob)
+    .filter((b): b is string => typeof b === 'string');
+
+  const ids = items
+    .map((item) => item.id)
+    .filter((id): id is number => id !== undefined);
+
+  if (blobs.length === 0) {
+    // blob が無い壊れたペイロードはキューに残り続けても意味が無いので掃除する
+    if (ids.length > 0) await db.sync_queue.bulkDelete(ids);
+    return;
+  }
+
+  try {
+    await crdtSyncApi.push(getDeviceId(), blobs);
+    // /api/crdt/push はサーバー側で中身を解釈せず append するだけなので、
+    // HTTPが成功した時点で全件成功とみなしてキューから消してよい。
+    if (ids.length > 0) await db.sync_queue.bulkDelete(ids);
+  } catch (err) {
+    // HTTPレベルで失敗（認証切れ・通信不可等）→ 何も消さず次回リトライへ
+    console.warn('[syncService] flushCrdtChanges 失敗:', err);
+  }
+};
+
+/**
+ * サーバー側 crdt_changes の未取得分（他端末発の変更を含む）を取得し、
+ * ローカルのAutomergeドキュメントへマージする。
+ */
+export const pullCrdtChanges = async (): Promise<void> => {
+  if (!isOnline()) return;
+  try {
+    const cursor = await getPullCursor();
+    const { changes, latest_id } = await crdtSyncApi.pull(cursor);
+
+    if (changes.length > 0) {
+      await applyRemoteChanges(changes.map((c) => c.change_blob));
+    }
+    if (latest_id > cursor) {
+      await setPullCursor(latest_id);
+    }
+  } catch (err) {
+    console.warn('[syncService] pullCrdtChanges 失敗:', err);
+  }
+};
+
 export const flushQueue = async (): Promise<void> => {
   if (!isOnline()) return;
 
-  const items = await db.sync_queue.orderBy('created_at').toArray();
+  // CRDTの変更バイナリは専用エンドポイントへ先に送っておく
+  await flushCrdtChanges();
+
+  // 通常のtask/goal操作（sync_queue内の 'crdt_change' 以外）を /api/sync へ
+  const allItems = await db.sync_queue.orderBy('created_at').toArray();
+  const items = allItems.filter((item) => item.entity !== 'crdt_change');
   if (items.length === 0) return;
 
   // /api/sync に一括送信

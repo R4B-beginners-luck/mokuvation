@@ -1,18 +1,28 @@
 /**
  * crdtStore.ts
  *
- * 役割：Automerge を使って tasks・goals の変更を CRDT で管理する（パターン A 軽量版）
+ * 役割：Automerge を使って tasks・goals の変更を CRDT で管理する。
  *
- * - サーバーから取得したデータを Automerge.Doc に読み込む
- * - 変更は Automerge.change() で記録
- * - 差分（getChanges）をバイナリ化して localStorage に退避
- * - オンライン復帰時に差分を API へ送信
+ * 【設計方針】
+ * サーバー（Laravel/PHP）には Automerge の実装が無い（公式PHPバインディング無し）ため、
+ * サーバー側では変更バイナリの中身を一切解釈させず、ただの「配送係」として扱う。
+ * マージ処理は必ずこのファイル（クライアント側のAutomerge JS実装）が担当する。
  *
- * ※ Automerge.Doc はモジュールレベルのシングルトンとして保持する
+ *   1. ローカルで変更が起きるたびに Automerge.change() でdocを更新
+ *   2. その変更1件分のバイナリ（getLastLocalChange）を sync_queue に積む
+ *      （entity: 'crdt_change'。既存の再送・失敗ハンドリングをそのまま流用）
+ *   3. オンライン復帰時、syncService.flushQueue() が /api/crdt/push へ送信
+ *   4. syncService が定期的に /api/crdt/pull で他端末発の変更を取得し、
+ *      applyRemoteChanges() で自分のdocにマージする
+ *   5. 画面表示は getTasksFromDoc() / getGoalsFromDoc() から読む
+ *
+ * doc本体は Dexie の crdt_meta テーブルに永続化し、リロードをまたいでも
+ * サーバーに問い合わせ直さずに前回までのマージ結果を復元できるようにする。
  */
 
 import * as Automerge from '@automerge/automerge';
 import type { LocalTask, LocalGoal } from './db';
+import { db } from './db';
 
 // ─── ドキュメントの型 ────────────────────────────────────────────
 
@@ -79,40 +89,180 @@ export type MokuDoc = {
   goals: Record<string, GoalEntry>;
 };
 
+// ─── デバイスID ──────────────────────────────────────────────────
+// 「どの端末から出た変更か」をサーバー側でログ・デバッグできるように付与する。
+// マージの可否には使わない（Automerge自体のActorIdがマージの主体）。
+
+const DEVICE_ID_KEY = 'mokuvation_device_id';
+
+export const getDeviceId = (): string => {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+      ? crypto.randomUUID()
+      : `dev-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+};
+
+// ─── base64 変換ヘルパー ─────────────────────────────────────────
+// spread演算子(...binary)はデータ量が多いとスタックオーバーフローするため
+// チャンク分割で安全にBase64変換する
+
+const CHUNK = 8192;
+
+const binaryToBase64 = (binary: Uint8Array): string => {
+  let b64 = '';
+  for (let i = 0; i < binary.length; i += CHUNK) {
+    b64 += btoa(String.fromCharCode(...binary.subarray(i, i + CHUNK)));
+  }
+  return b64;
+};
+
+const base64ToBinary = (b64: string): Uint8Array =>
+  Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+
 // ─── シングルトン ────────────────────────────────────────────────
 
-const STORAGE_KEY = 'mokuvation_crdt_changes';
+const META_DOC_KEY    = 'crdt_doc_binary';
+const META_CURSOR_KEY = 'crdt_pull_cursor';
 
 let doc: Automerge.Doc<MokuDoc> = Automerge.init<MokuDoc>();
 
-// ─── 初期化：サーバーデータを Doc に読み込む ────────────────────
+// 起動後、Dexieからdocを一度でも復元・初期化できたかどうか
+let _ready = false;
+
+// ─── docの永続化（Dexie） ────────────────────────────────────────
+// 以前は差分だけをlocalStorageに退避していたが、それだと「他端末発の変更」を
+// 含めた完全な状態をまたぐことができないため、doc全体をDexieに保存する方式にした。
+
+const _persistDoc = async (): Promise<void> => {
+  try {
+    const binary = Automerge.save(doc);
+    await db.crdt_meta.put({
+      key: META_DOC_KEY,
+      value: binaryToBase64(binary),
+      updated_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn('[crdtStore] docの永続化に失敗:', e);
+  }
+};
 
 /**
- * syncFromServer() で取得した tasks・goals を Automerge.Doc に一括セット。
- * localStorage に保存済みのオフライン差分があればそれも適用する。
+ * Dexieに保存済みのdocがあれば復元する。
+ * アプリ起動時（initDocより前）に一度呼ぶ想定。
+ * 戻り値: 復元できたら true、保存が無ければ false
  */
-export const initDoc = (tasks: LocalTask[], goals: LocalGoal[]): void => {
-  doc = Automerge.change(Automerge.init<MokuDoc>(), (d) => {
-    d.tasks = {} as Record<string, TaskEntry>;
-    d.goals = {} as Record<string, GoalEntry>;
+export const restorePersistedDoc = async (): Promise<boolean> => {
+  try {
+    const row = await db.crdt_meta.get(META_DOC_KEY);
+    if (!row) return false;
+    doc = Automerge.load<MokuDoc>(base64ToBinary(row.value));
+    _ready = true;
+    return true;
+  } catch (e) {
+    console.warn('[crdtStore] 永続化済みdocの復元に失敗（無視して続行）:', e);
+    return false;
+  }
+};
 
-    for (const t of tasks) {
-      d.tasks[t.id] = normalizeTaskEntry(t);
-    }
+// ─── push用キュー（sync_queueへの積み込み） ────────────────────
 
-    for (const g of goals) {
-      d.goals[g.id] = normalizeGoalEntry(g);
-    }
+/**
+ * 直前の Automerge.change() で生じた差分1件を sync_queue へ積む。
+ * flushQueue() 側がこの entity: 'crdt_change' を見て /api/crdt/push に送信する。
+ */
+const _enqueueLastChange = async (): Promise<void> => {
+  const change = Automerge.getLastLocalChange(doc);
+  if (!change) return;
+  try {
+    await db.sync_queue.add({
+      entity: 'crdt_change',
+      operation: 'create',
+      payload: { blob: binaryToBase64(change) },
+      created_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn('[crdtStore] 変更のキュー登録に失敗:', e);
+  }
+};
+
+// ─── pullカーソルの読み書き ──────────────────────────────────────
+// サーバー側 crdt_changes テーブルの「どこまで取り込み済みか」を覚えておく。
+
+export const getPullCursor = async (): Promise<number> => {
+  const row = await db.crdt_meta.get(META_CURSOR_KEY);
+  return row ? Number(row.value) || 0 : 0;
+};
+
+export const setPullCursor = async (id: number): Promise<void> => {
+  await db.crdt_meta.put({
+    key: META_CURSOR_KEY,
+    value: String(id),
+    updated_at: new Date().toISOString(),
   });
+};
 
-  // オフライン中に積んだ差分があれば適用する
-  _applyStoredChanges();
+// ─── リモート変更の取り込み ──────────────────────────────────────
+
+/**
+ * /api/crdt/pull で取得した他端末発の変更（base64の配列）を自分のdocへマージする。
+ * Automerge.applyChanges は取り込み済みの change を渡しても冪等なので、
+ * 重複適用について呼び出し側で気にする必要はない。
+ */
+export const applyRemoteChanges = async (changesB64: string[]): Promise<void> => {
+  if (changesB64.length === 0) return;
+  try {
+    const changes = changesB64.map(base64ToBinary);
+    const [newDoc] = Automerge.applyChanges(doc, changes);
+    doc = newDoc;
+    await _persistDoc();
+  } catch (e) {
+    console.warn('[crdtStore] リモート変更の適用に失敗:', e);
+  }
+};
+
+// ─── 初期化：サーバーデータ（初回ブートストラップ）をDocに読み込む ─
+
+/**
+ * 新規ログイン端末など、まだ crdt_meta にdocが1件も無い場合にだけ、
+ * サーバーから取得済みのtasks/goalsスナップショットからdocを作る。
+ *
+ * 既にDexieへ永続化されたdoc（＝過去にこの端末で使っていた、または
+ * pullで他端末の変更を取り込み済みのdoc）がある場合はそれを尊重し、
+ * ここで丸ごと作り直すことはしない
+ * （作り直すと、他端末発の変更履歴が消えてしまうため）。
+ */
+export const initDoc = async (tasks: LocalTask[], goals: LocalGoal[]): Promise<void> => {
+  if (!_ready) {
+    const restored = await restorePersistedDoc();
+    if (!restored) {
+      doc = Automerge.change(Automerge.init<MokuDoc>(), (d) => {
+        d.tasks = {} as Record<string, TaskEntry>;
+        d.goals = {} as Record<string, GoalEntry>;
+
+        for (const t of tasks) {
+          d.tasks[t.id] = normalizeTaskEntry(t);
+        }
+        for (const g of goals) {
+          d.goals[g.id] = normalizeGoalEntry(g);
+        }
+      });
+      await _persistDoc();
+    }
+    _ready = true;
+  }
 };
 
 // ─── 変更操作 ────────────────────────────────────────────────────
+// いずれも「docを更新 → 永続化 → push用キューに積む」の3点セット。
+// 呼び出し側（App.tsx / GoalsPage.tsx）は await せず fire-and-forget で
+// 呼んでいるが、返り値を Promise<void> にしても既存の呼び出し方は壊れない。
 
 /** タスクの完了状態を CRDT で更新 */
-export const crdtToggleTask = (taskId: string, isCompleted: boolean): void => {
+export const crdtToggleTask = async (taskId: string, isCompleted: boolean): Promise<void> => {
   const now = new Date().toISOString();
   doc = Automerge.change(doc, (d) => {
     if (d.tasks[taskId]) {
@@ -121,42 +271,47 @@ export const crdtToggleTask = (taskId: string, isCompleted: boolean): void => {
       d.tasks[taskId].updated_at   = now;
     }
   });
-  _persistChanges();
+  await _persistDoc();
+  await _enqueueLastChange();
 };
 
 /** タスクを CRDT ドキュメントに追加・更新 */
-export const crdtUpsertTask = (task: LocalTask): void => {
+export const crdtUpsertTask = async (task: LocalTask): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
     d.tasks[task.id] = normalizeTaskEntry(task);
   });
-  _persistChanges();
+  await _persistDoc();
+  await _enqueueLastChange();
 };
 
 /** タスクを CRDT ドキュメントに追加 */
-export const crdtAddTask = (task: LocalTask): void => crdtUpsertTask(task);
+export const crdtAddTask = (task: LocalTask): Promise<void> => crdtUpsertTask(task);
 
 /** タスクを CRDT ドキュメントから削除 */
-export const crdtDeleteTask = (taskId: string): void => {
+export const crdtDeleteTask = async (taskId: string): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
     delete d.tasks[taskId];
   });
-  _persistChanges();
+  await _persistDoc();
+  await _enqueueLastChange();
 };
 
 /** 目標を CRDT ドキュメントに追加・更新 */
-export const crdtUpsertGoal = (goal: LocalGoal): void => {
+export const crdtUpsertGoal = async (goal: LocalGoal): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
     d.goals[goal.id] = normalizeGoalEntry(goal);
   });
-  _persistChanges();
+  await _persistDoc();
+  await _enqueueLastChange();
 };
 
 /** 目標を CRDT ドキュメントから削除 */
-export const crdtDeleteGoal = (goalId: string): void => {
+export const crdtDeleteGoal = async (goalId: string): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
     delete d.goals[goalId];
   });
-  _persistChanges();
+  await _persistDoc();
+  await _enqueueLastChange();
 };
 
 // ─── 現在の Doc からデータを取り出す ────────────────────────────
@@ -191,47 +346,3 @@ export const getGoalsFromDoc = (): LocalGoal[] =>
     created_at:     g.created_at,
     updated_at:     g.updated_at,
   }));
-
-// ─── オフライン差分の保存 / 復元 ────────────────────────────────
-
-/**
- * 現在の Doc の全変更差分をバイナリ → Base64 で localStorage に保存。
- * オフライン中の変更をページリロードをまたいで保持するため。
- */
-const _persistChanges = (): void => {
-  try {
-    const binary = Automerge.save(doc);
-    // spread演算子(...binary)はデータ量が多いとスタックオーバーフローするため
-    // チャンク分割で安全にBase64変換する
-    const CHUNK = 8192;
-    let b64 = '';
-    for (let i = 0; i < binary.length; i += CHUNK) {
-      b64 += btoa(String.fromCharCode(...binary.subarray(i, i + CHUNK)));
-    }
-    localStorage.setItem(STORAGE_KEY, b64);
-  } catch (e) {
-    console.warn('[crdtStore] 差分の保存に失敗:', e);
-  }
-};
-
-/** localStorage に保存された差分を現在の Doc に適用 */
-const _applyStoredChanges = (): void => {
-  try {
-    const b64 = localStorage.getItem(STORAGE_KEY);
-    if (!b64) return;
-
-    // チャンク分割で保存されたBase64を結合してからデコード
-    const binary = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const savedDoc = Automerge.load<MokuDoc>(binary);
-
-    doc = Automerge.merge(doc, savedDoc);
-  } catch (e) {
-    console.warn('[crdtStore] 差分の復元に失敗（無視して続行）:', e);
-    localStorage.removeItem(STORAGE_KEY);
-  }
-};
-
-/** オンライン同期完了後に localStorage の差分キャッシュをクリア */
-export const clearPersistedChanges = (): void => {
-  localStorage.removeItem(STORAGE_KEY);
-};
