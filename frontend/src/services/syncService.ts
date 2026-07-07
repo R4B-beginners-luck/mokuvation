@@ -16,6 +16,8 @@ import {
   getPullCursor,
   setPullCursor,
   applyRemoteChanges,
+  reconcileServerSnapshot,
+  syncDocToDexie,
 } from './crdtStore';
 import { crdtSyncApi } from './crdtSyncApi';
 
@@ -246,7 +248,16 @@ export const syncFromServer = async (): Promise<void> => {
     // 状態で新規作成する。
     await initDoc(tasksToUpsert, goalsToUpsert);
 
-    // ✅ 他端末発の変更をサーバー経由で取り込む
+    // ✅ docを経由せずサーバーにだけ存在するレコード（シーダー投入分等）を
+    //    doc側に補完しておく。既にdocにあるIDには触れない。
+    await reconcileServerSnapshot(tasksToUpsert, goalsToUpsert);
+
+    // ✅ 他端末発の変更をサーバー経由で取り込み、docへマージする。
+    //    さらに pullCrdtChanges() 内で syncDocToDexie() を呼び、
+    //    マージ後のdocの内容を Dexie(tasks/goals) へ書き戻す。
+    //    ここで書き戻さないと、docの中でマージは正しく行われていても
+    //    画面(useLocalData)はDexieしか見ないため、他端末発の変更が
+    //    いつまでも画面に反映されない。
     await pullCrdtChanges();
   } catch (err) {
     console.warn('[syncService] syncFromServer 失敗:', err);
@@ -342,6 +353,12 @@ export const pullCrdtChanges = async (): Promise<void> => {
     if (latest_id > cursor) {
       await setPullCursor(latest_id);
     }
+
+    // ✅ マージ後のdocの状態をDexie(tasks/goals)へ書き戻す。
+    //    reconcileServerSnapshot() での補完分もここで一緒に反映される。
+    //    changes.length === 0 でも呼んでおくことで、
+    //    reconcile由来の差分やdoc上の削除も取りこぼさない。
+    await syncDocToDexie();
   } catch (err) {
     console.warn('[syncService] pullCrdtChanges 失敗:', err);
   }

@@ -346,3 +346,58 @@ export const getGoalsFromDoc = (): LocalGoal[] =>
     created_at:     g.created_at,
     updated_at:     g.updated_at,
   }));
+
+// ─── サーバースナップショットの取り込み（doc に無いものだけ救済） ─
+// 通常のCRUDは全てcrdtUpsertTask等を通るためdocに反映されるが、
+// シーダーで直接投入されたデータ等、docを経由せずサーバーにだけ
+// 存在するレコードがあった場合に備え、docに無いIDだけ補完する。
+// 既にdocにあるIDは（他端末発の編集を上書きしないよう）触らない。
+export const reconcileServerSnapshot = async (
+  tasks: LocalTask[],
+  goals: LocalGoal[],
+): Promise<void> => {
+  let changed = false;
+  doc = Automerge.change(doc, (d) => {
+    for (const t of tasks) {
+      if (!d.tasks[t.id]) {
+        d.tasks[t.id] = normalizeTaskEntry(t);
+        changed = true;
+      }
+    }
+    for (const g of goals) {
+      if (!d.goals[g.id]) {
+        d.goals[g.id] = normalizeGoalEntry(g);
+        changed = true;
+      }
+    }
+  });
+  if (changed) {
+    await _persistDoc();
+    await _enqueueLastChange();
+  }
+};
+
+// ─── docの内容をDexie(tasks/goals)へ書き戻す ────────────────────
+// 画面(useLocalData)はDexieのtasks/goalsテーブルしか読まないため、
+// pullCrdtChanges() でdocに他端末発の変更をマージしただけでは
+// 画面に反映されない。このdocを「正」として書き戻すことで、
+// CRDTのマージ結果が実際のUI表示・以後の同期に反映されるようにする。
+export const syncDocToDexie = async (): Promise<void> => {
+  const tasks = getTasksFromDoc();
+  const goals = getGoalsFromDoc();
+
+  await db.tasks.bulkPut(tasks);
+  await db.goals.bulkPut(goals);
+
+  // doc上で削除済み（=もう存在しない）レコードはDexieからも消す
+  const taskIds = new Set(tasks.map((t) => t.id));
+  const goalIds = new Set(goals.map((g) => g.id));
+
+  const localTaskIds = await db.tasks.toCollection().primaryKeys();
+  const staleTaskIds = localTaskIds.filter((id) => !taskIds.has(String(id)));
+  if (staleTaskIds.length > 0) await db.tasks.bulkDelete(staleTaskIds);
+
+  const localGoalIds = await db.goals.toCollection().primaryKeys();
+  const staleGoalIds = localGoalIds.filter((id) => !goalIds.has(String(id)));
+  if (staleGoalIds.length > 0) await db.goals.bulkDelete(staleGoalIds);
+};
