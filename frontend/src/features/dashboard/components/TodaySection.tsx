@@ -1,8 +1,15 @@
 import { useState } from 'react';
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import type { Task, MidTermGoal, LongTermGoal, ShortTermGoal } from '../../../types';
 import { TaskAddModal } from '../../tasks'; 
 import { TaskDeleteConfirm } from '../../tasks';
+import {
+  pickRandomTaskMessage,
+  TaskCelebrationBubble,
+  TaskCelebrationCheck,
+  TASK_CELEBRATION_TIMING,
+  useCelebrationPhase,
+} from '../../../components/ui/celebration';
 
 interface TodaySectionProps {
   goals: Task[]; // 親から渡される、フィルタ済みの今日のタスク
@@ -26,6 +33,33 @@ export function TodaySection({
 }: TodaySectionProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [taskCelebration, setTaskCelebration] = useState<{
+    taskId: string;
+    message: string;
+    sessionId: number;
+  } | null>(null);
+
+  const celebrationSessionKey = taskCelebration
+    ? `${taskCelebration.taskId}-${taskCelebration.sessionId}`
+    : null;
+
+  const { phase: celebrationPhase, startExit: skipCelebration, handleAnimationEnd } = useCelebrationPhase({
+    sessionKey: celebrationSessionKey,
+    ...TASK_CELEBRATION_TIMING,
+    onDismissed: () => setTaskCelebration(null),
+  });
+
+  const handleTaskToggle = (goal: Task) => {
+    // クリック時点ではまだ未完了。false→true の瞬間だけ励ましを出す
+    if (!goal.completed) {
+      setTaskCelebration({
+        taskId: goal.id,
+        message: pickRandomTaskMessage(),
+        sessionId: Date.now(),
+      });
+    }
+    onToggle(goal.id);
+  };
 
   const completed = goals.filter((g) => g.completed).length;
 
@@ -103,15 +137,40 @@ export function TodaySection({
       </div>
 
       <ul className="today-goals__list">
-        {goals.map((goal) => (
-          <li key={goal.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        {goals.map((goal) => {
+          const isCelebratingRow = taskCelebration?.taskId === goal.id && celebrationPhase !== 'idle';
+          const showCheckPop = isCelebratingRow
+            && (celebrationPhase === 'entering' || celebrationPhase === 'visible');
+
+          return (
+          <li
+            key={goal.id}
+            className={isCelebratingRow ? 'today-goals__item--celebrating' : undefined}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}
+          >
             <div
-              className={`goal-item${goal.completed ? ' completed' : ''}`}
-              onClick={() => onToggle(goal.id)}
+              className={[
+                'goal-item',
+                goal.completed ? 'completed' : '',
+                isCelebratingRow ? 'goal-item--celebrating' : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => handleTaskToggle(goal)}
               style={{ flex: 1 }}
             >
-              <div className={`goal-item__check${goal.completed ? ' checked' : ''}`}>
-                {goal.completed && <Check size={18} strokeWidth={1.75} aria-hidden />}
+              <div className="task-celebration-wrap">
+                <TaskCelebrationCheck
+                  completed={goal.completed}
+                  showCheckPop={showCheckPop}
+                  animationKey={isCelebratingRow ? taskCelebration?.sessionId : undefined}
+                />
+                {isCelebratingRow && taskCelebration && (
+                  <TaskCelebrationBubble
+                    message={taskCelebration.message}
+                    phase={celebrationPhase}
+                    onSkip={skipCelebration}
+                    onAnimationEnd={handleAnimationEnd}
+                  />
+                )}
               </div>
               <div className="goal-item__body">
                 <div className="goal-item__title">{goal.title}</div>
@@ -136,7 +195,7 @@ export function TodaySection({
               </div>
             </div>
 
-            <button 
+            <button
               type="button"
               className="btn-ghost"
               style={{ padding: '8px', color: 'var(--accent-coral)', fontSize: '16px', cursor: 'pointer' }}
@@ -149,7 +208,8 @@ export function TodaySection({
               <Trash2 size={15} strokeWidth={1.75} aria-hidden />
             </button>
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       <button className="today-goals__add-btn" onClick={() => setIsAddModalOpen(true)}>

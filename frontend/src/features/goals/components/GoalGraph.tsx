@@ -11,11 +11,16 @@ import {
   MAP_VIEWPORT_SCALE_MAX,
   MAP_VIEWPORT_SCALE_MIN,
   mergeGoalPositions,
+  computeMapFocusCenter,
+  panViewportToLogicalPoint,
+  viewportPxToCanvasPx,
   setViewportScaleAtCenter,
   toLogicalPoint,
   zoomViewportAtPoint,
   type MapViewport,
 } from '../utils/goalMapLayout';
+import { animateMapViewport } from '../utils/animateMapViewport';
+import type { GoalDisplayMode } from '../utils/resolveGoalVisibility';
 import { getCardBoundaryPoint, getGoalCardBounds } from '../utils/goalEdgeLayout';
 import { createGoalNodeAdapter } from '../utils/goalNodeAdapter';
 import GoalNodeCard from './goalNodeCard/GoalNodeCard';
@@ -41,6 +46,12 @@ interface GoalGraphProps {
   onToggleCompleted: (goal: Goal) => void;
   onDeleteGoal: (goal: Goal) => void;
   onPositionCommit: (goalId: string, position: NodePosition) => void;
+  recenterRequest?: number;
+  focusGoalId?: string | null;
+  /** スマホ詳細シートが覆う高さ（ビューポート px）。表示領域の中央へ寄せる */
+  mobileSheetObstructionPx?: number;
+  /** 達成済み非表示ルール適用後の各ノード表示モード */
+  goalDisplayModes?: Record<string, GoalDisplayMode>;
 }
 
 interface ContextMenuState {
@@ -74,6 +85,10 @@ export function GoalGraph({
   onToggleCompleted,
   onDeleteGoal,
   onPositionCommit,
+  recenterRequest = 0,
+  focusGoalId = null,
+  mobileSheetObstructionPx = 0,
+  goalDisplayModes = {},
 }: GoalGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -96,6 +111,25 @@ export function GoalGraph({
   const mapViewportRef = useRef(mapViewport);
   mapViewportRef.current = mapViewport;
 
+  // プログラムによる viewport 移動専用。ユーザーがパン開始したら即キャンセルする
+  const viewportAnimationCancelRef = useRef<(() => void) | null>(null);
+
+  const cancelViewportAnimation = useCallback(() => {
+    viewportAnimationCancelRef.current?.();
+    viewportAnimationCancelRef.current = null;
+  }, []);
+
+  const animateToViewport = useCallback((target: MapViewport) => {
+    cancelViewportAnimation();
+    viewportAnimationCancelRef.current = animateMapViewport(
+      mapViewportRef.current,
+      target,
+      setMapViewport,
+    );
+  }, [cancelViewportAnimation]);
+
+  useEffect(() => () => cancelViewportAnimation(), [cancelViewportAnimation]);
+
   const viewportRef = useRef({ cx, cy, viewport: mapViewport });
   useEffect(() => {
     viewportRef.current = { cx, cy, viewport: mapViewport };
@@ -104,6 +138,11 @@ export function GoalGraph({
   useEffect(() => {
     setMapViewport(DEFAULT_MAP_VIEWPORT);
   }, [longTermGoal.id]);
+
+  useEffect(() => {
+    if (recenterRequest === 0) return;
+    animateToViewport(DEFAULT_MAP_VIEWPORT);
+  }, [recenterRequest, animateToViewport]);
 
   const panListenersRef = useRef<{ move: (e: PointerEvent) => void; up: () => void } | null>(null);
 
@@ -126,6 +165,23 @@ export function GoalGraph({
     ),
     [longTermGoal, midTermGoals, shortTermGoals, savedPositions, pendingPositions]
   );
+
+  useEffect(() => {
+    if (!focusGoalId) return;
+    const pos = mergedPositions[focusGoalId];
+    if (!pos) return;
+    const pinOffset = focusGoalId === longTermGoal.id ? GOAL_LONG_PIN_OFFSET : 0;
+    const nodeCenter = { x: pos.x, y: pos.y - pinOffset };
+    const bottomInset = mobileSheetObstructionPx > 0
+      ? viewportPxToCanvasPx(mobileSheetObstructionPx, size.h)
+      : 0;
+    const focusCenter = bottomInset > 0
+      ? computeMapFocusCenter(size.w, size.h, { bottom: bottomInset })
+      : { x: cx, y: cy };
+    animateToViewport(
+      panViewportToLogicalPoint(nodeCenter, focusCenter.x, focusCenter.y, mapViewportRef.current),
+    );
+  }, [focusGoalId, longTermGoal.id, mergedPositions, cx, cy, size.w, size.h, mobileSheetObstructionPx, animateToViewport]);
 
   const goalNodeAdapter = useMemo(
     () => createGoalNodeAdapter({
@@ -188,10 +244,13 @@ export function GoalGraph({
   const beginPan = useCallback((clientX: number, clientY: number) => {
     clearPanListeners();
     clearDragListeners();
+    // ユーザー操作は即時反映。進行中のプログラム移動を止めてからパンを開始する
+    cancelViewportAnimation();
     const startPan = { ...mapViewportRef.current };
     const startPointer = { x: clientX, y: clientY };
 
     const handlePointerMove = (ev: PointerEvent) => {
+      if (document.body.classList.contains('goal-sheet-dragging')) return;
       const dx = ev.clientX - startPointer.x;
       const dy = ev.clientY - startPointer.y;
       setMapViewport({
@@ -208,10 +267,12 @@ export function GoalGraph({
     panListenersRef.current = { move: handlePointerMove, up: handlePointerUp };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [clearPanListeners, clearDragListeners]);
+  }, [clearPanListeners, clearDragListeners, cancelViewportAnimation]);
 
   const onCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
+    if (document.body.classList.contains('goal-sheet-dragging')) return;
+    if ((e.target as Element).closest?.('.goal-detail-sheet')) return;
     e.preventDefault();
     e.stopPropagation();
     beginPan(e.clientX, e.clientY);
@@ -219,19 +280,21 @@ export function GoalGraph({
 
   const onSvgPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 1) return;
+    if (document.body.classList.contains('goal-sheet-dragging')) return;
     e.preventDefault();
     beginPan(e.clientX, e.clientY);
   }, [beginPan]);
 
   const onSvgWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
+    cancelViewportAnimation();
     const svgPoint = clientToSvgPoint(e.clientX, e.clientY);
     if (!svgPoint) return;
 
     const zoomFactor = e.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
     const { cx: vcx, cy: vcy } = viewportRef.current;
     setMapViewport((prev) => zoomViewportAtPoint(svgPoint, vcx, vcy, prev, zoomFactor));
-  }, [clientToSvgPoint]);
+  }, [clientToSvgPoint, cancelViewportAnimation]);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -242,10 +305,11 @@ export function GoalGraph({
   }, [onSvgWheel]);
 
   const onZoomSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    cancelViewportAnimation();
     const newScale = Number(e.target.value) / 100;
     const { cx: vcx, cy: vcy } = viewportRef.current;
     setMapViewport((prev) => setViewportScaleAtCenter(vcx, vcy, prev, newScale));
-  }, []);
+  }, [cancelViewportAnimation]);
 
   useEffect(() => () => clearDragListeners(), [clearDragListeners]);
 
@@ -292,12 +356,16 @@ export function GoalGraph({
     dragStartRef.current = null;
   }, [mergedPositions, onPositionCommit]);
 
-  const onNodeMouseDown = useCallback((e: React.MouseEvent, id: string) => {
+  const onNodePointerDown = useCallback((e: React.PointerEvent, id: string) => {
     if (e.button !== 0) return;
+    if (document.body.classList.contains('goal-sheet-dragging')) return;
+    if ((e.target as Element).closest?.('.goal-detail-sheet')) return;
     if (!canDragGoal(id, id === longTermGoal.id)) return;
     e.stopPropagation();
+    e.preventDefault();
     clearPanListeners();
     clearDragListeners();
+    cancelViewportAnimation();
     dragOverlayRef.current = {};
     setDragOverlay(null);
 
@@ -316,6 +384,7 @@ export function GoalGraph({
     };
 
     const handlePointerMove = (ev: PointerEvent) => {
+      if (document.body.classList.contains('goal-sheet-dragging')) return;
       if (!dragRef.current || !svgRef.current) return;
       const moveSvgP = clientToSvgPoint(ev.clientX, ev.clientY);
       if (!moveSvgP) return;
@@ -335,7 +404,7 @@ export function GoalGraph({
     dragListenersRef.current = { move: handlePointerMove, up: handlePointerUp };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [longTermGoal.id, clearDragListeners, clearPanListeners, commitDraggedPosition, canDragGoal, clientToSvgPoint]);
+  }, [longTermGoal.id, clearDragListeners, clearPanListeners, cancelViewportAnimation, commitDraggedPosition, canDragGoal, clientToSvgPoint]);
 
   const onNodeContextMenu = useCallback((e: React.MouseEvent, goal: Goal) => {
     e.preventDefault();
@@ -355,6 +424,16 @@ export function GoalGraph({
     setContextMenu({ goal, x, y });
   }, [onSelectNode, clearDragListeners]);
 
+  const getDisplayMode = useCallback(
+    (goalId: string): GoalDisplayMode => goalDisplayModes[goalId] ?? 'full',
+    [goalDisplayModes],
+  );
+
+  const isNodeVisible = useCallback(
+    (goalId: string) => getDisplayMode(goalId) !== 'hidden',
+    [getDisplayMode],
+  );
+
   const goalById = useMemo(() => {
     const map = new Map<string, Goal>();
     map.set(longTermGoal.id, longTermGoal);
@@ -372,6 +451,9 @@ export function GoalGraph({
     fromId: string, toId: string,
     dashed: boolean, color: string, opacity: number
   ) => {
+    // どちらかが hidden なら線も描かない（ghost↔full などは維持）
+    if (!isNodeVisible(fromId) || !isNodeVisible(toId)) return;
+
     const a = displayPositions[fromId];
     const b = displayPositions[toId];
     if (!a || !b) return;
@@ -467,7 +549,10 @@ export function GoalGraph({
           {allGoals.map((goal) => {
             const p = displayPositions[goal.id];
             if (!p) return null;
+            if (!isNodeVisible(goal.id)) return null;
 
+            const displayMode = getDisplayMode(goal.id);
+            const isGhost = displayMode === 'ghost';
             const isLongTerm = goal.type === 'long';
             const isPlacementTarget = placementMode
               ? movableGoalIdSet.has(goal.id)
@@ -488,7 +573,7 @@ export function GoalGraph({
                   placementMode && !isPlacementTarget ? 'goal-node--placement-locked' : '',
                 ].filter(Boolean).join(' ')}
                 style={{ cursor: isDraggable ? 'grab' : 'default' }}
-                onMouseDown={(e) => onNodeMouseDown(e, goal.id)}
+                onPointerDown={(e) => onNodePointerDown(e, goal.id)}
               >
                 <foreignObject
                   x={-GOAL_CARD_WIDTH / 2}
@@ -505,6 +590,7 @@ export function GoalGraph({
                       progress={progress}
                       categoryColor={goalNodeAdapter.toCategoryColor(goal)}
                       selected={goal.id === selectedId}
+                      variant={isGhost ? 'ghost' : 'default'}
                       density="full"
                       onClick={() => {
                         if (skipClickRef.current) {
