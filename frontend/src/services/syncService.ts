@@ -337,6 +337,27 @@ const flushCrdtChanges = async (): Promise<void> => {
   }
 };
 
+// ─── CRDT更新通知（UI再取得のトリガー） ────────────────────────
+// pullCrdtChanges() は Dexie(db.tasks/db.goals) までは書き戻すが、
+// React側の state は loadFromDB() を呼ばない限り更新されない。
+// useLocalData 側からこれを購読してもらい、実際に他端末発の変更を
+// 取り込めた時だけ画面の再読み込みをトリガーする。
+const CRDT_UPDATED_EVENT = 'mokuvation:crdt-updated';
+
+const notifyCrdtUpdated = (): void => {
+  window.dispatchEvent(new CustomEvent(CRDT_UPDATED_EVENT));
+};
+
+/**
+ * 他端末発のCRDT変更が取り込まれてDexieが更新された時に呼ばれる
+ * コールバックを登録する。戻り値の関数を呼ぶと購読解除できる。
+ */
+export const onCrdtUpdated = (callback: () => void): (() => void) => {
+  const handler = () => callback();
+  window.addEventListener(CRDT_UPDATED_EVENT, handler);
+  return () => window.removeEventListener(CRDT_UPDATED_EVENT, handler);
+};
+
 /**
  * サーバー側 crdt_changes の未取得分（他端末発の変更を含む）を取得し、
  * ローカルのAutomergeドキュメントへマージする。
@@ -359,10 +380,59 @@ export const pullCrdtChanges = async (): Promise<void> => {
     //    changes.length === 0 でも呼んでおくことで、
     //    reconcile由来の差分やdoc上の削除も取りこぼさない。
     await syncDocToDexie();
+
+    // ✅ 実際に他端末発の変更を取り込めた時だけ、画面側へ再取得を促す。
+    //    変更が無い(=毎回のポーリングの大半)場合は無駄な再レンダリングを
+    //    避けるため、通知しない。
+    if (changes.length > 0) {
+      notifyCrdtUpdated();
+    }
   } catch (err) {
     console.warn('[syncService] pullCrdtChanges 失敗:', err);
   }
 };
+
+// ─── 疑似リアルタイム同期（CRDTの短間隔ポーリング） ──────────────
+// 「オンライン復帰時にだけpullする」のままだと、両端末がオンラインの
+// 状態でも他端末発の変更が画面に反映されるまで長時間放置されうる。
+// WebSocketのような真の即時push(数百ms〜1秒)ではないが、
+// 数秒おきに /api/crdt/pull を叩くだけで「気付いたら反映されている」
+// 体感リアルタイムを、既存構成のまま・低コストで実現できる。
+const CRDT_POLL_INTERVAL_MS = 7_000;
+
+const canPollCrdt = (): boolean =>
+  isOnline() && !!getCachedUserId() && !!localStorage.getItem('auth_token');
+
+let _crdtPollTimer: ReturnType<typeof setInterval> | null = null;
+const startCrdtPolling = () => {
+  if (_crdtPollTimer) return;
+  _crdtPollTimer = setInterval(() => {
+    if (!document.hidden && canPollCrdt()) void pullCrdtChanges();
+  }, CRDT_POLL_INTERVAL_MS);
+};
+const stopCrdtPolling = () => {
+  if (_crdtPollTimer) { clearInterval(_crdtPollTimer); _crdtPollTimer = null; }
+};
+
+// タブが非表示の間はポーリングを止め、フォアグラウンドに戻ったら
+// 次のインターバルを待たず即座に1回pullしてからポーリングを再開する
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopCrdtPolling();
+  } else {
+    if (canPollCrdt()) void pullCrdtChanges();
+    startCrdtPolling();
+  }
+});
+window.addEventListener('online', () => {
+  if (canPollCrdt()) void pullCrdtChanges();
+  startCrdtPolling();
+});
+window.addEventListener('offline', stopCrdtPolling);
+
+// 起動時にポーリング開始（ログイン前はcanPollCrdt()がfalseなので実質no-op、
+// ログイン後は次のtickから自動的に動き出す）
+startCrdtPolling();
 
 export const flushQueue = async (): Promise<void> => {
   if (!isOnline()) return;

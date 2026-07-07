@@ -12,7 +12,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Task } from '../types';
 import type { LocalTask, LocalGoal } from '../services/db';
 import { db } from '../services/db';
-import { syncFromServer, flushQueue, isOnline, checkConnectivity } from '../services/syncService';
+import { syncFromServer, flushQueue, isOnline, checkConnectivity, onCrdtUpdated } from '../services/syncService';
 
 // ─── DB の LocalTask → フロント共通型 Task への変換 ─────────────
 
@@ -131,6 +131,16 @@ export const useLocalData = (enabled: boolean = false) => {
       })();
     }
   }, [online, enabled, sync]);
+
+  // ── 他端末発のCRDT変更が取り込まれた時に画面を再取得 ──────────
+  // pullCrdtChanges()（syncService内の短間隔ポーリング）が
+  // Dexieを更新した時にこのイベントが飛んでくる。
+  // API通信は既に完了済みなので、ここでは loadFromDB() で
+  // Dexie→state の反映だけ行えばよい。
+  useEffect(() => {
+    if (!enabled) return;
+    return onCrdtUpdated(() => { void loadFromDB(); });
+  }, [enabled, loadFromDB]);
 
   // ── tasks の楽観的更新ヘルパー ───────────────────────────────
 
