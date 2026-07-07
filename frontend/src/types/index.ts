@@ -59,7 +59,7 @@ export interface Task {
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
 
-export type Page = 'login' | 'top' | 'calendar' | 'goals';
+export type Page = 'login' | 'top' | 'calendar' | 'goals'|'settings';
 
 // ─── Graph ───────────────────────────────────────────────────────────────────
 

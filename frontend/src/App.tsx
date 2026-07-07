@@ -10,6 +10,11 @@ import { CalendarPage } from './pages/CalendarPage';
 import { GoalsPage }   from './pages/GoalsPage';
 import { authApi } from './features/auth/api/authApi';
 import { taskApi } from './features/tasks/api/taskApi';
+import { SettingsPage } from './pages/SettingsPage';
+
+// ── 【追加インポート】モーダルとコンテンツの読み込み ────────────────
+import { Modal } from './components/common/Modal'; 
+import { HelpContent, TermsContent, PrivacyContent } from './components/common/ModalContents';
 
 // ── DBレスポンス（snake_case）→ フロント共通型（camelCase）変換 ────────────────
 // この関数を通せばどこから来たデータでも必ず同じ型になる
@@ -51,6 +56,10 @@ function AppContent() {
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const [tasks, setTasks] = useState<Task[]>([]);
   const requestGoalsLeave = useGoalsLeaveRequest();
+
+  // ── 【追加ステート】開いているモーダルの種類を管理 ────────────────
+  const [activeModal, setActiveModal] = useState<'none' | 'help' | 'terms' | 'privacy'>('none');
+  const closeModal = () => setActiveModal('none');
 
   const handleNavigate = useCallback((nextPage: Page) => {
     if (nextPage === page) return;
@@ -184,20 +193,51 @@ function AppContent() {
   }
 
   return (
-    <Layout currentPage={page} onNavigate={handleNavigate} onLogout={handleLogout} user={user}>
-      {page === 'top' && (
-        <TopPage
-          tasks={tasks}
-          onToggle={handleToggleTask}
-          onAddTask={handleAddTask}
-          onDeleteTask={handleDeleteTask}
-          user={user}
-        />
+    <>
+      <Layout currentPage={page} onNavigate={handleNavigate} onLogout={handleLogout} user={user}>
+        {page === 'top' && (
+          <TopPage
+            tasks={tasks}
+            onToggle={handleToggleTask}
+            onAddTask={handleAddTask}
+            onDeleteTask={handleDeleteTask}
+            user={user}
+          />
+        )}
+        {page === 'calendar' && <CalendarPage />}
+        {page === 'goals' && (
+          <GoalsPage shortTermGoals={shortTermGoals} tasks={tasks} />
+        )}
+        
+        {/* 💡 コピペ解決部分：SettingsPageに必要な関数やステートをバインドしました */}
+        {page === 'settings' && (
+          <SettingsPage 
+            onOpenHelp={() => setActiveModal('help')}
+            onOpenTerms={() => setActiveModal('terms')}
+            onOpenPrivacy={() => setActiveModal('privacy')}
+            onLogout={handleLogout}
+          />
+        )}
+      </Layout>
+
+      {/* ── 【追加】条件が一致した時だけモーダルを表示する処理 ──────────────── */}
+      {activeModal === 'help' && (
+        <Modal title="目標マップ ヘルプ" onClose={closeModal}>
+          <HelpContent />
+        </Modal>
       )}
-      {page === 'calendar' && <CalendarPage />}
-      {page === 'goals' && (
-        <GoalsPage shortTermGoals={shortTermGoals} tasks={tasks} />
+
+      {activeModal === 'terms' && (
+        <Modal title="利用規約" onClose={closeModal}>
+          <TermsContent />
+        </Modal>
       )}
-    </Layout>
+
+      {activeModal === 'privacy' && (
+        <Modal title="プライバシーポリシー" onClose={closeModal}>
+          <PrivacyContent />
+        </Modal>
+      )}
+    </>
   );
 }
