@@ -134,6 +134,42 @@ export function setViewportScaleAtCenter(
   };
 }
 
+/** 論理座標の一点が画面中央に来るようパンを調整（倍率は維持） */
+export function panViewportToLogicalPoint(
+  logical: NodePosition,
+  centerX: number,
+  centerY: number,
+  viewport: MapViewport,
+): MapViewport {
+  return {
+    ...viewport,
+    panX: -logical.x * viewport.scale,
+    panY: -logical.y * viewport.scale,
+  };
+}
+
+/** インセットを除いた表示領域の中心（キャンバス座標） */
+export function computeMapFocusCenter(
+  canvasWidth: number,
+  canvasHeight: number,
+  insets?: { top?: number; bottom?: number },
+): NodePosition {
+  const top = insets?.top ?? 0;
+  const bottom = insets?.bottom ?? 0;
+  return {
+    x: canvasWidth / 2,
+    y: top + (canvasHeight - top - bottom) / 2,
+  };
+}
+
+/** ビューポート px をキャンバス座標へ概算変換 */
+export function viewportPxToCanvasPx(viewportPx: number, canvasSize: number): number {
+  if (typeof window === 'undefined') return viewportPx;
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  if (viewportHeight <= 0) return viewportPx;
+  return viewportPx * (canvasSize / viewportHeight);
+}
+
 /** 指定した SVG 座標を中心にズーム（ホイール用） */
 export function zoomViewportAtPoint(
   svgPoint: { x: number; y: number },

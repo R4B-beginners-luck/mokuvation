@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTaskMutations } from '../hooks/useTaskMutations';
 import { taskApi } from '../api/taskApi';
 import type { Task } from '../types';
+import { DatePickerField } from '../../../components/ui/DatePickerField/DatePickerField';
+import { getTodayApiDate } from '../../../components/ui/DatePickerField/dateUtils';
 
 interface TaskAddModalProps {
   goalId?: string | null;
@@ -18,12 +20,7 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
   
   const [scheduledAt, setScheduledAt] = useState(() => {
     if (initialDate) return initialDate;
-    
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    return getTodayApiDate();
   });
   
   const [selectedGoalId, setSelectedGoalId] = useState<string>(goalId || '');
@@ -125,10 +122,11 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
           </div>
 
           <div className="form-field">
-            <label>実行予定日</label>
-            <input 
-              className="form-input" type="date" 
-              value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
+            <label htmlFor="task-scheduled-date">実行予定日</label>
+            <DatePickerField
+              id="task-scheduled-date"
+              value={scheduledAt}
+              onChange={setScheduledAt}
               disabled={isLoading}
             />
           </div>

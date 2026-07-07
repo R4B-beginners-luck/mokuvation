@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Page, ShortTermGoal, Task, User } from './types';
 import { shortTermGoalsInitial } from './data/dummy';
 import { Layout }      from './layouts/Layout';
+import { GoalsLeaveGuardProvider, useGoalsLeaveRequest } from './layouts/GoalsLeaveGuardContext';
 import { LoginPage }   from './pages/LoginPage';
 import Splash from './components/Splash/Splash';
 import { TopPage }     from './pages/TopPage';
@@ -15,6 +16,14 @@ import { updateTaskLocally, deleteTaskLocally, cacheUserId, isOnline, isNetworkF
 import { crdtToggleTask, crdtAddTask, crdtDeleteTask } from './services/crdtStore';
 
 export default function App() {
+  return (
+    <GoalsLeaveGuardProvider>
+      <AppContent />
+    </GoalsLeaveGuardProvider>
+  );
+}
+
+function AppContent() {
   const [page, setPage]             = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);

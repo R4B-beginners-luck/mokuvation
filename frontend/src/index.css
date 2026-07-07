@@ -72,6 +72,7 @@
   /* Layout */
   --sidebar-width: 220px;
   --sidebar-collapsed: 64px;
+  --sidebar-secondary-width: 220px;
   --bottom-nav-height: 56px;
 }
 
@@ -122,8 +123,15 @@ a { text-decoration: none; color: inherit; }
   height: 100vh;
 }
 
+.app-shell__sidebars {
+  display: flex;
+  flex-shrink: 0;
+  height: 100vh;
+}
+
 .page-content {
   flex: 1;
+  height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -131,12 +139,18 @@ a { text-decoration: none; color: inherit; }
 }
 
 @media (max-width: 768px) {
+  .app-shell__sidebars {
+    display: none;
+  }
+
   .page-content {
     padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   .page-content:has(.goals-page) {
     padding-bottom: 0;
+    flex: 1;
+    min-height: 0;
   }
 }
 
@@ -277,6 +291,308 @@ a { text-decoration: none; color: inherit; }
   .sidebar {
     display: none;
   }
+
+  .sidebar-secondary {
+    display: none;
+  }
+}
+
+/* ============================================================
+   SIDEBAR SECONDARY (goals map operations)
+   ============================================================ */
+.sidebar-secondary {
+  flex-shrink: 0;
+  width: var(--sidebar-secondary-width);
+  height: 100vh;
+  background: var(--bg-base);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  transition: width var(--dur-normal) var(--ease);
+}
+
+.sidebar-secondary:not(.sidebar-secondary--collapsed) {
+  transition: width var(--dur-normal) var(--ease) 0s;
+}
+
+.sidebar-secondary--collapsed {
+  width: 0;
+  border-right-color: transparent;
+  pointer-events: none;
+  transition: width var(--dur-normal) var(--ease) 0.1s;
+}
+
+.sidebar-secondary__inner {
+  width: var(--sidebar-secondary-width);
+  min-width: var(--sidebar-secondary-width);
+  height: 100%;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 0.12s var(--ease) 0.08s,
+    visibility 0s linear 0s;
+}
+
+.sidebar-secondary--collapsed .sidebar-secondary__inner {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.1s var(--ease) 0s,
+    visibility 0s linear 0.1s;
+}
+
+@media (min-width: 769px) {
+  .app-shell__sidebars {
+    position: relative;
+    width: var(--sidebar-collapsed);
+    min-width: var(--sidebar-collapsed);
+  }
+
+  .sidebar-secondary {
+    position: absolute;
+    left: var(--sidebar-collapsed);
+    top: 0;
+    z-index: 30;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
+  }
+}
+
+.goals-map-secondary-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--sp-5) var(--sp-4);
+  gap: var(--sp-4);
+  overflow: hidden;
+}
+
+.goals-map-secondary-panel__header {
+  flex-shrink: 0;
+}
+
+.goals-map-secondary-panel__title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.goals-map-secondary-panel__subtitle {
+  margin-top: var(--sp-1);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.goals-map-secondary-panel__list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.goals-map-secondary-panel__item {
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.goals-map-secondary-panel__item:hover:not(:disabled) {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.goals-map-secondary-panel__item--active {
+  background: rgba(232, 162, 52, 0.12);
+  border-color: var(--border-accent);
+  color: var(--accent-gold);
+}
+
+.goals-map-secondary-panel__item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.goals-map-secondary-panel__item-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goals-map-secondary-panel__actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+
+.goals-map-secondary-panel__add {
+  width: 100%;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.goals-map-secondary-panel__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.goals-map-secondary-panel__toggle:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.goals-map-secondary-panel__toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (min-width: 769px) {
+  .sidebar--rail {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 35;
+    width: var(--sidebar-collapsed);
+    min-width: var(--sidebar-collapsed);
+    overflow: hidden;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    transition: width 0.24s var(--ease), box-shadow 0.24s var(--ease);
+  }
+
+  .sidebar--rail:hover {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
+  }
+
+  .sidebar--rail .sidebar__surface {
+    width: 100%;
+    min-width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar--rail:hover .sidebar__surface {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+  }
+
+  .sidebar--rail .sidebar__brand {
+    justify-content: flex-start;
+    padding: var(--sp-5) var(--sp-4);
+    gap: var(--sp-3);
+    flex-shrink: 0;
+  }
+
+  .sidebar--rail:not(:hover) .sidebar__brand {
+    justify-content: center;
+    padding-left: var(--sp-3);
+    padding-right: var(--sp-3);
+  }
+
+  .sidebar--rail:not(:hover) .sidebar__name,
+  .sidebar--rail:not(:hover) .sidebar__nav-label {
+    display: none;
+  }
+
+  .sidebar--rail:hover .sidebar__name,
+  .sidebar--rail:hover .sidebar__nav-label {
+    display: block;
+    white-space: nowrap;
+    animation: sidebarRailLabelIn 0.16s 0.06s var(--ease) both;
+  }
+
+  .sidebar--rail .sidebar__nav {
+    align-items: stretch;
+    padding: var(--sp-4) var(--sp-3);
+  }
+
+  .sidebar--rail:not(:hover) .sidebar__nav-item {
+    justify-content: center;
+    gap: 0;
+    padding: var(--sp-3);
+  }
+
+  .sidebar--rail:hover .sidebar__nav-item {
+    justify-content: flex-start;
+    width: 100%;
+    padding: var(--sp-3);
+    gap: var(--sp-3);
+  }
+
+  .sidebar--rail .sidebar__nav-item.active::before {
+    left: 0;
+    width: 3px;
+    height: 70%;
+  }
+}
+
+@keyframes sidebarRailLabelIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sidebar__nav-label {
+  white-space: nowrap;
+}
+
+.sidebar__user-meta {
+  min-width: 0;
+}
+
+.sidebar__logout-icon {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.sidebar__logout-icon:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 /* ============================================================
@@ -1463,10 +1779,11 @@ a { text-decoration: none; color: inherit; }
    ============================================================ */
 .calendar-page {
   padding: var(--sp-6) var(--sp-8);
-  display: flex;              /* grid → flex に変更 */
-  flex-direction: column;     /* 縦方向に積む */
-  height: 100%;               /* min-height:100vh → height:100% */
-  overflow: hidden;           /* ページ自体はスクロールさせない */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   gap: var(--sp-4);
 }
 
@@ -1501,13 +1818,13 @@ a { text-decoration: none; color: inherit; }
   gap: 8px;
 }
 
-.calendar-page__content {     /* TSXに既にあるラッパーdiv */
-  flex: 1;                    /* 残り高さを全部使う */
+.calendar-page__content {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: var(--sp-6);
-  overflow: hidden;           /* 子要素のスクロールに委ねる */
-  min-height: 0;              /* flexアイテムの高さ縮小を許可 */
+  overflow: hidden;
 }
 
 /* カレンダー左列（凡例 + CalendarGrid） */
@@ -1837,6 +2154,9 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
+  height: calc((48px + var(--sp-3)) * 5);
+  overflow-y: auto;
+  padding-right: var(--sp-1);
 }
 
 /* ============================================================
@@ -1844,14 +2164,151 @@ a { text-decoration: none; color: inherit; }
    ============================================================ */
 .goals-page {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr;
   height: 100vh;
   overflow: hidden;
 }
 
-@media (max-width: 768px) {
+@media (min-width: 769px) {
   .goals-page {
-    height: calc(100vh - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
+    position: relative;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    height: 100vh;
+  }
+
+  .goals-page__graph-area {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+
+  .goals-page__desktop-detail {
+    grid-area: 1 / 1;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 300px;
+    z-index: 40;
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.35);
+    animation: slideInPanelRight 0.28s var(--ease);
+  }
+
+  .goals-page__desktop-detail--closing {
+    animation: slideOutPanelRight 0.26s var(--ease) forwards;
+    pointer-events: none;
+  }
+
+  .page-content:has(.goals-page) {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .goals-page__toolbar {
+    display: none;
+  }
+
+  .goals-page__header {
+    margin-bottom: 0;
+    position: absolute;
+    top: var(--sp-3);
+    left: var(--sp-3);
+    right: var(--sp-3);
+    z-index: 30;
+    pointer-events: none;
+  }
+
+  .goals-page__header > * {
+    pointer-events: auto;
+  }
+
+  .goals-page__placement-bar {
+    border-radius: var(--r-md);
+    background: rgba(31, 30, 36, 0.92);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+@keyframes slideInPanelRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutPanelRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@media (max-width: 768px) {
+  .page-content:has(.goals-page) {
+    padding: 0;
+    overflow: hidden;
+    height: calc(100dvh - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+  }
+
+  .goals-page {
+    grid-template-columns: 1fr;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .goals-page__graph-area {
+    position: relative;
+    padding: 0;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .goals-page--mobile .graph-canvas-wrap {
+    padding-top: 48px;
+  }
+
+  .goals-page__header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    margin: 0;
+    padding: var(--sp-2);
+    pointer-events: none;
+  }
+
+  .goals-page__header > * {
+    pointer-events: auto;
+  }
+
+  .goals-page__toolbar {
+    display: none;
+  }
+
+  .goals-page__placement-bar,
+  .goals-page__unsaved-notice,
+  .goals-page__position-notice {
+    border-radius: var(--r-md);
+    background: rgba(31, 30, 36, 0.92);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .goal-graph__zoom-control {
+    left: var(--sp-2);
+    right: auto;
+    bottom: var(--sp-2);
   }
 }
 
@@ -1859,17 +2316,29 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: var(--sp-6) var(--sp-6) var(--sp-6) var(--sp-8);
+  padding: 0;
+  position: relative;
+  height: 100%;
+  min-height: 0;
 }
 
 .goals-page__header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   margin-bottom: var(--sp-5);
   flex-shrink: 0;
   flex-wrap: wrap;
   gap: var(--sp-2);
+}
+
+.goals-page__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  width: 100%;
 }
 
 .goals-page__unsaved-notice {
@@ -1995,9 +2464,11 @@ a { text-decoration: none; color: inherit; }
 
 .graph-canvas-wrap {
   flex: 1;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  min-height: 0;
+  height: 100%;
+  background: var(--bg-base);
+  border: none;
+  border-radius: 0;
   overflow: hidden;
   position: relative;
 }
@@ -2009,6 +2480,28 @@ a { text-decoration: none; color: inherit; }
 }
 
 .graph-canvas-wrap svg.goal-graph__canvas:active { cursor: grabbing; }
+
+.graph-legend {
+  position: absolute;
+  left: var(--sp-2);
+  bottom: var(--sp-2);
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: rgba(31, 30, 36, 0.85);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-secondary);
+  max-width: calc(100% - var(--sp-4));
+}
+
+.graph-legend__item {
+  white-space: nowrap;
+}
 
 .goal-graph__background {
   cursor: default;
@@ -2151,6 +2644,45 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
+}
+
+.detail-panel__header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: calc(-1 * var(--sp-2)) 0 0;
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-panel__header-label {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.detail-panel__close {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+
+.detail-panel__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .goals-page > .goals-page__desktop-detail {
+    display: none;
+  }
 }
 
 .detail-panel__empty {
@@ -2353,6 +2885,459 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* ============================================================
+   GOAL DETAIL SHEET (mobile goals map)
+   ============================================================ */
+.goal-detail-sheet-root {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  width: 100%;
+  pointer-events: none;
+}
+
+.goal-detail-sheet {
+  pointer-events: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--sp-5) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+  transition: height 0.24s var(--ease);
+  touch-action: pan-y;
+  transform: translateY(0);
+}
+
+.goal-detail-sheet--enter {
+  animation: goalDetailSheetSlideIn 0.28s var(--ease);
+}
+
+.goal-detail-sheet--closing {
+  animation: goalDetailSheetSlideOut 0.26s var(--ease) forwards;
+  pointer-events: none;
+}
+
+@keyframes goalDetailSheetSlideIn {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes goalDetailSheetSlideOut {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.goal-detail-sheet--dragging {
+  transition: none;
+  touch-action: none;
+}
+
+body.goal-sheet-dragging .graph-canvas-wrap,
+body.goal-sheet-dragging .goal-graph__zoom-control {
+  pointer-events: none;
+}
+
+.goal-detail-sheet__drag-zone {
+  flex-shrink: 0;
+  padding: var(--sp-2) 0 0;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.goal-detail-sheet__drag-zone:active {
+  cursor: grabbing;
+}
+
+.goal-detail-sheet__handle {
+  width: 36px;
+  height: 4px;
+  margin: 0 auto var(--sp-2);
+  border-radius: var(--r-full);
+  background: rgba(240, 236, 224, 0.22);
+}
+
+.goal-detail-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  margin-bottom: var(--sp-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.goal-detail-sheet__title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.goal-detail-sheet__close {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+
+.goal-detail-sheet__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.goal-detail-sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-top: var(--sp-2);
+}
+
+.goal-detail-sheet__body--peek {
+  overflow: hidden;
+}
+
+.goal-detail-sheet__more {
+  width: 100%;
+  margin-top: var(--sp-3);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.detail-panel__peek {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.detail-panel__title--peek {
+  font-size: 16px;
+  margin-bottom: 0;
+}
+
+.detail-panel__peek-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-panel__peek-progress-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.detail-panel__peek-track {
+  height: 6px;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.detail-panel__peek-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width var(--dur-normal) var(--ease);
+}
+
+.detail-panel--embedded {
+  border-left: none;
+  padding: 0;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  gap: var(--sp-4);
+}
+
+@media (max-width: 768px) {
+  .app-shell:has(.goal-detail-sheet--open) .bottom-nav {
+    display: none;
+  }
+
+  .app-shell:has(.goal-detail-sheet--open) .goals-map-fab {
+    bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ============================================================
+   GOAL MAP — MOBILE LONG-TERM TABS
+   ============================================================ */
+.goal-lt-tabs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.goal-lt-tabs__scroll {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.goal-lt-tabs__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.goal-lt-tabs__tab {
+  flex: 0 0 auto;
+  max-width: 160px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+
+.goal-lt-tabs__tab:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.goal-lt-tabs__tab--active {
+  color: var(--accent-gold);
+  border-bottom-color: var(--accent-gold);
+  background: rgba(232, 162, 52, 0.06);
+}
+
+.goal-lt-tabs__tab--add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  max-width: 44px;
+  padding: 10px;
+  color: var(--text-primary);
+}
+
+.goal-lt-tabs__tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   GOAL MAP — MOBILE FAB (display toggles)
+   ============================================================ */
+.goals-map-fab {
+  position: fixed;
+  right: var(--sp-4);
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + var(--sp-4));
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  pointer-events: none;
+}
+
+.goals-map-fab__trigger,
+.goals-map-fab__menu {
+  pointer-events: auto;
+}
+
+.goals-map-fab__trigger {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast), transform var(--dur-fast);
+}
+
+.goals-map-fab__trigger:hover {
+  background: var(--bg-raised);
+}
+
+.goals-map-fab--open .goals-map-fab__trigger {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #1a1814;
+}
+
+.goals-map-fab__menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  animation: fadeInUp 0.18s var(--ease);
+}
+
+.goals-map-fab__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 10px 14px;
+  border-radius: var(--r-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  transition: background var(--dur-fast);
+}
+
+.goals-map-fab__action:hover {
+  background: var(--bg-raised);
+}
+
+/* ============================================================
+   GOAL MAP — POSITION SAVE BAR & TOAST
+   ============================================================ */
+.goal-position-leave-modal {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.goal-position-leave-modal__message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.goal-position-leave-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}
+
+.goal-position-leave-modal__save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.goal-position-save-bar {
+  position: fixed;
+  left: 50%;
+  bottom: var(--sp-5);
+  transform: translateX(-50%);
+  z-index: 44;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--r-full);
+  background: rgba(31, 30, 36, 0.94);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.2s var(--ease);
+}
+
+.goal-position-save-bar__message {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.goal-position-save-bar__save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 72px;
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+.goal-position-save-toast {
+  position: fixed;
+  left: 50%;
+  bottom: var(--sp-6);
+  transform: translateX(-50%);
+  z-index: 110;
+  padding: 12px 20px;
+  border-radius: var(--r-full);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  animation: fadeInUp 0.22s var(--ease);
+  pointer-events: none;
+}
+
+.goal-position-save-toast--success {
+  background: var(--color-success);
+  color: #102016;
+}
+
+.goal-position-save-toast--error {
+  background: rgba(200, 72, 72, 0.95);
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .goal-position-save-bar {
+    top: calc(48px + var(--sp-2));
+    bottom: auto;
+    left: var(--sp-3);
+    right: var(--sp-3);
+    transform: none;
+    justify-content: space-between;
+  }
+
+  .goal-position-save-toast {
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + var(--sp-4));
+  }
+
+  .app-shell:has(.goal-detail-sheet--open) .goal-position-save-toast {
+    bottom: calc(22vh + var(--sp-4));
+  }
+}
+
+@media (min-width: 769px) {
+  .goals-page {
+    position: relative;
+  }
+
+  .goal-lt-tabs,
+  .goals-map-fab {
+    display: none;
+  }
+}
+
+/* ============================================================
    PAGE HEADER UTILITY
    ============================================================ */
 .page-header {
@@ -2409,6 +3394,96 @@ a { text-decoration: none; color: inherit; }
   transition: background var(--dur-fast);
 }
 
+.demo-toggle:hover { background: var(--bg-hover); }
+/* ============================================================
+   RESPONSIVE - カレンダー画面
+   ============================================================ */
+
+/* タブレット以下（768px）: 2カラム → 1カラム縦積み */
+@media (max-width: 768px) {
+  .calendar-page {
+    padding: var(--sp-4) var(--sp-4);
+    height: auto;
+    overflow: visible;
+    min-height: 100%;
+  }
+
+  .calendar-page__content {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .calendar-page__grid-col {
+    overflow: visible;
+    min-height: 0;
+  }
+
+  .calendar-grid {
+    flex: none;
+  }
+
+  .calendar-grid__days {
+    flex: none;
+    grid-auto-rows: auto;   /* 固定値なし・コンテンツ分だけの高さ */
+  }
+
+  .calendar-day {
+    min-height: 52px;       /* 最低限タップできる高さだけ確保 */
+  }
+
+  .day-detail {
+    position: static;
+    height: auto;
+    margin-top: 0;          /* カレンダーとの隙間は gap で制御 */
+  }
+
+  .page-content {
+    overflow-y: auto;
+    height: auto;
+  }
+}
+
+/* スマホ（480px以下）: さらにコンパクトに */
+@media (max-width: 480px) {
+  .calendar-page {
+    padding: var(--sp-3) var(--sp-3);
+    gap: var(--sp-3);
+  }
+
+  .calendar-page__title {
+    font-size: 17px;
+  }
+
+  .calendar-nav__label {
+    font-size: 13px;
+    min-width: 100px;
+  }
+
+  .calendar-grid__weekday {
+    padding: var(--sp-1) 2px;
+    font-size: 10px;
+  }
+
+  .calendar-day {
+    min-height: 44px;
+    padding: var(--sp-1);
+  }
+
+  .calendar-day__num {
+    font-size: 11px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .calendar-day__dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .day-detail {
+    padding: var(--sp-3);
+  }
+}
 
 .demo-toggle:hover { background: var(--bg-hover); }
 
@@ -2441,6 +3516,17 @@ a { text-decoration: none; color: inherit; }
     padding-bottom: 84px;
   }
 
+  .app-shell:has(.goals-page) {
+    padding-bottom: 0;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-shell__sidebars {
+    display: none;
+  }
+
   /* 3. メインコンテンツのパディング調整（左右の余白をすっきり均等に） */
   .page-content {
     width: 100%;
@@ -2449,6 +3535,12 @@ a { text-decoration: none; color: inherit; }
     box-sizing: border-box;
     overflow-y: visible;
     overflow-x: hidden;
+  }
+
+  .page-content:has(.goals-page) {
+    padding: 0;
+    overflow: hidden;
+    height: calc(100dvh - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
   }
 
   /* 4. TopPage内の大枠コンテナを綺麗な1列のカード並びに */
@@ -2500,7 +3592,7 @@ a { text-decoration: none; color: inherit; }
     margin: 0;
   }
 
-  /* 9. 【全面改修】目標マップ（達成マップ）の親要素とカード全体のズレ・はみ出しを完全解消 */
+  /* 9. 目標マップ：スマホはマップ単体＋詳細ボトムシート（右列パネルは非表示） */
   .goals-page,
   .goal-map,
   .goals-container,
@@ -2509,10 +3601,24 @@ a { text-decoration: none; color: inherit; }
     max-width: 100%;
     box-sizing: border-box;
     margin: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .goals-page > .goals-page__desktop-detail {
+    display: none;
+  }
+
+  .goals-page__graph-area {
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch; /* 左寄せではなく、カードの横幅を100%に広げる */
+    min-height: 0;
+    height: 100%;
+  }
+
+  .goals-page__toolbar {
+    display: none;
   }
 
   /* 10. 【最重要】目標マップの3×3マトリクスグリッドをスマホ画面幅内に100%自動収縮させる */
@@ -2557,11 +3663,37 @@ a { text-decoration: none; color: inherit; }
   .top-page button {
     max-width: 100%;
   }
+}
+
+.top-page__streak-wrapper {
+  flex-shrink: 0;
+  width: 340px;
+}
+
+@media (max-width: 768px) {
+  .top-page__streak-wrapper {
+    width: 100%;
+  }
 
 
   /* ============================================================
-      SIDEBAR -> BOTTOM NAVIGATION VARIATION
-     ============================================================ */
+   RESPONSIVE: TABLET ADJUSTMENTS (1024px以下への対応)
+   ============================================================ */
+@media (max-width: 1024px) {
+  /* PC用の固定画面縛りを解除し、縦スクロールを可能にする */
+  html, body, #root, .app-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    overflow-x: hidden;
+  }
+
+  .app-shell {
+    flex-direction: column;
+  }
+
+  /* サイドバーをスマホ同様に下部ナビゲーション化、あるいは非表示に */
+  /* 今回はスマホと同じ下部ナビ形式へ切り替える設定を1024pxから適用 */
   .sidebar {
     position: fixed;
     bottom: 0;
@@ -2574,76 +3706,120 @@ a { text-decoration: none; color: inherit; }
     height: 64px;
     min-height: 64px;
     flex-direction: row;
-    background: var(--bg-surface);
     border-right: none;
     border-top: 1px solid var(--border);
-    padding: 0;
-    overflow: visible;
     z-index: 1000;
   }
-
-  .sidebar__brand,
-  .sidebar__footer {
+  .sidebar__brand, .sidebar__footer {
     display: none;
   }
-
   .sidebar__nav {
-    flex: 1 ;
+    flex: 1;
     display: flex;
     flex-direction: row;
     justify-content: space-around;
     align-items: center;
     padding: 0 var(--sp-2);
-    gap: 0;
-    margin: 0;
     height: 100%;
   }
-
   .sidebar__nav-item {
     flex: 1;
-    display: flex ;
-    flex-direction: column ;
-    align-items: center ;
-    justify-content: center ;
-    gap: 4px ;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     height: 100%;
-    padding: var(--sp-1) 0 ;
-    font-size: 11px ;
-    color: var(--text-secondary);
-    border-radius: 0 ;
-    background: transparent ;
+    font-size: 11px;
   }
-
-  .sidebar__nav-item.active {
-    color: var(--accent-gold);
-    background: rgba(232, 162, 52, 0.05) ;
-  }
-
   .sidebar__nav-item.active::before {
-    top: 0 ;
-    left: 50% ;
-    transform: translateX(-50%) ;
-    width: 40px ;
-    height: 3px ;
-    border-radius: 0 0 4px 4px ;
+    top: 0; left: 50%; transform: translateX(-50%); width: 40px; height: 3px;
   }
 
-  .sidebar__nav-icon {
-    font-size: 18px;
-    width: auto ;
-    margin: 0 ;
-    line-height: 1 ;
+  /* メインコンテンツを横幅いっぱいに広げる */
+  .page-content {
+    width: 100%;
+    padding: var(--sp-5) var(--sp-5) 84px var(--sp-5); /* 下部にナビ分の余白 */
   }
-}
 
-.top-page__streak-wrapper {
-  flex-shrink: 0;
-  width: 340px;
-}
+  /* トップページのグリッドを1カラムに強制変更 */
+  .top-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    padding: 0;
+  }
 
-@media (max-width: 768px) {
+  /* ヘッダー周りの要素が潰れないよう縦並び or 柔軟なレイアウトに */
+  .top-page__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-4);
+  }
+
+  /* 達成マップ（中央）と継続状況（右）のラッパーを幅100%に */
+  .week-check-map {
+    margin-left: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .week-check-map__content {
+    display: flex;
+    justify-content: space-between; /* 曜日アイコンを横いっぱいに均等配置 */
+    align-items: center;
+    width: 100%;
+  }
+
+  .week-check-map__days {
+    flex: 1;
+    display: flex;
+    justify-content: space-around; /* 曜日同士の間隔を等間隔にする */
+    margin-left: var(--sp-4); /* 「達成マップ」の文字との間の余白 */
+  }
+
   .top-page__streak-wrapper {
     width: 100%;
   }
 }
 
+/* ============================================================
+   TABLET ONLY (769px〜1024px): 達成マップを横幅いっぱいに引き伸ばす
+   ============================================================ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* 達成マップを包んでいる中央寄せラッパー（インラインstyleのdiv）を全幅化 */
+  .top-page__header > div[style*="justify-content: center"],
+  .top-page__header > div[style*="justify-content:center"] {
+    display: flex;
+    width: 100%;
+    flex: 1 1 100%;
+    justify-content: stretch;
+  }
+
+  /* 達成マップ本体をタブレット幅いっぱいに伸ばす（スマホ用の縮小は引き継がない） */
+  .week-check-map {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    margin-left: 0;
+    padding: var(--sp-3) var(--sp-5);
+  }
+
+  .week-check-map__checks {
+    gap: var(--sp-3);
+  }
+
+  /* タブレットでは900px用の縮小ルールより見やすいサイズに戻す */
+  .week-check-map__dot {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .week-check-map__day {
+    min-width: 0;
+  }
+}
+}

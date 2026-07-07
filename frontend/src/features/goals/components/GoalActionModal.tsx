@@ -3,6 +3,7 @@ import { Save, Trash2 } from 'lucide-react';
 import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal } from '../../../types';
 import { Modal } from '../../../components/Modal';
 import { ButtonSpinner } from '../../../components/ui/ButtonSpinner';
+import { DatePickerField } from '../../../components/ui/DatePickerField/DatePickerField';
 import { TODAY } from '../../../data/dummy';
 import { COLOR_PALETTE, DEFAULT_GOAL_COLOR } from '../../../const/colors';
 
@@ -274,12 +275,12 @@ export function GoalActionModal({
               期限
               <span className="form-field__optional">（任意）</span>
             </label>
-            <input
+            <DatePickerField
               id="goal-action-date"
-              className="form-input"
-              type="date"
               value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              onChange={setDueDate}
+              clearable
+              placeholder="未設定"
             />
           </div>
         )}
