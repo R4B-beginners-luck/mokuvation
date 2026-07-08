@@ -2253,6 +2253,17 @@ a { text-decoration: none; color: inherit; }
 }
 
 @media (max-width: 768px) {
+  html,
+  body,
+  .app-shell,
+  .page-content:has(.goals-page),
+  .goals-page,
+  .graph-canvas-wrap,
+  .goal-detail-sheet,
+  .goal-detail-sheet__body {
+    overscroll-behavior: none;
+  }
+
   .page-content:has(.goals-page) {
     padding: 0;
     overflow: hidden;
@@ -2305,10 +2316,48 @@ a { text-decoration: none; color: inherit; }
     box-shadow: var(--shadow-md);
   }
 
-  .goal-graph__zoom-control {
-    left: var(--sp-2);
-    right: auto;
-    bottom: var(--sp-2);
+  .goal-graph__zoom-control--mobile {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    background: rgba(31, 30, 36, 0.9);
+  }
+
+  .goal-graph__zoom-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    touch-action: manipulation;
+  }
+
+  .goal-graph__zoom-btn:focus-visible {
+    outline: 2px solid var(--accent-gold);
+    outline-offset: 2px;
+  }
+
+  .goal-graph__zoom-btn:active {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .goal-graph__zoom-label--mobile {
+    min-width: auto;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    padding: 2px 0;
   }
 }
 
@@ -2512,7 +2561,7 @@ a { text-decoration: none; color: inherit; }
   top: auto;
   right: var(--sp-4);
   bottom: var(--sp-4);
-  z-index: 5;
+  z-index: 55;
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -2546,6 +2595,21 @@ a { text-decoration: none; color: inherit; }
 .goal-graph__zoom-slider:focus-visible {
   outline: 2px solid var(--accent-gold);
   outline-offset: 2px;
+}
+
+/* モバイル縦型ズーム: viewport 基準で下部ナビ直上に固定（FAB と同方式） */
+@media (max-width: 768px) {
+  .goal-graph__zoom-control.goal-graph__zoom-control--mobile {
+    position: fixed;
+    left: auto;
+    right: var(--sp-2);
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + var(--sp-2));
+    z-index: 55;
+  }
+
+  .app-shell:has(.goal-detail-sheet--open) .goal-graph__zoom-control.goal-graph__zoom-control--mobile {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--sp-2));
+  }
 }
 
 .goals-page__loading,

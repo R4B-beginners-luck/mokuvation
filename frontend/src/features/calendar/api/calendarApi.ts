@@ -23,6 +23,7 @@ export async function fetchGoals(): Promise<Goal[]> {
     method: 'GET',
     headers: getHeaders(),
     credentials: 'include',
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -40,6 +41,7 @@ export async function fetchTasks(): Promise<Task[]> {
     method: 'GET',
     headers: getHeaders(),
     credentials: 'include',
+    cache: 'no-store',
   });
 
   if (!response.ok) {
