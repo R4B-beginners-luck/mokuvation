@@ -42,6 +42,29 @@ function AppContent() {
     optimisticDeleteTask,
   } = useLocalData(isLoggedIn);
 
+  // ── 直近ページの保存/復元 ────────────────────────────────────
+  // ⚠️ Service Workerの更新検知（main.tsx の updateSW(true)）や、
+  // オフライン→オンライン復帰時のブラウザリロード等で画面全体が
+  // 再読み込みされると、page は単なる React state なので毎回 'login'
+  // から初期化され、認証さえ通ればいつも 'top' に固定で戻ってしまう。
+  // カレンダー/目標マップを見ていたところに更新が入ると強制的にトップへ
+  // 飛ばされて煩わしい、という問題があったため、最後にいたページを
+  // localStorage に覚えておき、再読み込み後の自動ログイン時に復元する。
+  const LAST_PAGE_KEY = 'mokuvation_last_page';
+  const NAVIGABLE_PAGES: Page[] = ['top', 'calendar', 'goals'];
+
+  const getPersistedPage = (): Page => {
+    const saved = localStorage.getItem(LAST_PAGE_KEY);
+    return (NAVIGABLE_PAGES as string[]).includes(saved ?? '') ? (saved as Page) : 'top';
+  };
+
+  const handleNavigate = (nextPage: Page) => {
+    setPage(nextPage);
+    if ((NAVIGABLE_PAGES as string[]).includes(nextPage)) {
+      localStorage.setItem(LAST_PAGE_KEY, nextPage);
+    }
+  };
+
   // ── トークン検証による自動ログイン ──────────────────────────
   useEffect(() => {
     const verifyToken = async () => {
@@ -52,7 +75,8 @@ function AppContent() {
           setUser(userData);
           cacheUserId(userData.user_id); // オフライン作成用にキャッシュ
           setIsLoggedIn(true);
-          setPage('top');
+          // 更新等での自動再ログイン時は、最後にいたページへ戻す
+          setPage(getPersistedPage());
         } catch {
           localStorage.removeItem('auth_token');
           setIsLoggedIn(false);
@@ -70,7 +94,9 @@ function AppContent() {
       setUser(userData);
       cacheUserId(userData.user_id); // オフライン作成用にキャッシュ
       setIsLoggedIn(true);
+      // 明示的なログイン操作は、あえて毎回トップページから始める
       setPage('top');
+      localStorage.setItem(LAST_PAGE_KEY, 'top');
     } catch (error) {
       console.error('ログイン後のユーザー情報取得に失敗しました', error);
       localStorage.removeItem('auth_token');
@@ -85,6 +111,7 @@ function AppContent() {
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem(LAST_PAGE_KEY);
     setIsLoggedIn(false);
     setUser(null);
     setPage('login');
@@ -244,7 +271,7 @@ function AppContent() {
   }
 
   return (
-    <Layout currentPage={page} onNavigate={setPage} onLogout={handleLogout} user={user}>
+    <Layout currentPage={page} onNavigate={handleNavigate} onLogout={handleLogout} user={user}>
       {/* オフライン表示バナー */}
       {!isOnline() && (
         <div style={{
