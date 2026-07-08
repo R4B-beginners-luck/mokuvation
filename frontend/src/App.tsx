@@ -11,8 +11,8 @@ import { GoalsPage }   from './pages/GoalsPage';
 import { authApi }     from './features/auth/api/authApi';
 import { taskApi }     from './features/tasks/api/taskApi';
 import { useLocalData, localTaskToTask } from './hooks/useLocalData';
-import { db }          from './services/db';
-import { updateTaskLocally, deleteTaskLocally, cacheUserId, isOnline, isNetworkFailure } from './services/syncService';
+import { db, type LocalTask } from './services/db';
+import { updateTaskLocally, cacheUserId, isOnline, isNetworkFailure } from './services/syncService';
 import { crdtToggleTask, crdtAddTask, crdtDeleteTask } from './services/crdtStore';
 
 export default function App() {
@@ -147,28 +147,49 @@ function AppContent() {
   // ── タスク追加 ───────────────────────────────────────────────
   const handleAddTask = async (rawTask: any) => {
     // 呼び出し元によって渡されるオブジェクトの形が違う：
-    //   - TaskAddModal（useTaskMutations経由）→ 本物の Task（snake_case, created_at等あり）
+    //   - TaskAddModal（useTaskMutations経由）→ 実際には TodaySection/DayGoalList の
+    //     onSuccess ラッパーで camelCase(id/title/goalId/completed/date) に整形された
+    //     簡易オブジェクトが渡ってくる（goal_id/user_id は含まれない）
     //   - TopPage の「今日の目標を追加」モーダル → ShortTermGoal 由来（camelCase, created_at等なし）
-    // ここで created_at/updated_at に undefined を渡すと、Automerge が
-    // 「undefined は無効な値」として例外を投げてアプリが落ちるため、
-    // 必ずフォールバック（現在時刻 or null）を入れて正規化する。
-    const now = new Date().toISOString();
+    //
+    // ⚠️ 以前はここで rawTask.goal_id / rawTask.user_id を直接読んでいたが、
+    // TaskAddModal 経由の場合はどちらも存在しないため goal_id が null、
+    // user_id が空文字に化けて Dexie 上の正しいレコードを上書きしてしまっていた
+    // （オフラインで親目標付きタスクを作成→親目標が消える、の直接原因）。
+    // useTaskMutations.addTask()/createTaskOffline() は既に正しいデータを
+    // Dexie に書き込み済みなので、既存レコードがあればそれを正として使い、
+    // rawTask からの再構築で上書きしないようにする。
+    const id = String(rawTask.id);
+    const existing = await db.tasks.get(id);
 
-    const localTask = {
-      id:           String(rawTask.id),
-      user_id:      String(rawTask.user_id ?? ''),
-      goal_id:      rawTask.goal_id ?? rawTask.midTermGoalId ?? rawTask.longTermGoalId ?? null,
-      title:        rawTask.title,
-      description:  rawTask.description ?? null,
-      scheduled_at: rawTask.scheduled_at ?? rawTask.dueDate ?? null,
-      is_completed: Boolean(rawTask.is_completed ?? rawTask.completed ?? false),
-      completed_at: rawTask.completed_at ?? null,
-      created_at:   rawTask.created_at ?? now,
-      updated_at:   rawTask.updated_at ?? now,
-    };
+    let localTask: LocalTask;
+
+    if (existing) {
+      localTask = existing;
+    } else {
+      // ここに来るのは useTaskMutations を経由しない呼び出し元
+      // （例: 「今日の目標を追加」モーダル）のみ。
+      // created_at/updated_at に undefined を渡すと、Automerge が
+      // 「undefined は無効な値」として例外を投げてアプリが落ちるため、
+      // 必ずフォールバック（現在時刻 or null）を入れて正規化する。
+      const now = new Date().toISOString();
+      localTask = {
+        id,
+        user_id:      String(rawTask.user_id ?? user?.user_id ?? ''),
+        goal_id:      rawTask.goal_id ?? rawTask.goalId ?? rawTask.midTermGoalId ?? rawTask.longTermGoalId ?? null,
+        title:        rawTask.title,
+        description:  rawTask.description ?? null,
+        scheduled_at: rawTask.scheduled_at ?? rawTask.dueDate ?? null,
+        is_completed: Boolean(rawTask.is_completed ?? rawTask.completed ?? false),
+        completed_at: rawTask.completed_at ?? null,
+        created_at:   rawTask.created_at ?? now,
+        updated_at:   rawTask.updated_at ?? now,
+      };
+    }
 
     try {
-      // Dexie に保存
+      // Dexie に保存（既存レコードの場合は実質no-opだが、CRDT登録前に
+      // 最新状態を確定させる意味で明示的にputしておく）
       await db.tasks.put(localTask);
 
       // CRDT Doc に追加
@@ -183,38 +204,28 @@ function AppContent() {
 
   // ── タスク削除 ───────────────────────────────────────────────
   const handleDeleteTask = async (taskId: string) => {
+    // ⚠️ ここに来る時点で、呼び出し元(TaskDeleteConfirm)の
+    // useTaskMutations.removeTask() が既に
+    //   ・オンライン: taskApi.delete() でサーバーへ削除リクエスト送信
+    //   ・オフライン: sync_queue に delete 操作を登録
+    // ・db.tasks からの削除
+    // を完了させている。
+    // 以前はここでも taskApi.delete() や sync_queue への登録を
+    // もう一度行っていたため、同じタスクに対して削除が二重に走り、
+    //   ・オンライン時: 2回目の DELETE が 404 で失敗
+    //   ・オフライン時: sync_queue に delete が2件積まれ、
+    //     オンライン復帰後のflushQueueで1件が「タスクが見つかりません」で失敗
+    // という無駄なエラーを起こしていた。
+    // ここでの責務は「楽観的UI更新」と「CRDTドキュメントへの反映」だけにする。
     optimisticDeleteTask(taskId);
     crdtDeleteTask(taskId);
 
     try {
-      if (isOnline()) {
-        try {
-          await taskApi.delete(taskId);
-        } catch (error: any) {
-          if (error?.status === 404) {
-            // サーバー側に存在しない＝ローカルのみ作成されたタスク。正常扱い。
-            await db.tasks.delete(taskId);
-            return;
-          }
-          if (!isNetworkFailure(error)) throw error;
-          // 実際はオフライン → キューに積んでDexieから削除
-          await db.sync_queue.add({
-            entity:     'task',
-            operation:  'delete',
-            payload:    { id: taskId },
-            created_at: new Date().toISOString(),
-          });
-        }
-      } else {
-        // オフライン：deleteTaskLocally が Dexie削除 + キューイング + CRDT反映をまとめて行う
-        await deleteTaskLocally(taskId);
-      }
-      // Dexieから削除（delete pending IDとして保護されるので、次のsyncFromServerで復活しない）
-      // ※ オフライン分岐は deleteTaskLocally 内で既に削除済みだが、
-      //    Dexieのdeleteは存在しないキーに対しても安全（no-op）なのでそのまま呼んでOK
+      // removeTask() 側で既に削除済みのはずだが、
+      // 存在しないキーへの delete は安全な no-op なのでそのまま呼んでOK
       await db.tasks.delete(taskId);
     } catch (error: any) {
-      console.error('タスク削除に失敗しました', error);
+      console.error('タスク削除時のローカル反映に失敗しました', error);
       await sync();
     }
   };

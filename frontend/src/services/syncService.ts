@@ -146,6 +146,18 @@ const getQueueItemId = (payload: SyncQueueItem['payload']): string | null => {
 // ─── 全件同期（ログイン後・オンライン復帰時） ─────────────────────
 
 export const syncFromServer = async (): Promise<void> => {
+  // ✅ CRDTドキュメントの復元/最低限の初期化は、オンライン・オフラインに
+  //    関わらず必ず行う。
+  //    以前は isOnline() チェックの後（＝オンライン時にしか実行されない
+  //    処理の中）でしか initDoc() を呼んでいなかったため、オフライン状態で
+  //    アプリを起動・リロードすると doc.tasks / doc.goals が未定義のまま
+  //    残ってしまい、crdtAddTask() や crdtToggleTask() が
+  //    「Cannot set/read properties of undefined」で例外を投げて、
+  //    オフライン中はタスクの完了切替が視覚上効かなくなっていた。
+  //    initDoc() 自体は「既に初期化済みなら何もしない」ガードを持つので、
+  //    ここで毎回呼んでも無駄なコストにはならない。
+  await initDoc(await db.tasks.toArray(), await db.goals.toArray());
+
   if (!isOnline()) return;
 
   try {

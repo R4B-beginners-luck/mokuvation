@@ -7,7 +7,7 @@ import { TopPageSkeleton } from '../components/ui/TopPageSkeleton';
 import type { Task, User, ShortTermGoal, LongTermGoal, MidTermGoal } from '../types';
 import { goalApi, type BackendGoal } from '../features/goals/api/goalApi';
 import { db } from '../services/db';
-import { isOnline } from '../services/syncService';
+import { isOnline, isNetworkFailure } from '../services/syncService';
 import { localTaskToTask } from '../hooks/useLocalData';
 
 const MOTIVATIONAL_MESSAGES = [
@@ -102,8 +102,25 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
         }
 
         // 目標データを取得してフロント用型に変換する
+        // ⚠️ 以前は goalApi.getAll() が失敗した時にダミーデータ(longTermGoals等の
+        // 静的インポート)へフォールバックしていたため、オフライン時は実際の
+        // 目標と紐付かず、タスクの親目標表示が消えてしまっていた。
+        // GoalsPage.tsx と同様、Dexie(db.goals) からフォールバックするように揃える。
         try {
-          const backendGoals: BackendGoal[] = await goalApi.getAll();
+          let backendGoals: BackendGoal[];
+
+          if (isOnline()) {
+            try {
+              backendGoals = await goalApi.getAll();
+            } catch (err) {
+              if (!isNetworkFailure(err)) throw err;
+              console.warn('[TopPage] 目標取得に失敗。Dexieからフォールバックします。', err);
+              backendGoals = await db.goals.toArray();
+            }
+          } else {
+            backendGoals = await db.goals.toArray();
+          }
+
           const byId = new Map(backendGoals.map((g) => [String(g.id), g]));
 
           const findAncestor = (startId: string | null | undefined, targetType: string): BackendGoal | null => {
