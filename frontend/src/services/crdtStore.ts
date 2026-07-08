@@ -110,7 +110,10 @@ export const getDeviceId = (): string => {
 // spread演算子(...binary)はデータ量が多いとスタックオーバーフローするため
 // チャンク分割で安全にBase64変換する
 
-const CHUNK = 8192;
+// CHUNKは必ず3の倍数にすること。base64は3バイト単位で4文字に変換されるため、
+// 3の倍数でないと最終チャンク以外にも"="パディングが混入し、
+// 結合後の文字列が壊れたbase64（atobで復元不可）になる。
+const CHUNK = 8190; // 8192を3の倍数に切り下げた値（8190 = 2730 * 3）
 
 const binaryToBase64 = (binary: Uint8Array): string => {
   let b64 = '';
