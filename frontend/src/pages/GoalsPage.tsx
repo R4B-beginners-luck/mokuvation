@@ -17,13 +17,58 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { COLOR_PALETTE } from '../const/colors';
 import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
+import { Map, Plus } from 'lucide-react';
+import { db } from '../services/db';
+import type { LocalGoal, SyncQueueItem } from '../services/db';
+import { isOnline, isNetworkFailure } from '../services/syncService';
+import { crdtUpsertGoal, crdtDeleteGoal } from '../services/crdtStore';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { vhToViewportPx } from '../utils/viewport';
 import {
   GoalCelebrationOverlay,
   pickRandomGoalMessage,
   prefetchGoalCelebrationLottie,
   type GoalCelebrationSession,
 } from '../components/ui/celebration';
+
+// ─── オフライン用ユーティリティ ──────────────────────────────────
+
+const genUUID = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+      });
+
+const enqueueGoal = async (
+  operation: 'create' | 'update' | 'delete',
+  payload: SyncQueueItem['payload']
+): Promise<void> => {
+  await db.sync_queue.add({
+    entity: 'goal',
+    operation,
+    payload,
+    created_at: new Date().toISOString(),
+  });
+};
+
+/** BackendGoal → LocalGoal 変換 */
+const toLocalGoal = (g: BackendGoal): LocalGoal => ({
+  id:             g.id,
+  user_id:        '',
+  title:          g.title,
+  description:    g.description ?? null,
+  parent_goal_id: g.parent_goal_id ?? null,
+  period_type:    g.period_type,
+  due_at:         g.due_at ?? null,
+  is_completed:   g.is_completed,
+  color_code:     g.color_code ?? null,
+  position_x:     g.position_x ?? null,
+  position_y:     g.position_y ?? null,
+  created_at:     g.created_at,
+  updated_at:     g.created_at,
+});
 
 const DETAIL_CLOSE_MS = 280;
 
@@ -338,6 +383,24 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     }
   }, [demoShowCompleted, selectedGoal, goalDisplayModes]);
 
+  /** Dexie保存済みのGoalをBackendGoal形式に変換して返す（オフライン/フォールバック共用） */
+  const loadGoalsFromDexie = async (): Promise<BackendGoal[]> => {
+    const local = await db.goals.toArray();
+    return local.map((g) => ({
+      id:             g.id,
+      title:          g.title,
+      description:    g.description ?? null,
+      parent_goal_id: g.parent_goal_id ?? null,
+      period_type:    g.period_type as 'short' | 'middle' | 'long',
+      due_at:         g.due_at ?? null,
+      created_at:     g.created_at,
+      is_completed:   g.is_completed,
+      color_code:     g.color_code ?? null,
+      position_x:     g.position_x ?? null,
+      position_y:     g.position_y ?? null,
+    }));
+  };
+
   const loadGoals = async (preferredActiveLtId?: string, showLoadingUI = false): Promise<LoadedGoalsData | null> => {
     if (showLoadingUI) {
       setIsLoadingGoals(true);
@@ -346,7 +409,25 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setShowCompletedGoals(showCompletedGoals);
     
     try {
-      const goals = await goalApi.getAll();
+      let goals: BackendGoal[];
+
+      if (isOnline()) {
+        try {
+          goals = await goalApi.getAll();
+          // Dexieにキャッシュ
+          await db.goals.bulkPut(goals.map(toLocalGoal));
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → Dexieからフォールバック
+          // （CalendarPage側と同様の挙動に揃える。ここでフォールバックしないと
+          //   一時的な通信不良だけで目標マップが丸ごとエラー画面になってしまう）
+          console.warn('[GoalsPage] loadGoals: オンラインだが取得に失敗。Dexieからフォールバックします。', error);
+          goals = await loadGoalsFromDexie();
+        }
+      } else {
+        // オフライン：Dexieからフォールバック
+        goals = await loadGoalsFromDexie();
+      }
       const { longTermGoals, midTermGoals, shortTermGoals } = buildGoalTree(goals);
       const validGoalIds = new Set(goals.map((goal) => goal.id));
       const apiLongTermIds = new Set(
@@ -408,7 +489,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setSelectedGoal(goal);
     setFocusGoalId(goal.id);
     if (isMobileLayout) {
-      setMobileSheetHeightPx((window.innerHeight * 20) / 100);
+      setMobileSheetHeightPx(vhToViewportPx(20));
     }
   };
 
@@ -641,13 +722,41 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setPositionSaveNotice(null);
 
     try {
-      await goalApi.updatePositions({
-        positions: entries.map(([goal_id, position]) => ({
-          goal_id,
-          x: position.x,
-          y: position.y,
-        })),
-      });
+      let wentOffline = false;
+
+      if (isOnline()) {
+        try {
+          await goalApi.updatePositions({
+            positions: entries.map(([goal_id, position]) => ({
+              goal_id,
+              x: position.x,
+              y: position.y,
+            })),
+          });
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleConfirmPlacement: オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOffline = true;
+        }
+      }
+
+      if (!isOnline() || wentOffline) {
+        // オフライン（または送信失敗）：Dexieに位置を保存 + キューイング
+        for (const [goalId, position] of entries) {
+          const dbGoal = await db.goals.get(goalId);
+          if (dbGoal) {
+            const updated = { ...dbGoal, position_x: position.x, position_y: position.y };
+            await db.goals.put(updated);
+            crdtUpsertGoal(updated);
+          }
+        }
+        await enqueueGoal('update', {
+          positions: entries.map(([goal_id, position]) => ({
+            goal_id, x: position.x, y: position.y,
+          })),
+        });
+      }
 
       setSavedPositions((prev) => {
         const next = { ...prev };
@@ -685,13 +794,41 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setPositionSaveNotice(null);
 
     try {
-      await goalApi.updatePositions({
-        positions: entries.map(([goal_id, position]) => ({
-          goal_id,
-          x: position.x,
-          y: position.y,
-        })),
-      });
+      let wentOffline = false;
+
+      if (isOnline()) {
+        try {
+          await goalApi.updatePositions({
+            positions: entries.map(([goal_id, position]) => ({
+              goal_id,
+              x: position.x,
+              y: position.y,
+            })),
+          });
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleSavePositions: オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOffline = true;
+        }
+      }
+
+      if (!isOnline() || wentOffline) {
+        // オフライン（または送信失敗）：Dexieに位置を保存 + キューイング
+        for (const [goalId, position] of entries) {
+          const dbGoal = await db.goals.get(goalId);
+          if (dbGoal) {
+            const updated = { ...dbGoal, position_x: position.x, position_y: position.y };
+            await db.goals.put(updated);
+            crdtUpsertGoal(updated);
+          }
+        }
+        await enqueueGoal('update', {
+          positions: entries.map(([goal_id, position]) => ({
+            goal_id, x: position.x, y: position.y,
+          })),
+        });
+      }
 
       setSavedPositions((prev) => {
         const next = { ...prev };
@@ -778,22 +915,51 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     ));
 
     try {
-      const updatedGoal = await goalApi.update(goal.id, { is_completed: nextCompleted });
+      let wentOffline = false;
 
-      if (updatedGoal.is_completed !== nextCompleted) {
-        if (goal.type === 'long') {
-          setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
-        } else if (goal.type === 'mid') {
-          setMidTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
-        } else {
-          setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+      if (isOnline()) {
+        try {
+          const updatedGoal = await goalApi.update(goal.id, { is_completed: nextCompleted });
+
+          if (updatedGoal.is_completed !== nextCompleted) {
+            if (goal.type === 'long') {
+              setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+            } else if (goal.type === 'mid') {
+              setMidTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+            } else {
+              setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, updatedGoal.is_completed));
+            }
+            setSelectedGoal((prev) => (
+              prev?.id === goal.id ? { ...prev, completed: updatedGoal.is_completed } as Goal : prev
+            ));
+          }
+          // Dexieも更新
+          const dbGoal = await db.goals.get(goal.id);
+          if (dbGoal) {
+            const updated = { ...dbGoal, is_completed: nextCompleted };
+            await db.goals.put(updated);
+            crdtUpsertGoal(updated);
+          }
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleToggleCompleted: オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOffline = true;
         }
+      }
 
-        setSelectedGoal((prev) => (
-          prev?.id === goal.id ? { ...prev, completed: updatedGoal.is_completed } as Goal : prev
-        ));
+      if (!isOnline() || wentOffline) {
+        // オフライン（または送信失敗）：Dexie更新 + キューイング
+        const dbGoal = await db.goals.get(goal.id);
+        if (dbGoal) {
+          const updated = { ...dbGoal, is_completed: nextCompleted };
+          await db.goals.put(updated);
+          crdtUpsertGoal(updated);
+          await enqueueGoal('update', { id: goal.id, is_completed: nextCompleted });
+        }
       }
     } catch (error) {
+      // ロールバック
       if (goal.type === 'long') {
         setLongTermGoals((prev) => updateGoalCompleted(prev, goal.id, goal.completed ?? false));
       } else if (goal.type === 'mid') {
@@ -801,11 +967,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       } else {
         setShortTermGoals((prev) => updateGoalCompleted(prev, goal.id, goal.completed));
       }
-
       setSelectedGoal((prev) => (
         prev?.id === goal.id ? { ...prev, completed: goal.completed } as Goal : prev
       ));
-
       console.error('Goal completion toggle failed', error);
       setGoalLoadError('達成状態の更新に失敗しました。再度お試しください。');
     } finally {
@@ -823,7 +987,30 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setIsSavingGoal(true);
     try {
       const { goal } = goalAction;
-      await goalApi.delete(goal.id);
+      let wentOffline = false;
+
+      if (isOnline()) {
+        try {
+          await goalApi.delete(goal.id);
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleConfirmDeleteGoal: オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOffline = true;
+        }
+      }
+
+      if (!isOnline() || wentOffline) {
+        // オフライン（または送信失敗）：キューイング
+        await enqueueGoal('delete', { id: goal.id });
+      }
+
+      // ⚠️ 以前はオフライン分岐でしか db.goals.delete() していなかったため、
+      // オンラインで削除に成功した場合はDexieにゴーストレコードが残っていた
+      // （loadGoals() は bulkPut のみで、サーバーから消えたレコードの削除は行わないため）。
+      // 成功パスならどちらでも必ずローカルからも削除する。
+      await db.goals.delete(goal.id);
+      crdtDeleteGoal(goal.id);
 
       const preferredActiveLtId = goal.type === 'long'
         ? undefined
@@ -856,7 +1043,37 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           is_completed: payload.completed,
           color_code: payload.color_code ?? null,
         };
-        await goalApi.update(goal.id, updatePayload);
+
+        let wentOfflineOnEdit = false;
+
+        if (isOnline()) {
+          try {
+            await goalApi.update(goal.id, updatePayload);
+          } catch (error) {
+            if (!isNetworkFailure(error)) throw error;
+            // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+            console.warn('[GoalsPage] handleSaveGoalAction(edit): オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+            wentOfflineOnEdit = true;
+          }
+        }
+
+        if (!isOnline() || wentOfflineOnEdit) {
+          // オフライン（または送信失敗）：Dexie更新 + キューイング
+          const dbGoal = await db.goals.get(goal.id);
+          if (dbGoal) {
+            const updated = {
+              ...dbGoal,
+              title:        updatePayload.title ?? dbGoal.title,
+              description:  updatePayload.description ?? null,
+              due_at:       updatePayload.due_at ?? null,
+              is_completed: updatePayload.is_completed ?? dbGoal.is_completed,
+              color_code:   updatePayload.color_code ?? null,
+            };
+            await db.goals.put(updated);
+            crdtUpsertGoal(updated);
+            await enqueueGoal('update', { id: goal.id, ...updatePayload });
+          }
+        }
 
         const preferredActiveLtId = goal.type === 'long'
           ? goal.id
@@ -879,32 +1096,78 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         return;
       }
 
+      // ── create ──
+      const periodType = mode === 'add-long' || payload.goalType === 'long'
+        ? 'long'
+        : payload.goalType === 'mid' ? 'middle' : 'short';
+
       const createPayload: CreateGoalPayload = {
         title: payload.title,
         description: payload.description ?? null,
-        period_type: mode === 'add-long' || payload.goalType === 'long'
-          ? 'long'
-          : payload.goalType === 'mid'
-            ? 'middle'
-            : 'short',
+        period_type: periodType,
         due_at: payload.dueDate ?? null,
         parent_goal_id: payload.goalType === 'short'
           ? payload.midTermGoalId ?? payload.longTermGoalId ?? undefined
           : payload.longTermGoalId ?? undefined,
         color_code: payload.color_code ?? null,
       };
-      const createdGoal = await goalApi.create(createPayload);
 
-      const preferredActiveLtId = createdGoal.period_type === 'long'
-        ? createdGoal.id
+      let createdId: string;
+      let wentOfflineOnCreate = false;
+
+      if (isOnline()) {
+        try {
+          const createdGoal = await goalApi.create(createPayload);
+          createdId = createdGoal.id;
+          // Dexieにキャッシュ
+          const localGoal = toLocalGoal(createdGoal);
+          await db.goals.put(localGoal);
+          crdtUpsertGoal(localGoal);
+        } catch (error) {
+          if (!isNetworkFailure(error)) throw error;
+          // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
+          console.warn('[GoalsPage] handleSaveGoalAction(create): オンラインだが送信失敗。オフライン扱いにフォールバックします。', error);
+          wentOfflineOnCreate = true;
+          createdId = genUUID();
+        }
+      } else {
+        createdId = genUUID();
+      }
+
+      if (!isOnline() || wentOfflineOnCreate) {
+        // オフライン（または送信失敗）：生成済みUUIDでDexie保存 + キューイング
+        // ※ createdId はオンライン分岐のcatch内、またはelse分岐で既に生成済み
+        const now = new Date().toISOString();
+        const newLocalGoal: LocalGoal = {
+          id:             createdId,
+          user_id:        '',
+          title:          createPayload.title,
+          description:    createPayload.description ?? null,
+          parent_goal_id: createPayload.parent_goal_id ?? null,
+          period_type:    createPayload.period_type,
+          due_at:         createPayload.due_at ?? null,
+          is_completed:   false,
+          color_code:     createPayload.color_code ?? null,
+          position_x:     null,
+          position_y:     null,
+          created_at:     now,
+          updated_at:     now,
+        };
+        await db.goals.put(newLocalGoal);
+        crdtUpsertGoal(newLocalGoal);
+        await enqueueGoal('create', { id: createdId, ...createPayload });
+      }
+
+      const preferredActiveLtId = periodType === 'long'
+        ? createdId
         : payload.longTermGoalId;
 
       const data = await loadGoals(preferredActiveLtId);
       setGoalAction(null);
 
-      if (data && createdGoal.period_type !== 'long') {
+      if (data && periodType !== 'long') {
         const activeLongTermId = preferredActiveLtId ?? data.longTermGoals[0]?.id ?? '';
-        beginPlacementSession('add', [createdGoal.id], data, activeLongTermId);
+        beginPlacementSession('add', [createdId], data, activeLongTermId);
       } else {
         setSelectedGoal(null);
       }

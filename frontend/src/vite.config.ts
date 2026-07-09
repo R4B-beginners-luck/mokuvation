@@ -11,12 +11,25 @@ export default defineConfig({
     topLevelAwait(),
     react(),
     VitePWA({
-      registerType: 'prompt',
+      // ⚠️ registerType: 'prompt' のままだと、新しいSWが見つかっても
+      // アプリ側で明示的に updateSW(true) を呼ぶまでずっと「待機中」で止まる。
+      // 待機中のSWはまだ現在開いてるページを制御(control)していないため、
+      // その状態でオフラインにすると navigateFallback が一切効かず、
+      // ブラウザ本体の「インターネットに接続できません」ページが出てしまう。
+      // autoUpdate にすると、新しいSWが見つかり次第すぐ有効化・制御まで行うため、
+      // 「気づいたらオフライン対応が効いていない」状態を避けられる。
+      registerType: 'autoUpdate',
       injectRegister: false,
       devOptions: {
         enabled: false,
       },
       workbox: {
+        // registerType: 'autoUpdate' の場合デフォルトでもtrueだが、
+        // 「新しいSWをインストール後すぐ有効化し、既存タブもすぐ制御下に置く」
+        // 挙動を明示しておく（初回インストール直後にオフラインへ切り替える
+        // ようなテストでも、SWの制御が間に合わないケースを減らせる）。
+        skipWaiting: true,
+        clientsClaim: true,
         // キャッシュ対象ファイル
         // ⚠️ wasm が抜けていたため、Automerge(CRDT)が使う .wasm 本体が
         // オフライン時にキャッシュから読めず、起動処理が止まって画面が

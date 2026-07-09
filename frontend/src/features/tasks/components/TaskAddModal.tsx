@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTaskMutations } from '../hooks/useTaskMutations';
-import { taskApi } from '../api/taskApi';
+import { db } from '../../../services/db';
 import type { Task } from '../types';
 import { DatePickerField } from '../../../components/ui/DatePickerField/DatePickerField';
 import { getTodayApiDate } from '../../../components/ui/DatePickerField/dateUtils';
@@ -33,11 +33,16 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
     }
   }, [initialDate]);
 
+  // ✅ 目標一覧はAPIへ直接取りに行かず、Dexie(db.goals)から読む。
+  // db.goalsはsyncFromServer()で常に最新状態に保たれているローカルDBなので、
+  // オフライン中でもここから読めば親目標の選択肢が空にならない。
+  // （以前はtaskApi.getGoals()でAPIを直叩きしていたため、オフラインだと
+  //   fetch失敗→選択肢が空のまま→親目標を選べずタスク作成に支障が出ていた）
   useEffect(() => {
     const fetchGoals = async () => {
       try {
-        const data = await taskApi.getGoals();
-        setGoals(data);
+        const localGoals = await db.goals.toArray();
+        setGoals(localGoals);
       } catch (err) {
         console.error('目標一覧の取得に失敗しました', err);
       }

@@ -6,6 +6,9 @@ import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongT
 import { TopPageSkeleton } from '../components/ui/TopPageSkeleton';
 import type { Task, User, ShortTermGoal, LongTermGoal, MidTermGoal } from '../types';
 import { goalApi, type BackendGoal } from '../features/goals/api/goalApi';
+import { db } from '../services/db';
+import { isOnline, isNetworkFailure } from '../services/syncService';
+import { localTaskToTask } from '../hooks/useLocalData';
 
 const MOTIVATIONAL_MESSAGES = [
   '小さな一歩が、大きな目標への道になる。',
@@ -53,32 +56,72 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
         setIsLoadingTasks(true);
         setTaskLoadError(null);
 
-        const [fetchedTasks, summaryResponse] = await Promise.all([
-          taskApi.getTasks(),
-          fetch(`${API_BASE_URL}/api/dashboard/summary`, { 
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } 
-          })
-        ]);
+        let fetchedTasks: any[] | null = null;
+        let summaryResponse: Response | null = null;
+
+        const localDbTasks = (await db.tasks.toArray()).map(localTaskToTask);
+
+        if (isOnline()) {
+          try {
+            [fetchedTasks, summaryResponse] = await Promise.all([
+              taskApi.getTasks(),
+              fetch(`${API_BASE_URL}/api/dashboard/summary`, {
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+                cache: 'no-store',
+              }),
+            ]);
+          } catch (err) {
+            console.warn('サーバー取得に失敗したため、Dexie のローカルデータを使用します。', err);
+          }
+        }
 
         if (!mounted) return;
 
-        const formattedTasks: Task[] = fetchedTasks.map((t: any) => ({
+        const serverTasks = (fetchedTasks ?? []).map((t: any) => ({
           id: String(t.id),
           title: t.title,
           goalId: (t.goal_id && String(t.goal_id) !== '0') ? String(t.goal_id) : undefined,
           completed: Boolean(t.is_completed ?? t.completed),
           date: t.scheduled_at ? String(t.scheduled_at).substring(0, 10) : TODAY,
         }));
+
+        const taskById = new Map<string, Task>();
+        for (const task of serverTasks) {
+          taskById.set(task.id, task);
+        }
+        for (const task of localDbTasks) {
+          taskById.set(task.id, task);
+        }
+
+        const formattedTasks = Array.from(taskById.values());
+
         setLocalTasks(formattedTasks);
 
-        if (summaryResponse.ok) {
+        if (summaryResponse?.ok) {
           const summaryData = await summaryResponse.json();
           setSummary(summaryData);
         }
 
         // 目標データを取得してフロント用型に変換する
+        // ⚠️ 以前は goalApi.getAll() が失敗した時にダミーデータ(longTermGoals等の
+        // 静的インポート)へフォールバックしていたため、オフライン時は実際の
+        // 目標と紐付かず、タスクの親目標表示が消えてしまっていた。
+        // GoalsPage.tsx と同様、Dexie(db.goals) からフォールバックするように揃える。
         try {
-          const backendGoals: BackendGoal[] = await goalApi.getAll();
+          let backendGoals: BackendGoal[];
+
+          if (isOnline()) {
+            try {
+              backendGoals = await goalApi.getAll();
+            } catch (err) {
+              if (!isNetworkFailure(err)) throw err;
+              console.warn('[TopPage] 目標取得に失敗。Dexieからフォールバックします。', err);
+              backendGoals = await db.goals.toArray();
+            }
+          } else {
+            backendGoals = await db.goals.toArray();
+          }
+
           const byId = new Map(backendGoals.map((g) => [String(g.id), g]));
 
           const findAncestor = (startId: string | null | undefined, targetType: string): BackendGoal | null => {
@@ -153,7 +196,19 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
 
     loadDashboardData();
     return () => { mounted = false; };
+    // ⚠️ 依存配列に `tasks` を入れていたため、タスクの完了トグル・追加・削除の
+    // たびに（optimisticUpdateTask等が新しい配列参照を作るせいで）この
+    // useEffectが再発火し、isLoadingTasks(true) でスケルトンに戻った上、
+    // タスク/ダッシュボードサマリー/目標のAPIを毎回叩き直していた。
+    // → 操作するたびに画面がチラつく原因だったため、初回マウント時のみ実行する。
+    // ローカル操作後の表示更新は下の useEffect（setLocalTasks(tasks)）で
+    // 軽量に反映されるので、ここで tasks を監視する必要はない。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setLocalTasks(tasks);
+  }, [tasks]);
 
   const handleToggleWrapper = (id: string) => {
     setLocalTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
