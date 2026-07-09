@@ -2253,14 +2253,11 @@ a { text-decoration: none; color: inherit; }
 }
 
 @media (max-width: 768px) {
-  html,
-  body,
-  .app-shell,
+  /* 目標マップ画面のみ：iOS のゴムバンドを抑制（全体の html/body には当てない） */
   .page-content:has(.goals-page),
   .goals-page,
   .graph-canvas-wrap,
-  .goal-detail-sheet,
-  .goal-detail-sheet__body {
+  .goal-detail-sheet {
     overscroll-behavior: none;
   }
 
