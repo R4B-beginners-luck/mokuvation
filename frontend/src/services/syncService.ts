@@ -510,10 +510,39 @@ export const flushQueue = async (): Promise<void> => {
     }
 
     if (failed.length > 0) {
-      // 失敗した操作はキューに残し、次回オンライン復帰時に再送する。
-      // （対象が既に存在しない等、恒久的に失敗するケースも有り得るが、
-      //   黙って消すよりは安全なため、現状はリトライ任せにする）
-      console.warn('[syncService] flushQueue: 一部の操作が失敗しました', failed);
+      // ⚠️ 以前は「対象が既に存在しない等、恒久的に失敗するケースも
+      // 有り得るが、黙って消すよりは安全」という理由で、失敗した操作を
+      // 無条件にキューへ残していた。
+      // しかし 404（タスク/目標が既に存在しない）や 403/400
+      // （ユーザーIDが不正・バリデーション不備）は、同じペイロードを
+      // 何度再送しても絶対に成功しない「恒久的な失敗」であり、
+      // 残し続けると毎回同じエラーを吐きながら永遠に再送され続けるだけ
+      // になる（実際、キューにこの手の古い操作が溜まり続けて延々と
+      // コンソールにエラーが出続ける不具合が発生した）。
+      // 5xx（サーバー側の一時的な問題）や status コード不明のものだけ
+      // 「再送すれば直るかもしれない」ものとしてキューに残し、
+      // 4xx 系の恒久的失敗はここで諦めて捨てる。
+      const UNRECOVERABLE_CODES = [400, 403, 404];
+      const unrecoverableIds = items
+        .filter((_, i) => {
+          const r = results[i];
+          return r?.status === 'error' && UNRECOVERABLE_CODES.includes(Number((r as any).code));
+        })
+        .map((item) => item.id)
+        .filter((id): id is number => id !== undefined);
+
+      if (unrecoverableIds.length > 0) {
+        await db.sync_queue.bulkDelete(unrecoverableIds);
+        console.warn(
+          '[syncService] flushQueue: 恒久的に失敗する操作を破棄しました（対象が存在しない等）',
+          failed.filter((r) => UNRECOVERABLE_CODES.includes(Number((r as any).code))),
+        );
+      }
+
+      const stillRetryable = failed.filter((r) => !UNRECOVERABLE_CODES.includes(Number((r as any).code)));
+      if (stillRetryable.length > 0) {
+        console.warn('[syncService] flushQueue: 一部の操作が失敗しました（再送します）', stillRetryable);
+      }
     }
   } catch (err) {
     console.warn('[syncService] flushQueue 失敗:', err);

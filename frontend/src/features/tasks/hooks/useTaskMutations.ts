@@ -4,6 +4,7 @@ import type { CreateTaskPayload, Task } from '../types';
 import { db } from '../../../services/db';
 import type { LocalTask } from '../../../services/db';
 import { isOnline, cacheUserId, getCachedUserId, isNetworkFailure } from '../../../services/syncService';
+import { crdtUpsertTask, crdtDeleteTask } from '../../../services/crdtStore';
 
 // ─── ID 生成（オンライン・オフライン共通） ─────────────────────
 // crypto.randomUUID() で本物の UUID を生成し、作成時点でクライアントと
@@ -58,6 +59,10 @@ export const useTaskMutations = () => {
 
     try {
       await db.tasks.put(localTask);
+      // ✅ CRDT doc にも反映しておかないと、次の /api/crdt/pull ポーリング時に
+      // syncDocToDexie() が「doc に無いIDはstaleとして削除」してしまい、
+      // 作成した直後のタスクが数秒後に画面から消える原因になる。
+      await crdtUpsertTask(localTask);
       await db.sync_queue.add({
         entity:    'task',
         operation: 'create',
@@ -93,8 +98,7 @@ export const useTaskMutations = () => {
 
           const newTask = await taskApi.create(fullPayload);
 
-          // Dexie にもキャッシュ
-          await db.tasks.put({
+          const localNewTask: LocalTask = {
             id:           String(newTask.id),
             user_id:      String(newTask.user_id),
             goal_id:      newTask.goal_id ?? null,
@@ -105,7 +109,18 @@ export const useTaskMutations = () => {
             completed_at: newTask.completed_at ?? null,
             created_at:   newTask.created_at,
             updated_at:   newTask.updated_at,
-          });
+          };
+
+          // Dexie にもキャッシュ
+          await db.tasks.put(localNewTask);
+          // ✅ オンライン作成時も CRDT doc に追加しておく。これをしないと
+          // doc はこのタスクの存在を知らないままになり、次の
+          // /api/crdt/pull ポーリング（7秒毎）で syncDocToDexie() が
+          // 「doc に無いID」として作成直後のタスクを Dexie から削除して
+          // しまい、画面上でタスクが突然消えたように見える。
+          // また doc に無ければ crdt_changes にも push されないため、
+          // 他端末からもこの新規タスクを CRDT 経由で検知できなかった。
+          await crdtUpsertTask(localNewTask);
 
           return newTask;
         } catch (err: any) {
@@ -157,6 +172,11 @@ export const useTaskMutations = () => {
         });
       }
       await db.tasks.delete(taskId);
+      // ✅ CRDT doc からも削除しておく。これをしないと doc には削除済みの
+      // タスクがまだ残ったままになり、次の /api/crdt/pull ポーリングで
+      // syncDocToDexie() が doc の内容（＝まだ存在する状態）を Dexie に
+      // 書き戻してしまい、削除したはずのタスクが数秒後に復活してしまう。
+      await crdtDeleteTask(taskId);
       return true;
     } catch (err: any) {
       setError(err.data?.message || 'タスクの削除に失敗しました');

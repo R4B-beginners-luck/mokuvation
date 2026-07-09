@@ -254,9 +254,53 @@ export const initDoc = async (tasks: LocalTask[], goals: LocalGoal[]): Promise<v
         }
       });
       await _persistDoc();
+    } else if (!doc.tasks || !doc.goals) {
+      // ✅ 復元できたdocが、過去の不具合や中断された処理によって
+      // tasks/goals が無い壊れた形のまま Dexie に永続化されてしまって
+      // いた場合の自己修復。ここで直しておかないと、_ready = true の
+      // せいで二度と再初期化されず、以後 d.tasks[id] へのアクセスで
+      // 例外→ syncDocToDexie() が「全タスク無し」と誤認して全件削除、
+      // という「オフライン切り替わり時に全部消えた」不具合を繰り返す。
+      doc = Automerge.change(doc, (d) => {
+        ensureDocShape(d);
+      });
+      await _persistDoc();
     }
     _ready = true;
   }
+};
+
+// ─── 変更操作 ────────────────────────────────────────────────────
+// いずれも「docを更新 → 永続化 → push用キューに積む」の3点セット。
+// 呼び出し側（App.tsx / GoalsPage.tsx）は await せず fire-and-forget で
+// 呼んでいるが、返り値を Promise<void> にしても既存の呼び出し方は壊れない。
+
+// ─── docの形の自己修復 ────────────────────────────────────────────
+// d.tasks / d.goals が存在しない状態で d.tasks[id] のようなアクセスをすると
+// 「Cannot read properties of undefined (reading '<uuid>')」で例外になる。
+//
+// 本来 initDoc() で必ず d.tasks = {} / d.goals = {} を設定してから使う
+// 設計だったが、以下のケースでは d.tasks/d.goals が undefined のまま
+// 残ってしまう可能性があった:
+//   - restorePersistedDoc() が「壊れた・古い形のdoc」を復元し、
+//     かつ _ready = true をセットしてしまうため、initDoc() の
+//     再初期化ブロックが二度と実行されない
+//   - 回線が不安定な状況で複数の非同期処理（health check / online
+//     イベント / CRDTポーリング）がほぼ同時に走り、initDoc() の完了を
+//     待たずに crdtToggleTask() 等が先に doc を触ってしまう
+//
+// この状態で Automerge.change の中身が例外を投げると doc の更新自体が
+// 失敗するだけでなく、その後 getTasksFromDoc() が `doc.tasks ?? {}` で
+// 「タスク0件」を返し、syncDocToDexie() が「docに無いものは全部stale」
+// として Dexie 上の全タスク/全目標を削除してしまう
+// （＝回線不良時に「全部消えた」の直接の原因）。
+//
+// そのため、docを触る操作の直前に必ずこの関数を通し、
+// tasks/goals が存在しない場合はその場で空オブジェクトとして
+// 補完してから処理を続ける（＝自己修復し、二度と落ちないようにする）。
+const ensureDocShape = (d: MokuDoc): void => {
+  if (!d.tasks) d.tasks = {} as Record<string, TaskEntry>;
+  if (!d.goals) d.goals = {} as Record<string, GoalEntry>;
 };
 
 // ─── 変更操作 ────────────────────────────────────────────────────
@@ -268,6 +312,7 @@ export const initDoc = async (tasks: LocalTask[], goals: LocalGoal[]): Promise<v
 export const crdtToggleTask = async (taskId: string, isCompleted: boolean): Promise<void> => {
   const now = new Date().toISOString();
   doc = Automerge.change(doc, (d) => {
+    ensureDocShape(d);
     if (d.tasks[taskId]) {
       d.tasks[taskId].is_completed = isCompleted;
       d.tasks[taskId].completed_at = isCompleted ? now : '';
@@ -281,6 +326,7 @@ export const crdtToggleTask = async (taskId: string, isCompleted: boolean): Prom
 /** タスクを CRDT ドキュメントに追加・更新 */
 export const crdtUpsertTask = async (task: LocalTask): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
+    ensureDocShape(d);
     d.tasks[task.id] = normalizeTaskEntry(task);
   });
   await _persistDoc();
@@ -293,6 +339,7 @@ export const crdtAddTask = (task: LocalTask): Promise<void> => crdtUpsertTask(ta
 /** タスクを CRDT ドキュメントから削除 */
 export const crdtDeleteTask = async (taskId: string): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
+    ensureDocShape(d);
     delete d.tasks[taskId];
   });
   await _persistDoc();
@@ -302,6 +349,7 @@ export const crdtDeleteTask = async (taskId: string): Promise<void> => {
 /** 目標を CRDT ドキュメントに追加・更新 */
 export const crdtUpsertGoal = async (goal: LocalGoal): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
+    ensureDocShape(d);
     d.goals[goal.id] = normalizeGoalEntry(goal);
   });
   await _persistDoc();
@@ -311,6 +359,7 @@ export const crdtUpsertGoal = async (goal: LocalGoal): Promise<void> => {
 /** 目標を CRDT ドキュメントから削除 */
 export const crdtDeleteGoal = async (goalId: string): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
+    ensureDocShape(d);
     delete d.goals[goalId];
   });
   await _persistDoc();
@@ -361,6 +410,7 @@ export const reconcileServerSnapshot = async (
 ): Promise<void> => {
   let changed = false;
   doc = Automerge.change(doc, (d) => {
+    ensureDocShape(d);
     for (const t of tasks) {
       if (!d.tasks[t.id]) {
         d.tasks[t.id] = normalizeTaskEntry(t);
