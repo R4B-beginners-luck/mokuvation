@@ -21,9 +21,7 @@ export function CalendarContainer() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
-  const [selectedDate, setSelectedDate] = useState<string | null>(
-    now.toISOString().split('T')[0]
-  );
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const { goals, tasks, loading, error } = useCalendarData();
   const [calendarTasks, setCalendarTasks] = useState<Task[]>([]);
@@ -42,6 +40,10 @@ export function CalendarContainer() {
 
   const handleTaskDeleted = (taskId: string) => {
     setCalendarTasks((prev) => prev.filter((task) => task.id !== taskId));
+  };
+
+  const handleSelectDate = (date: string) => {
+    setSelectedDate((prev) => (prev === date ? null : date));
   };
 
   const prevMonth = () => {
@@ -115,7 +117,7 @@ export function CalendarContainer() {
             month={month}
             tasks={calendarTasks}
             selectedDate={selectedDate}
-            onSelectDate={setSelectedDate}
+            onSelectDate={handleSelectDate}
           />
 
           <div
@@ -176,6 +178,7 @@ export function CalendarContainer() {
           goals={goals}
           onTaskAdded={handleTaskAdded}
           onTaskDeleted={handleTaskDeleted}
+          onClose={() => setSelectedDate(null)}
         />
       </div>
     </div>
