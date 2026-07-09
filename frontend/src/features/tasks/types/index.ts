@@ -12,6 +12,7 @@ export interface Task {
 }
 
 export interface CreateTaskPayload {
+  id?: string;
   user_id: string;
   goal_id?: string | null;
   title: string;

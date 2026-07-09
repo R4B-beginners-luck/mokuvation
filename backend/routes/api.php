@@ -9,6 +9,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\SyncController;
+use App\Http\Controllers\CrdtSyncController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,7 +42,7 @@ Route::get('/health', function () {
  * 自動的に 401 Unauthorized エラーとして遮断されます。
  */
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     // --- ユーザー関連 ---
     Route::post('/auth/logout', [AuthController::class, 'logout']); // ログアウト（トークン破棄）
     Route::get('/users/me', [UserController::class, 'me']);         // ログイン中の自分の情報を取得
@@ -61,6 +63,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tasks/{task}', [TaskController::class, 'show']);     // 特定のタスクの詳細を取得
     Route::patch('/tasks/{task}', [TaskController::class, 'update']); // タスクの更新・達成状態の切り替え
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);// タスクを削除
+
+    // --- オフライン同期 (Sync) ---
+    // フロントの sync_queue に積まれたオフライン操作を一括処理する
+    Route::post('/sync', [SyncController::class, 'handle']);
+
+    // --- CRDTオフライン同期 (Automergeの変更バイナリの配送) ---
+    // サーバー側ではchange_blobの中身を一切解釈せず、ただの配送係として扱う。
+    // マージ処理は必ずクライアント側（Automerge JS）が担当する。
+    Route::post('/crdt/push', [CrdtSyncController::class, 'push']); // 自端末発の変更を追記
+    Route::get('/crdt/pull', [CrdtSyncController::class, 'pull']);  // since以降の変更（他端末発を含む）を取得
 
     // --- 集計・ダッシュボード (Dashboard) ---
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']); // グラフ用データや連続達成日数を取得

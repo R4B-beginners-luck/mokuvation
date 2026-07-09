@@ -11,6 +11,8 @@ import { DayGoalList } from './DayGoalList';
 import type { Task } from '../types';
 import type { Task as CreatedTask } from '../../tasks';
 import { Skeleton } from '../../../components/ui/Skeleton';
+import { crdtAddTask, crdtDeleteTask } from '../../../services/crdtStore';
+import { db, type LocalTask } from '../../../services/db';
 
 const MONTH_JP = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -38,9 +40,35 @@ export function CalendarContainer() {
       deleted_at: null,
     };
     setCalendarTasks((prev) => [mappedTask, ...prev]);
+
+    // App.tsx の handleAddTask と同じく、CRDTドキュメントにも反映する。
+    // Calendar の TaskAddModal は useTaskMutations 経由で既に db.tasks に
+    // 正しい形（snake_case, 全フィールド埋め済み）で保存済みのはずなので、
+    // それを正として使う（newTaskの形が将来変わってもズレないように）。
+    void (async () => {
+      const id = String(newTask.id);
+      const existing = await db.tasks.get(id);
+      const localTask: LocalTask = existing ?? {
+        id,
+        user_id:      String((newTask as any).user_id ?? ''),
+        goal_id:      newTask.goal_id ?? null,
+        title:        newTask.title,
+        description:  newTask.description ?? null,
+        scheduled_at: newTask.scheduled_at ?? null,
+        is_completed: Boolean(newTask.is_completed),
+        completed_at: newTask.completed_at ?? null,
+        created_at:   newTask.created_at ?? new Date().toISOString(),
+        updated_at:   newTask.updated_at ?? new Date().toISOString(),
+      };
+      crdtAddTask(localTask);
+    })();
   };
 
   const handleTaskDeleted = (taskId: string) => {
+    // TopPage側(App.tsx handleDeleteTask)と同じく、削除をCRDTドキュメントにも反映する。
+    // これが無いと画面上は消えるが他端末との同期対象にならず、
+    // 同期後に削除したはずのタスクが復活してしまう。
+    crdtDeleteTask(taskId);
     setCalendarTasks((prev) => prev.filter((task) => task.id !== taskId));
   };
 
