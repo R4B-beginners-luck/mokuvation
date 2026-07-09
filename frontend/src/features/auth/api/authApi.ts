@@ -24,6 +24,7 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
+    cache: 'no-store',
   });
 
   // fetchは4xxや5xxエラーで例外を投げないため、手動で判定してスローする

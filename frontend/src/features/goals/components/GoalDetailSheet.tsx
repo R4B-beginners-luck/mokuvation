@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { vhToViewportPx, viewportPxToVh } from '../../../utils/viewport';
 
 export type GoalDetailSheetLevel = 'peek' | 'half' | 'full';
 
@@ -21,11 +22,11 @@ interface GoalDetailSheetProps {
 }
 
 function vhToPx(vh: number): number {
-  return (window.innerHeight * vh) / 100;
+  return vhToViewportPx(vh);
 }
 
 function heightToSnap(heightPx: number): GoalDetailSheetLevel | 'close' {
-  const vh = (heightPx / window.innerHeight) * 100;
+  const vh = viewportPxToVh(heightPx);
   if (vh < CLOSE_THRESHOLD_VH) {
     return 'close';
   }

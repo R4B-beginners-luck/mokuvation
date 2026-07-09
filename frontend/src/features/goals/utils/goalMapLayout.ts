@@ -1,4 +1,5 @@
 import type { LongTermGoal, MidTermGoal, NodePosition, ShortTermGoal } from '../../../types';
+import { getViewportHeight } from '../../../utils/viewport';
 
 /** 長期目標は論理座標の原点に固定 */
 export const LONG_TERM_FIXED_POSITION: NodePosition = { x: 0, y: 0 };
@@ -165,7 +166,7 @@ export function computeMapFocusCenter(
 /** ビューポート px をキャンバス座標へ概算変換 */
 export function viewportPxToCanvasPx(viewportPx: number, canvasSize: number): number {
   if (typeof window === 'undefined') return viewportPx;
-  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  const viewportHeight = getViewportHeight();
   if (viewportHeight <= 0) return viewportPx;
   return viewportPx * (canvasSize / viewportHeight);
 }

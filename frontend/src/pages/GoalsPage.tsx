@@ -18,6 +18,7 @@ import { COLOR_PALETTE } from '../const/colors';
 import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { vhToViewportPx } from '../utils/viewport';
 import {
   GoalCelebrationOverlay,
   pickRandomGoalMessage,
@@ -408,7 +409,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setSelectedGoal(goal);
     setFocusGoalId(goal.id);
     if (isMobileLayout) {
-      setMobileSheetHeightPx((window.innerHeight * 20) / 100);
+      setMobileSheetHeightPx(vhToViewportPx(20));
     }
   };
 
