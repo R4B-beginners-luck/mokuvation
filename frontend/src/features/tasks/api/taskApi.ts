@@ -18,6 +18,7 @@ const getFetchOptions = (method: string, body?: any): RequestInit => {
     headers,
     body: body ? JSON.stringify(body) : undefined,
     credentials: 'include',
+    cache: 'no-store',
   };
 };
 

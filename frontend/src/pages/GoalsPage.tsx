@@ -23,6 +23,7 @@ import type { LocalGoal, SyncQueueItem } from '../services/db';
 import { isOnline, isNetworkFailure } from '../services/syncService';
 import { crdtUpsertGoal, crdtDeleteGoal } from '../services/crdtStore';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { vhToViewportPx } from '../utils/viewport';
 import {
   GoalCelebrationOverlay,
   pickRandomGoalMessage,
@@ -488,7 +489,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setSelectedGoal(goal);
     setFocusGoalId(goal.id);
     if (isMobileLayout) {
-      setMobileSheetHeightPx((window.innerHeight * 20) / 100);
+      setMobileSheetHeightPx(vhToViewportPx(20));
     }
   };
 

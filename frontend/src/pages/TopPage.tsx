@@ -67,6 +67,7 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
               taskApi.getTasks(),
               fetch(`${API_BASE_URL}/api/dashboard/summary`, {
                 headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+                cache: 'no-store',
               }),
             ]);
           } catch (err) {

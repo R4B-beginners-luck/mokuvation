@@ -23,6 +23,8 @@ import { animateMapViewport } from '../utils/animateMapViewport';
 import type { GoalDisplayMode } from '../utils/resolveGoalVisibility';
 import { getCardBoundaryPoint, getGoalCardBounds } from '../utils/goalEdgeLayout';
 import { createGoalNodeAdapter } from '../utils/goalNodeAdapter';
+import { getViewportHeight } from '../../../utils/viewport';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import GoalNodeCard from './goalNodeCard/GoalNodeCard';
 
 const WHEEL_ZOOM_FACTOR = 1.1;
@@ -91,6 +93,7 @@ export function GoalGraph({
   goalDisplayModes = {},
 }: GoalGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const isMobileLayout = useMediaQuery('(max-width: 768px)');
   const [size, setSize] = useState({ w: 800, h: 600 });
 
   useEffect(() => {
@@ -285,16 +288,19 @@ export function GoalGraph({
     beginPan(e.clientX, e.clientY);
   }, [beginPan]);
 
-  const onSvgWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault();
+  const zoomAtClientPoint = useCallback((clientX: number, clientY: number, zoomFactor: number) => {
     cancelViewportAnimation();
-    const svgPoint = clientToSvgPoint(e.clientX, e.clientY);
+    const svgPoint = clientToSvgPoint(clientX, clientY);
     if (!svgPoint) return;
 
-    const zoomFactor = e.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
     const { cx: vcx, cy: vcy } = viewportRef.current;
     setMapViewport((prev) => zoomViewportAtPoint(svgPoint, vcx, vcy, prev, zoomFactor));
   }, [clientToSvgPoint, cancelViewportAnimation]);
+
+  const onSvgWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    zoomAtClientPoint(e.clientX, e.clientY, e.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR);
+  }, [zoomAtClientPoint]);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -304,12 +310,83 @@ export function GoalGraph({
     return () => svg.removeEventListener('wheel', onSvgWheel);
   }, [onSvgWheel]);
 
-  const onZoomSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const pinchRef = useRef<{ lastDistance: number } | null>(null);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return undefined;
+
+    const touchDistance = (touches: TouchList) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const touchCenter = (touches: TouchList) => ({
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2,
+    });
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (document.body.classList.contains('goal-sheet-dragging')) return;
+      if (e.touches.length === 2) {
+        cancelViewportAnimation();
+        clearPanListeners();
+        pinchRef.current = { lastDistance: touchDistance(e.touches) };
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || !pinchRef.current) return;
+      e.preventDefault();
+
+      const distance = touchDistance(e.touches);
+      const factor = distance / pinchRef.current.lastDistance;
+      if (Math.abs(factor - 1) < 0.001) return;
+
+      pinchRef.current.lastDistance = distance;
+      const center = touchCenter(e.touches);
+      zoomAtClientPoint(center.x, center.y, factor);
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        pinchRef.current = null;
+      }
+    };
+
+    svg.addEventListener('touchstart', onTouchStart, { passive: true });
+    svg.addEventListener('touchmove', onTouchMove, { passive: false });
+    svg.addEventListener('touchend', onTouchEnd);
+    svg.addEventListener('touchcancel', onTouchEnd);
+
+    return () => {
+      svg.removeEventListener('touchstart', onTouchStart);
+      svg.removeEventListener('touchmove', onTouchMove);
+      svg.removeEventListener('touchend', onTouchEnd);
+      svg.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [zoomAtClientPoint, cancelViewportAnimation, clearPanListeners]);
+
+  const setZoomScaleAtCenter = useCallback((newScale: number) => {
     cancelViewportAnimation();
-    const newScale = Number(e.target.value) / 100;
     const { cx: vcx, cy: vcy } = viewportRef.current;
     setMapViewport((prev) => setViewportScaleAtCenter(vcx, vcy, prev, newScale));
   }, [cancelViewportAnimation]);
+
+  const onZoomSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setZoomScaleAtCenter(Number(e.target.value) / 100);
+  }, [setZoomScaleAtCenter]);
+
+  const onZoomIn = useCallback(() => {
+    const { viewport } = viewportRef.current;
+    setZoomScaleAtCenter(viewport.scale * WHEEL_ZOOM_FACTOR);
+  }, [setZoomScaleAtCenter]);
+
+  const onZoomOut = useCallback(() => {
+    const { viewport } = viewportRef.current;
+    setZoomScaleAtCenter(viewport.scale / WHEEL_ZOOM_FACTOR);
+  }, [setZoomScaleAtCenter]);
 
   useEffect(() => () => clearDragListeners(), [clearDragListeners]);
 
@@ -419,7 +496,7 @@ export function GoalGraph({
     const menuWidth = 210;
     const menuHeight = goal.type === 'short' ? 132 : goal.type === 'mid' ? 172 : 212;
     const x = Math.min(Math.max(8, e.clientX), window.innerWidth - menuWidth - 8);
-    const y = Math.min(Math.max(8, e.clientY), window.innerHeight - menuHeight - 8);
+    const y = Math.min(Math.max(8, e.clientY), getViewportHeight() - menuHeight - 8);
 
     setContextMenu({ goal, x, y });
   }, [onSelectNode, clearDragListeners]);
@@ -609,32 +686,63 @@ export function GoalGraph({
         </g>
       </svg>
 
-      <div
-        className="goal-graph__zoom-control"
-        onPointerDown={(e) => e.stopPropagation()}
-        onWheel={(e) => e.stopPropagation()}
-      >
-        <span
-          className="goal-graph__zoom-label"
-          aria-live="polite"
+      {isMobileLayout ? (
+        <div
+          className="goal-graph__zoom-control goal-graph__zoom-control--mobile"
+          onPointerDown={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
         >
-          {zoomPercentLabel}
-        </span>
-        <input
-          type="range"
-          className="goal-graph__zoom-slider"
-          min={zoomSliderMin}
-          max={zoomSliderMax}
-          step={1}
-          value={zoomPercent}
-          onChange={onZoomSliderChange}
-          aria-label="表示倍率"
-          aria-valuemin={zoomSliderMin}
-          aria-valuemax={zoomSliderMax}
-          aria-valuenow={zoomPercent}
-          aria-valuetext={zoomPercentLabel}
-        />
-      </div>
+          <button
+            type="button"
+            className="goal-graph__zoom-btn"
+            onClick={onZoomIn}
+            aria-label="ズームイン"
+          >
+            +
+          </button>
+          <span
+            className="goal-graph__zoom-label goal-graph__zoom-label--mobile"
+            aria-live="polite"
+          >
+            {zoomPercentLabel}
+          </span>
+          <button
+            type="button"
+            className="goal-graph__zoom-btn"
+            onClick={onZoomOut}
+            aria-label="ズームアウト"
+          >
+            −
+          </button>
+        </div>
+      ) : (
+        <div
+          className="goal-graph__zoom-control"
+          onPointerDown={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <span
+            className="goal-graph__zoom-label"
+            aria-live="polite"
+          >
+            {zoomPercentLabel}
+          </span>
+          <input
+            type="range"
+            className="goal-graph__zoom-slider"
+            min={zoomSliderMin}
+            max={zoomSliderMax}
+            step={1}
+            value={zoomPercent}
+            onChange={onZoomSliderChange}
+            aria-label="表示倍率"
+            aria-valuemin={zoomSliderMin}
+            aria-valuemax={zoomSliderMax}
+            aria-valuenow={zoomPercent}
+            aria-valuetext={zoomPercentLabel}
+          />
+        </div>
+      )}
 
       {contextMenu && (
         <div
