@@ -11,7 +11,9 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (await register(fields)) onSuccess();
+    if (await register(fields)) {
+      onSuccess();
+    }
   };
 
   return (
@@ -23,6 +25,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           type="text" 
           onChange={e => setFields({...fields, user_id: e.target.value})} 
           required 
+          disabled={isLoading}
         />
       </div>
       <div className="form-field">
@@ -32,6 +35,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           type="text" 
           onChange={e => setFields({...fields, user_name: e.target.value})} 
           required 
+          disabled={isLoading}
         />
       </div>
       <div className="form-field">
@@ -41,9 +45,10 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           type="password" 
           onChange={e => setFields({...fields, password: e.target.value})} 
           required 
+          disabled={isLoading}
         />
       </div>
-      {error && <p style={{ color: 'var(--accent-coral)', fontSize: '12px' }}>{error}</p>}
+      {error && <p role="alert" style={{ color: 'var(--accent-coral)', fontSize: '13px' }}>{error}</p>}
       <button type="submit" className="btn-primary" disabled={isLoading} style={{ width: '100%' }}>
         {isLoading ? '登録中...' : '新規登録'}
       </button>

@@ -9,11 +9,22 @@ export const useRegister = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await authApi.register(credentials);
-      localStorage.setItem('auth_token', data.token);
+      await authApi.register(credentials);
+      // 登録後は明示的にログインしてもらうため、トークンは保持しない
+      localStorage.removeItem('auth_token');
       return true;
     } catch (err: any) {
-      // setError(err.data?.errors ? Object.values(err.data.errors)[0][0] : '登録に失敗しました');
+      if (err.status === 422) {
+        const errors = err.data?.errors;
+        const first =
+          errors?.user_id?.[0]
+          || errors?.user_name?.[0]
+          || errors?.password?.[0]
+          || err.data?.message;
+        setError(first || '入力内容に誤りがあります');
+      } else {
+        setError(err.data?.message || '登録に失敗しました');
+      }
       return false;
     } finally {
       setIsLoading(false);

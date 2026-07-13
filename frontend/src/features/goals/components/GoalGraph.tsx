@@ -24,6 +24,7 @@ import type { GoalDisplayMode } from '../utils/resolveGoalVisibility';
 import { getCardBoundaryPoint, getGoalCardBounds } from '../utils/goalEdgeLayout';
 import { createGoalNodeAdapter } from '../utils/goalNodeAdapter';
 import { getViewportHeight } from '../../../utils/viewport';
+import { isDebugEnabled } from '../../../utils/debug';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import GoalNodeCard from './goalNodeCard/GoalNodeCard';
 
@@ -586,16 +587,10 @@ export function GoalGraph({
   const zoomSliderMin = Math.round(MAP_VIEWPORT_SCALE_MIN * 100);
   const zoomSliderMax = Math.round(MAP_VIEWPORT_SCALE_MAX * 100);
 
-  const showMapDebug = (() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      if (localStorage.getItem('goal-map-debug') === '1') return true;
-      return new URLSearchParams(window.location.search).get('mapDebug') === '1';
-    } catch {
-      return false;
-    }
-  })();
-
+  const showMapDebug = isDebugEnabled({
+    storageKey: 'goal-map-debug',
+    queryParam: 'mapDebug',
+  });
   const focusPos = focusGoalId ? mergedPositions[focusGoalId] : null;
   const ltPos = mergedPositions[longTermGoal.id];
 

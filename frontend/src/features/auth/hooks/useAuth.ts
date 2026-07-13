@@ -18,10 +18,19 @@ export const useAuth = () => {
       return true;
     } catch (err: any) {
       // fetchWithAuth から投げられたカスタムエラーオブジェクトを判定
-      if (err.status === 422) {
-        setError(err.data?.errors?.user_id?.[0] || '入力内容に誤りがあります');
+      if (err.status === 401 || err.status === 403) {
+        setError(err.data?.message || 'ユーザーIDまたはパスワードが正しくありません');
+      } else if (err.status === 422) {
+        setError(
+          err.data?.errors?.user_id?.[0]
+          || err.data?.errors?.password?.[0]
+          || err.data?.message
+          || '入力内容に誤りがあります'
+        );
+      } else if (err.status) {
+        setError(err.data?.message || `ログインに失敗しました（${err.status}）`);
       } else {
-        setError('通信エラーが発生しました');
+        setError('通信エラーが発生しました。ネットワーク接続を確認してください');
       }
       return false;
     } finally {
