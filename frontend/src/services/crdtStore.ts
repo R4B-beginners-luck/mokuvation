@@ -136,6 +136,23 @@ let doc: Automerge.Doc<MokuDoc> = Automerge.init<MokuDoc>();
 // 起動後、Dexieからdocを一度でも復元・初期化できたかどうか
 let _ready = false;
 
+/**
+ * 別アカウントへの切り替えを検知した際に呼ぶ。
+ *
+ * doc は Dexie(crdt_meta)だけでなく、このファイル内のモジュール変数
+ * （メモリ上のシングルトン）としても保持されているため、
+ * db.clearAllLocalData() で crdt_meta テーブルを消しても、これを
+ * 呼ばない限り前ユーザーの doc がメモリ上に残り続けてしまう。
+ * （残ったままだと、次の initDoc() は「既に _ready」と誤認して
+ * 再初期化されず、前ユーザーのタスク・目標が見え続ける）
+ *
+ * db.clearAllLocalData() とセットで、ユーザー切り替え時に必ず呼ぶこと。
+ */
+export const resetCrdtState = (): void => {
+  doc = Automerge.init<MokuDoc>();
+  _ready = false;
+};
+
 // ─── docの永続化（Dexie） ────────────────────────────────────────
 // 以前は差分だけをlocalStorageに退避していたが、それだと「他端末発の変更」を
 // 含めた完全な状態をまたぐことができないため、doc全体をDexieに保存する方式にした。

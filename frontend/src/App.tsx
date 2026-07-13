@@ -19,7 +19,7 @@ import { HelpContent, TermsContent, PrivacyContent } from './components/common/M
 
 import { useLocalData, localTaskToTask } from './hooks/useLocalData';
 import { db, type LocalTask } from './services/db';
-import { updateTaskLocally, cacheUserId, isOnline, isNetworkFailure } from './services/syncService';
+import { updateTaskLocally, ensureUserScope, isOnline, isNetworkFailure } from './services/syncService';
 import { crdtToggleTask, crdtAddTask, crdtDeleteTask } from './services/crdtStore';
 
 // ── DBレスポンス（snake_case）→ フロント共通型（camelCase）変換 ────────────────
@@ -118,8 +118,9 @@ function AppContent() {
       if (token) {
         try {
           const userData = await authApi.getMe();
+          // オフライン作成用にキャッシュ／別アカウント切替を検知したらローカルデータを消去
+          await ensureUserScope(userData.user_id);
           setUser(userData);
-          cacheUserId(userData.user_id); // オフライン作成用にキャッシュ
           setIsLoggedIn(true);
           // 更新等での自動再ログイン時は、最後にいたページへ戻す
           setPage(getPersistedPage());
@@ -137,8 +138,9 @@ function AppContent() {
   const handleLogin = async () => {
     try {
       const userData = await authApi.getMe();
+      // オフライン作成用にキャッシュ／別アカウント切替を検知したらローカルデータを消去
+      await ensureUserScope(userData.user_id);
       setUser(userData);
-      cacheUserId(userData.user_id); // オフライン作成用にキャッシュ
       setIsLoggedIn(true);
       // 明示的なログイン操作は、あえて毎回トップページから始める
       setPage('top');

@@ -4,7 +4,7 @@
  * オフライン時は sync_queue に積み、オンライン復帰時に一括送信する。
  */
 
-import { db } from './db';
+import { db, clearAllLocalData } from './db';
 import type { LocalTask, LocalGoal, SyncQueueItem } from './db';
 import { taskApi } from '../features/tasks/api/taskApi';
 import { goalApi } from '../features/goals/api/goalApi';
@@ -18,6 +18,7 @@ import {
   applyRemoteChanges,
   reconcileServerSnapshot,
   syncDocToDexie,
+  resetCrdtState,
 } from './crdtStore';
 import { crdtSyncApi } from './crdtSyncApi';
 
@@ -105,6 +106,36 @@ export const cacheUserId = (userId: string): void => {
 
 export const getCachedUserId = (): string | null => {
   return localStorage.getItem(USER_ID_KEY);
+};
+
+/**
+ * ログイン成功時（自動ログイン含む）に必ず呼ぶ。
+ *
+ * 【目的】別アカウントのデータ混入を防ぐ
+ * 前回この端末にキャッシュされていたユーザーIDと、今回ログインした
+ * ユーザーIDが異なる場合、Dexie(tasks/goals/sync_queue/crdt_meta)と
+ * メモリ上のCRDTドキュメントに前ユーザーのデータが残ったままになる。
+ * 放置すると、タスク一覧・目標候補・オフライン表示・週間進捗グラフ等、
+ * ローカルデータを参照する画面すべてに別アカウントの情報が混ざって表示される。
+ *
+ * そのため、ユーザーIDの不一致を検知した時点でローカルデータを
+ * 全消去し（クリーンな状態にしてから）、あらためて今回のユーザーIDを
+ * キャッシュする。以後はサーバーからの再取得・再同期でこのユーザーの
+ * データだけが積み直される。
+ *
+ * 初回ログイン（前回キャッシュが無い）の場合は消去せずそのままキャッシュする。
+ */
+export const ensureUserScope = async (userId: string): Promise<void> => {
+  const previousUserId = getCachedUserId();
+  if (previousUserId && previousUserId !== userId) {
+    console.warn(
+      `[syncService] ユーザー切り替えを検知（${previousUserId} → ${userId}）。` +
+      'ローカルデータ（Dexie・CRDT）を消去して再同期します。'
+    );
+    await clearAllLocalData();
+    resetCrdtState();
+  }
+  cacheUserId(userId);
 };
 
 const normalizeTaskForStorage = (task: Partial<LocalTask> & { id: string }): LocalTask => ({
