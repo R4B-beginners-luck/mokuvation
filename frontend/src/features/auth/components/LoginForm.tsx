@@ -3,10 +3,9 @@ import { useAuth } from '../hooks/useAuth';
 
 interface LoginFormProps {
   onLogin: () => void | Promise<void>;
-  onLoggingInChange?: (loggingIn: boolean) => void;
 }
 
-export function LoginForm({ onLogin, onLoggingInChange }: LoginFormProps) {
+export function LoginForm({ onLogin }: LoginFormProps) {
   // useAuthから必要な機能を取り出す
   const { login, isLoading, error: authError } = useAuth();
   const [userId, setUserId] = useState('');
@@ -23,18 +22,15 @@ export function LoginForm({ onLogin, onLoggingInChange }: LoginFormProps) {
     }
     setValidationError('');
 
-    onLoggingInChange?.(true);
-
+    // Splash で LoginForm を消さない（失敗時のエラー表示を維持するため）
     const result = await login({ user_id: userId, password });
 
     if (result) {
       try {
         await onLogin();
       } catch {
-        onLoggingInChange?.(false);
+        setValidationError('ログイン後のユーザー情報取得に失敗しました。もう一度お試しください');
       }
-    } else {
-      onLoggingInChange?.(false);
     }
   };
 
@@ -73,7 +69,18 @@ export function LoginForm({ onLogin, onLoggingInChange }: LoginFormProps) {
       </div>
 
       {displayError && (
-        <p style={{ fontSize: 12, color: 'var(--accent-coral)', marginTop: -8 }}>
+        <p
+          role="alert"
+          style={{
+            fontSize: 13,
+            color: 'var(--accent-coral)',
+            marginTop: -8,
+            padding: '8px 10px',
+            borderRadius: 'var(--r-sm)',
+            background: 'rgba(232, 92, 92, 0.12)',
+            border: '1px solid rgba(232, 92, 92, 0.35)',
+          }}
+        >
           {displayError}
         </p>
       )}

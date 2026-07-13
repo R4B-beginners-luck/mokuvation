@@ -5,6 +5,7 @@ import { Layout }      from './layouts/Layout';
 import { GoalsLeaveGuardProvider, useGoalsLeaveRequest } from './layouts/GoalsLeaveGuardContext';
 import { LoginPage }   from './pages/LoginPage';
 import Splash from './components/Splash/Splash';
+import { waitForBrandSplashAnimation } from './utils/brandSplash';
 import { TopPage }     from './pages/TopPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GoalsPage }   from './pages/GoalsPage';
@@ -56,9 +57,10 @@ export default function App() {
 function AppContent() {
   const [page, setPage]             = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  /** ログイン成功時・再読み込み時のブランドスプラッシュ（1周再生後に遷移） */
+  const [showEntrySplash, setShowEntrySplash] = useState(true);
+  const [entrySplashLabel, setEntrySplashLabel] = useState('認証を確認しています…');
 
   const [shortTermGoals] = useState<ShortTermGoal[]>(shortTermGoalsInitial);
   const requestGoalsLeave = useGoalsLeaveRequest();
@@ -111,47 +113,58 @@ function AppContent() {
     doNavigate();
   }, [page, requestGoalsLeave]);
 
-  // ── トークン検証による自動ログイン ──────────────────────────
+  // ── トークン検証による自動ログイン（再読み込み時） ──────────────────────────
   useEffect(() => {
+    const startedAt = Date.now();
+
     const verifyToken = async () => {
       const token = localStorage.getItem('auth_token');
-      if (token) {
-        try {
-          const userData = await authApi.getMe();
-          setUser(userData);
-          cacheUserId(userData.user_id); // オフライン作成用にキャッシュ
-          setIsLoggedIn(true);
-          // 更新等での自動再ログイン時は、最後にいたページへ戻す
-          setPage(getPersistedPage());
-        } catch {
-          localStorage.removeItem('auth_token');
-          setIsLoggedIn(false);
-          setUser(null);
-        }
+      if (!token) {
+        setShowEntrySplash(false);
+        return;
       }
-      setIsCheckingAuth(false);
+
+      try {
+        const userData = await authApi.getMe();
+        await waitForBrandSplashAnimation(startedAt);
+        setUser(userData);
+        cacheUserId(userData.user_id);
+        setIsLoggedIn(true);
+        setPage(getPersistedPage());
+      } catch {
+        localStorage.removeItem('auth_token');
+        setIsLoggedIn(false);
+        setUser(null);
+      } finally {
+        setShowEntrySplash(false);
+      }
     };
+
     verifyToken();
   }, []);
 
   const handleLogin = async () => {
+    const startedAt = Date.now();
+    setEntrySplashLabel('ログインしています…');
+    setShowEntrySplash(true);
+
     try {
       const userData = await authApi.getMe();
+      await waitForBrandSplashAnimation(startedAt);
       setUser(userData);
-      cacheUserId(userData.user_id); // オフライン作成用にキャッシュ
+      cacheUserId(userData.user_id);
       setIsLoggedIn(true);
-      // 明示的なログイン操作は、あえて毎回トップページから始める
       setPage('top');
       localStorage.setItem(LAST_PAGE_KEY, 'top');
+      setShowEntrySplash(false);
     } catch (error) {
       console.error('ログイン後のユーザー情報取得に失敗しました', error);
       localStorage.removeItem('auth_token');
       setIsLoggedIn(false);
       setUser(null);
       setPage('login');
+      setShowEntrySplash(false);
       throw error;
-    } finally {
-      setIsLoggingIn(false);
     }
   };
 
@@ -303,17 +316,13 @@ function AppContent() {
     }
   };
 
-  // ── Login screen (no sidebar) ────────────────────────────────────────────────
-  if (isCheckingAuth || isLoggingIn) {
-    return (
-      <Splash
-        label={isLoggingIn ? 'ログインしています…' : undefined}
-      />
-    );
+  // エントリースプラッシュ: ログイン成功時・再読み込み時のみ（失敗時は LoginForm を維持）
+  if (showEntrySplash) {
+    return <Splash label={entrySplashLabel} />;
   }
 
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} onLoggingInChange={setIsLoggingIn} />;
+    return <LoginPage onLogin={handleLogin} />;
   }
 
   return (

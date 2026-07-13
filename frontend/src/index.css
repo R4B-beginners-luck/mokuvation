@@ -501,16 +501,11 @@ a { text-decoration: none; color: inherit; }
   }
 
   .sidebar--rail .sidebar__surface {
-    width: 100%;
-    min-width: 100%;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
     height: 100%;
     display: flex;
     flex-direction: column;
-  }
-
-  .sidebar--rail:hover .sidebar__surface {
-    width: var(--sidebar-width);
-    min-width: var(--sidebar-width);
   }
 
   .sidebar--rail .sidebar__brand {
@@ -520,22 +515,19 @@ a { text-decoration: none; color: inherit; }
     flex-shrink: 0;
   }
 
-  .sidebar--rail:not(:hover) .sidebar__brand {
-    justify-content: center;
-    padding-left: var(--sp-3);
-    padding-right: var(--sp-3);
-  }
-
-  .sidebar--rail:not(:hover) .sidebar__name,
-  .sidebar--rail:not(:hover) .sidebar__nav-label {
-    display: none;
+  .sidebar--rail .sidebar__name,
+  .sidebar--rail .sidebar__nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 0;
+    opacity: 0;
+    transition: opacity 0.18s var(--ease), max-width 0.24s var(--ease);
   }
 
   .sidebar--rail:hover .sidebar__name,
   .sidebar--rail:hover .sidebar__nav-label {
-    display: block;
-    white-space: nowrap;
-    animation: sidebarRailLabelIn 0.16s 0.06s var(--ease) both;
+    max-width: 12rem;
+    opacity: 1;
   }
 
   .sidebar--rail .sidebar__nav {
@@ -543,13 +535,8 @@ a { text-decoration: none; color: inherit; }
     padding: var(--sp-4) var(--sp-3);
   }
 
-  .sidebar--rail:not(:hover) .sidebar__nav-item {
-    justify-content: center;
-    gap: 0;
-    padding: var(--sp-3);
-  }
-
-  .sidebar--rail:hover .sidebar__nav-item {
+  /* アイコン位置を開閉で動かさない（引き寄せ見えを防ぐ） */
+  .sidebar--rail .sidebar__nav-item {
     justify-content: flex-start;
     width: 100%;
     padding: var(--sp-3);
@@ -2222,6 +2209,15 @@ a { text-decoration: none; color: inherit; }
     pointer-events: none;
   }
 
+  /* 配置プレビューの確定/スキップが詳細パネル（z-index:40）に隠れないようにする */
+  .goals-page:has(.goals-page__placement-bar) .goals-page__header {
+    z-index: 50;
+  }
+
+  .goals-page:has(.goals-page__desktop-detail):has(.goals-page__placement-bar) .goals-page__header {
+    right: calc(300px + var(--sp-3));
+  }
+
   .goals-page__header > * {
     pointer-events: auto;
   }
@@ -2555,6 +2551,23 @@ a { text-decoration: none; color: inherit; }
 
 .goal-graph__background {
   cursor: default;
+}
+
+.goal-graph__debug {
+  position: absolute;
+  top: 52px;
+  left: var(--sp-2);
+  z-index: 60;
+  max-width: min(92vw, 360px);
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.78);
+  color: #9fef9f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  pointer-events: none;
+  white-space: pre-wrap;
 }
 
 .goal-graph__zoom-control {

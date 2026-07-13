@@ -5,12 +5,12 @@ import { BrandMark } from '../components/BrandMark/BrandMark';
 
 interface LoginPageProps {
   onLogin: () => void | Promise<void>;
-  onLoggingInChange?: (loggingIn: boolean) => void;
 }
 
-export function LoginPage({ onLogin, onLoggingInChange }: LoginPageProps) {
+export function LoginPage({ onLogin }: LoginPageProps) {
   // 'login' または 'register' の状態を管理
   const [view, setView] = useState<'login' | 'register'>('login');
+  const [infoMessage, setInfoMessage] = useState('');
 
   /**
    * 子コンポーネント（LoginForm / RegisterForm）からの成功通知を受け取る
@@ -19,6 +19,11 @@ export function LoginPage({ onLogin, onLoggingInChange }: LoginPageProps) {
    */
   const handleAuthSuccess = async () => {
     await onLogin();
+  };
+
+  const handleRegisterSuccess = () => {
+    setInfoMessage('登録が完了しました。ログインしてください');
+    setView('login');
   };
 
   return (
@@ -41,13 +46,31 @@ export function LoginPage({ onLogin, onLoggingInChange }: LoginPageProps) {
           </p>
         </div>
 
+        {view === 'login' && infoMessage && (
+          <p
+            role="status"
+            style={{
+              color: 'var(--accent-gold)',
+              fontSize: '13px',
+              marginBottom: '12px',
+              padding: '8px 10px',
+              borderRadius: 'var(--r-sm)',
+              background: 'rgba(232, 162, 52, 0.12)',
+              border: '1px solid rgba(232, 162, 52, 0.35)',
+              textAlign: 'center',
+            }}
+          >
+            {infoMessage}
+          </p>
+        )}
+
         {/* 表示の切り替え */}
         {view === 'login' ? (
           <>
-            <LoginForm onLogin={handleAuthSuccess} onLoggingInChange={onLoggingInChange} />
+            <LoginForm onLogin={handleAuthSuccess} />
             <div style={{ textAlign: 'center', marginTop: '16px' }}>
               <button 
-                onClick={() => setView('register')} 
+                onClick={() => { setInfoMessage(''); setView('register'); }} 
                 style={{ 
                   background: 'none', 
                   border: 'none', 
@@ -63,7 +86,7 @@ export function LoginPage({ onLogin, onLoggingInChange }: LoginPageProps) {
           </>
         ) : (
           <>
-            <RegisterForm onSuccess={() => setView('login')} />
+            <RegisterForm onSuccess={handleRegisterSuccess} />
             <div style={{ textAlign: 'center', marginTop: '16px' }}>
               <button 
                 onClick={() => setView('login')} 

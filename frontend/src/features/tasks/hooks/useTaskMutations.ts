@@ -4,6 +4,7 @@ import type { CreateTaskPayload, Task } from '../types';
 import { db } from '../../../services/db';
 import type { LocalTask } from '../../../services/db';
 import { isOnline, cacheUserId, getCachedUserId, isNetworkFailure } from '../../../services/syncService';
+import { crdtDeleteTask } from '../../../services/crdtStore';
 
 // ─── ID 生成（オンライン・オフライン共通） ─────────────────────
 // crypto.randomUUID() で本物の UUID を生成し、作成時点でクライアントと
@@ -157,6 +158,7 @@ export const useTaskMutations = () => {
         });
       }
       await db.tasks.delete(taskId);
+      await crdtDeleteTask(taskId);
       return true;
     } catch (err: any) {
       setError(err.data?.message || 'タスクの削除に失敗しました');

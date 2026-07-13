@@ -12,7 +12,7 @@
   opacity: 1;
 }
 
-/* ── Animated（スプラッシュ） ── */
+/* 最終キーフレーム: chk 0.82s + 0.4s ≒ 1.22s（utils/brandSplash.ts の BRAND_SPLASH_ANIMATION_MS と同期） */
 .brand-mark--animated .brand-mark__node {
   opacity: 0;
   transform-box: fill-box;
