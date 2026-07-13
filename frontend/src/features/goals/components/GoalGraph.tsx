@@ -586,8 +586,43 @@ export function GoalGraph({
   const zoomSliderMin = Math.round(MAP_VIEWPORT_SCALE_MIN * 100);
   const zoomSliderMax = Math.round(MAP_VIEWPORT_SCALE_MAX * 100);
 
+  const showMapDebug = (() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      if (localStorage.getItem('goal-map-debug') === '1') return true;
+      return new URLSearchParams(window.location.search).get('mapDebug') === '1';
+    } catch {
+      return false;
+    }
+  })();
+
+  const focusPos = focusGoalId ? mergedPositions[focusGoalId] : null;
+  const ltPos = mergedPositions[longTermGoal.id];
+
   return (
     <>
+      {showMapDebug && (
+        <div
+          className="goal-graph__debug"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div>size: {Math.round(size.w)}×{Math.round(size.h)}</div>
+          <div>cx/cy: {Math.round(cx)}, {Math.round(cy)}</div>
+          <div>
+            viewport: pan({mapViewport.panX.toFixed(1)}, {mapViewport.panY.toFixed(1)}) scale={mapViewport.scale.toFixed(2)}
+          </div>
+          <div>
+            vh: {Math.round(getViewportHeight())} / innerH: {typeof window !== 'undefined' ? Math.round(window.innerHeight) : '-'}
+          </div>
+          <div>sheetObstruction: {Math.round(mobileSheetObstructionPx)}px</div>
+          <div>
+            LT pos: {ltPos ? `${ltPos.x.toFixed(1)}, ${ltPos.y.toFixed(1)}` : 'null'}
+          </div>
+          <div>
+            focus({focusGoalId ?? '-'}): {focusPos ? `${focusPos.x.toFixed(1)}, ${focusPos.y.toFixed(1)}` : 'null'}
+          </div>
+        </div>
+      )}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${size.w} ${size.h}`}
