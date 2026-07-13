@@ -582,6 +582,7 @@ export function GoalGraph({
   ];
 
   const worldTransform = `translate(${cx + mapViewport.panX}, ${cy + mapViewport.panY}) scale(${mapViewport.scale})`;
+  const worldTransformCss = `translate(${cx + mapViewport.panX}px, ${cy + mapViewport.panY}px) scale(${mapViewport.scale})`;
   const zoomPercent = Math.round(mapViewport.scale * 100);
   const zoomPercentLabel = `${zoomPercent}%`;
   const zoomSliderMin = Math.round(MAP_VIEWPORT_SCALE_MIN * 100);
@@ -596,63 +597,55 @@ export function GoalGraph({
 
   return (
     <>
-      {showMapDebug && (
-        <div
-          className="goal-graph__debug"
-          onPointerDown={(e) => e.stopPropagation()}
+      <div className="goal-graph__stage">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${size.w} ${size.h}`}
+          className="goal-graph__canvas"
+          style={{ display: 'block', userSelect: 'none', touchAction: 'none' }}
+          onPointerDown={onSvgPointerDown}
         >
-          <div>size: {Math.round(size.w)}×{Math.round(size.h)}</div>
-          <div>cx/cy: {Math.round(cx)}, {Math.round(cy)}</div>
-          <div>
-            viewport: pan({mapViewport.panX.toFixed(1)}, {mapViewport.panY.toFixed(1)}) scale={mapViewport.scale.toFixed(2)}
-          </div>
-          <div>
-            vh: {Math.round(getViewportHeight())} / innerH: {typeof window !== 'undefined' ? Math.round(window.innerHeight) : '-'}
-          </div>
-          <div>sheetObstruction: {Math.round(mobileSheetObstructionPx)}px</div>
-          <div>
-            LT pos: {ltPos ? `${ltPos.x.toFixed(1)}, ${ltPos.y.toFixed(1)}` : 'null'}
-          </div>
-          <div>
-            focus({focusGoalId ?? '-'}): {focusPos ? `${focusPos.x.toFixed(1)}, ${focusPos.y.toFixed(1)}` : 'null'}
-          </div>
-        </div>
-      )}
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${size.w} ${size.h}`}
-        className="goal-graph__canvas"
-        style={{ display: 'block', userSelect: 'none', touchAction: 'none' }}
-        onPointerDown={onSvgPointerDown}
-      >
-        <defs>
-          <filter id="glow-gold" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="6" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
-        </defs>
+          <defs>
+            <filter id="glow-gold" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="6" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
 
-        <rect
-          x={0}
-          y={0}
-          width={size.w}
-          height={size.h}
-          fill="transparent"
-          className="goal-graph__background"
-          onPointerDown={onCanvasPointerDown}
-        />
+          <rect
+            x={0}
+            y={0}
+            width={size.w}
+            height={size.h}
+            fill="transparent"
+            className="goal-graph__background"
+            onPointerDown={onCanvasPointerDown}
+          />
 
-        <g transform={worldTransform}>
-          {edges.map((e, i) => (
-            <line
-              key={i}
-              x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
-              stroke={e.color}
-              strokeWidth={1.5}
-              strokeOpacity={e.opacity}
-            />
-          ))}
+          <g transform={worldTransform}>
+            {edges.map((e, i) => (
+              <line
+                key={i}
+                x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
+                stroke={e.color}
+                strokeWidth={1.5}
+                strokeOpacity={e.opacity}
+              />
+            ))}
+          </g>
+        </svg>
 
+        {/*
+          iOS Safari は SVG foreignObject 内の HTML（position/transition 等）を
+          誤った位置に描画する既知バグがある。エッジは SVG、カードは HTML オーバーレイに分離する。
+        */}
+        <div
+          className="goal-graph__html-nodes"
+          style={{
+            transform: worldTransformCss,
+            transformOrigin: '0 0',
+          }}
+        >
           {allGoals.map((goal) => {
             const p = displayPositions[goal.id];
             if (!p) return null;
@@ -667,54 +660,72 @@ export function GoalGraph({
             const isPlacementFocus = placementMode?.focusGoalId === goal.id;
             const isDraggable = canDragGoal(goal.id, isLongTerm);
             const progress = goalNodeAdapter.toProgress(goal.id);
-
             const pinOffset = isLongTerm ? GOAL_LONG_PIN_OFFSET : 0;
 
             return (
-              <g
+              <div
                 key={goal.id}
-                transform={`translate(${p.x},${p.y})`}
                 className={[
+                  'goal-graph__html-node',
                   isPlacementFocus ? 'goal-node--placement-focus' : '',
                   isPlacementTarget ? 'goal-node--placement-target' : '',
                   placementMode && !isPlacementTarget ? 'goal-node--placement-locked' : '',
                 ].filter(Boolean).join(' ')}
-                style={{ cursor: isDraggable ? 'grab' : 'default' }}
+                style={{
+                  left: p.x,
+                  top: p.y,
+                  width: GOAL_CARD_WIDTH,
+                  transform: `translate(-50%, calc(-50% - ${pinOffset / 2}px))`,
+                  cursor: isDraggable ? 'grab' : 'default',
+                }}
                 onPointerDown={(e) => onNodePointerDown(e, goal.id)}
               >
-                <foreignObject
-                  x={-GOAL_CARD_WIDTH / 2}
-                  y={-GOAL_CARD_MIN_HEIGHT / 2 - pinOffset}
-                  width={GOAL_CARD_WIDTH}
-                  height={GOAL_CARD_MIN_HEIGHT + pinOffset}
-                  style={{ overflow: 'visible' }}
-                >
-                  <div style={{ width: GOAL_CARD_WIDTH, minHeight: GOAL_CARD_MIN_HEIGHT }}>
-                    <GoalNodeCard
-                      goalType={goal.type}
-                      status={goalNodeAdapter.toGoalStatus(goal)}
-                      title={goal.title}
-                      progress={progress}
-                      categoryColor={goalNodeAdapter.toCategoryColor(goal)}
-                      selected={goal.id === selectedId}
-                      variant={isGhost ? 'ghost' : 'default'}
-                      density="full"
-                      onClick={() => {
-                        if (skipClickRef.current) {
-                          skipClickRef.current = false;
-                          return;
-                        }
-                        onSelectNode(goal);
-                      }}
-                      onContextMenu={(e) => onNodeContextMenu(e, goal)}
-                    />
-                  </div>
-                </foreignObject>
-              </g>
+                <GoalNodeCard
+                  goalType={goal.type}
+                  status={goalNodeAdapter.toGoalStatus(goal)}
+                  title={goal.title}
+                  progress={progress}
+                  categoryColor={goalNodeAdapter.toCategoryColor(goal)}
+                  selected={goal.id === selectedId}
+                  variant={isGhost ? 'ghost' : 'default'}
+                  density="full"
+                  onClick={() => {
+                    if (skipClickRef.current) {
+                      skipClickRef.current = false;
+                      return;
+                    }
+                    onSelectNode(goal);
+                  }}
+                  onContextMenu={(e) => onNodeContextMenu(e, goal)}
+                />
+              </div>
             );
           })}
-        </g>
-      </svg>
+        </div>
+
+        {showMapDebug && (
+          <div
+            className="goal-graph__debug"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div>size: {Math.round(size.w)}×{Math.round(size.h)}</div>
+            <div>cx/cy: {Math.round(cx)}, {Math.round(cy)}</div>
+            <div>
+              viewport: pan({mapViewport.panX.toFixed(1)}, {mapViewport.panY.toFixed(1)}) scale={mapViewport.scale.toFixed(2)}
+            </div>
+            <div>
+              vh: {Math.round(getViewportHeight())} / innerH: {typeof window !== 'undefined' ? Math.round(window.innerHeight) : '-'}
+            </div>
+            <div>sheetObstruction: {Math.round(mobileSheetObstructionPx)}px</div>
+            <div>
+              LT pos: {ltPos ? `${ltPos.x.toFixed(1)}, ${ltPos.y.toFixed(1)}` : 'null'}
+            </div>
+            <div>
+              focus({focusGoalId ?? '-'}): {focusPos ? `${focusPos.x.toFixed(1)}, ${focusPos.y.toFixed(1)}` : 'null'}
+            </div>
+          </div>
+        )}
+      </div>
 
       {isMobileLayout ? (
         <div
