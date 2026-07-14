@@ -90,8 +90,31 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
         for (const task of serverTasks) {
           taskById.set(task.id, task);
         }
-        for (const task of localDbTasks) {
-          taskById.set(task.id, task);
+
+        // オンラインでサーバー取得できた場合はサーバーを正とする。
+        // Dexie にだけ残った削除済み（論理削除済み）タスクをマージで復活させない。
+        // オフライン時、またはサーバー取得失敗時のみローカル全件を使う。
+        const usedServer = fetchedTasks !== null && fetchedTasks !== undefined && isOnline();
+        if (usedServer) {
+          const pendingCreates = new Set(
+            (await db.sync_queue.toArray())
+              .filter((q) => q.entity === 'task' && q.operation === 'create')
+              .map((q) => {
+                const payload = q.payload as { id?: string };
+                return payload?.id ? String(payload.id) : '';
+              })
+              .filter(Boolean),
+          );
+          for (const task of localDbTasks) {
+            if (taskById.has(task.id)) continue;
+            if (pendingCreates.has(task.id)) {
+              taskById.set(task.id, task);
+            }
+          }
+        } else {
+          for (const task of localDbTasks) {
+            taskById.set(task.id, task);
+          }
         }
 
         const formattedTasks = Array.from(taskById.values());

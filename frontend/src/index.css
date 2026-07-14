@@ -501,16 +501,11 @@ a { text-decoration: none; color: inherit; }
   }
 
   .sidebar--rail .sidebar__surface {
-    width: 100%;
-    min-width: 100%;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
     height: 100%;
     display: flex;
     flex-direction: column;
-  }
-
-  .sidebar--rail:hover .sidebar__surface {
-    width: var(--sidebar-width);
-    min-width: var(--sidebar-width);
   }
 
   .sidebar--rail .sidebar__brand {
@@ -520,22 +515,19 @@ a { text-decoration: none; color: inherit; }
     flex-shrink: 0;
   }
 
-  .sidebar--rail:not(:hover) .sidebar__brand {
-    justify-content: center;
-    padding-left: var(--sp-3);
-    padding-right: var(--sp-3);
-  }
-
-  .sidebar--rail:not(:hover) .sidebar__name,
-  .sidebar--rail:not(:hover) .sidebar__nav-label {
-    display: none;
+  .sidebar--rail .sidebar__name,
+  .sidebar--rail .sidebar__nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 0;
+    opacity: 0;
+    transition: opacity 0.18s var(--ease), max-width 0.24s var(--ease);
   }
 
   .sidebar--rail:hover .sidebar__name,
   .sidebar--rail:hover .sidebar__nav-label {
-    display: block;
-    white-space: nowrap;
-    animation: sidebarRailLabelIn 0.16s 0.06s var(--ease) both;
+    max-width: 12rem;
+    opacity: 1;
   }
 
   .sidebar--rail .sidebar__nav {
@@ -543,13 +535,8 @@ a { text-decoration: none; color: inherit; }
     padding: var(--sp-4) var(--sp-3);
   }
 
-  .sidebar--rail:not(:hover) .sidebar__nav-item {
-    justify-content: center;
-    gap: 0;
-    padding: var(--sp-3);
-  }
-
-  .sidebar--rail:hover .sidebar__nav-item {
+  /* アイコン位置を開閉で動かさない（引き寄せ見えを防ぐ） */
+  .sidebar--rail .sidebar__nav-item {
     justify-content: flex-start;
     width: 100%;
     padding: var(--sp-3);
@@ -2222,6 +2209,15 @@ a { text-decoration: none; color: inherit; }
     pointer-events: none;
   }
 
+  /* 配置プレビューの確定/スキップが詳細パネル（z-index:40）に隠れないようにする */
+  .goals-page:has(.goals-page__placement-bar) .goals-page__header {
+    z-index: 50;
+  }
+
+  .goals-page:has(.goals-page__desktop-detail):has(.goals-page__placement-bar) .goals-page__header {
+    right: calc(300px + var(--sp-3));
+  }
+
   .goals-page__header > * {
     pointer-events: auto;
   }
@@ -2523,10 +2519,35 @@ a { text-decoration: none; color: inherit; }
   position: relative;
 }
 
+.goal-graph__stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .graph-canvas-wrap svg.goal-graph__canvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   cursor: grab;
+  z-index: 1;
+}
+
+.goal-graph__html-nodes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.goal-graph__html-node {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
 }
 
 .graph-canvas-wrap svg.goal-graph__canvas:active { cursor: grabbing; }
@@ -2557,6 +2578,23 @@ a { text-decoration: none; color: inherit; }
   cursor: default;
 }
 
+.goal-graph__debug {
+  position: absolute;
+  top: 52px;
+  left: var(--sp-2);
+  z-index: 60;
+  max-width: min(92vw, 360px);
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.78);
+  color: #9fef9f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.45;
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
 .goal-graph__zoom-control {
   position: absolute;
   top: auto;
@@ -2572,6 +2610,13 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   user-select: none;
+}
+
+/* PC: 右サイド詳細パネル（300px）とズームUIが重ならないようずらす */
+@media (min-width: 769px) {
+  .goals-page:has(.goals-page__desktop-detail) .goal-graph__zoom-control {
+    right: calc(300px + var(--sp-4));
+  }
 }
 
 .goal-graph__zoom-label {
@@ -2598,18 +2643,23 @@ a { text-decoration: none; color: inherit; }
   outline-offset: 2px;
 }
 
-/* モバイル縦型ズーム: viewport 基準で下部ナビ直上に固定（FAB と同方式） */
+/* モバイル縦型ズーム: 右下の FAB と重ならないよう左下に固定 */
 @media (max-width: 768px) {
   .goal-graph__zoom-control.goal-graph__zoom-control--mobile {
     position: fixed;
-    left: auto;
-    right: var(--sp-2);
+    left: var(--sp-2);
+    right: auto;
     bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + var(--sp-2));
     z-index: 55;
   }
 
   .app-shell:has(.goal-detail-sheet--open) .goal-graph__zoom-control.goal-graph__zoom-control--mobile {
     bottom: calc(env(safe-area-inset-bottom, 0px) + var(--sp-2));
+  }
+
+  /* FAB は右下のまま。ズームより手前に来るよう z-index を揃える */
+  .goals-map-fab {
+    z-index: 56;
   }
 }
 
@@ -3544,6 +3594,29 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
 .settings-page__separator {
   border-top: 1px solid var(--border);
   margin: var(--sp-2) 0 0;
+}
+
+.settings-page__version {
+  display: block;
+  width: 100%;
+  margin-top: var(--sp-6);
+  padding: var(--sp-3);
+  border: none;
+  background: transparent;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  cursor: default;
+  user-select: text;
+}
+
+.settings-page__version-hint {
+  margin: var(--sp-2) 0 0;
+  padding: 0 var(--sp-4);
+  font-size: 12px;
+  color: var(--accent-gold);
+  text-align: center;
 }
 
 /* テーマカラー：インライン展開パネル */

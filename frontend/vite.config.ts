@@ -3,9 +3,27 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8')) as { version: string }
+
+/** Vercel / CI の短いコミットハッシュ。無いときは local */
+const gitSha = (
+  process.env.VERCEL_GIT_COMMIT_SHA
+  || process.env.CF_PAGES_COMMIT_SHA
+  || process.env.GITHUB_SHA
+  || 'local'
+).slice(0, 7)
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_GIT_SHA__: JSON.stringify(gitSha),
+  },
   plugins: [
     wasm(),
     topLevelAwait(),

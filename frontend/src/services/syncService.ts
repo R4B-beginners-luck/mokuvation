@@ -285,6 +285,21 @@ export const syncFromServer = async (): Promise<void> => {
     await db.tasks.bulkPut(tasksToUpsert);
     await db.goals.bulkPut(goalsToUpsert);
 
+    // サーバー側で論理削除されたレコードが Dexie に残ると、
+    // TopPage 等のローカルマージで再表示される。
+    // 今回の upsert 対象に含まれない ID は削除済み（または非存在）として除去する。
+    // pending create は tasksToUpsert に含まれるため保護される。
+    const keepTaskIds = new Set(tasksToUpsert.map((t) => t.id));
+    const keepGoalIds = new Set(goalsToUpsert.map((g) => g.id));
+    const [existingTasks, existingGoals] = await Promise.all([
+      db.tasks.toArray(),
+      db.goals.toArray(),
+    ]);
+    const staleTaskIds = existingTasks.filter((t) => !keepTaskIds.has(t.id)).map((t) => t.id);
+    const staleGoalIds = existingGoals.filter((g) => !keepGoalIds.has(g.id)).map((g) => g.id);
+    if (staleTaskIds.length > 0) await db.tasks.bulkDelete(staleTaskIds);
+    if (staleGoalIds.length > 0) await db.goals.bulkDelete(staleGoalIds);
+
     // ✅ Automerge Doc の初期化。
     // 既にDexie(crdt_meta)へ永続化済みのdocがあればそれをそのまま使い、
     // 無い場合（新規ログイン端末など）だけ「サーバー + 未送信キュー反映済み」の

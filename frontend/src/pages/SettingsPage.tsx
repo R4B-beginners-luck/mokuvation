@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Palette,
   HelpCircle,
@@ -10,6 +10,8 @@ import {
   ChevronRight,
   Check,
 } from 'lucide-react';
+import { getAppVersionLabel } from '../utils/appVersion';
+import { isMapDebugStorageOn, setMapDebugStorage } from '../utils/debug';
 
 type ThemeColorId = 'amber' | 'blue' | 'teal' | 'violet' | 'pink';
 
@@ -86,6 +88,8 @@ interface SettingsPageProps {
 export function SettingsPage({ onOpenHelp, onOpenTerms, onOpenPrivacy, onLogout }: SettingsPageProps) {
   const [themeExpanded, setThemeExpanded] = useState(false);
   const [themeColor, setThemeColor] = useState<ThemeColorId>(DEFAULT_THEME_COLOR);
+  const [versionHint, setVersionHint] = useState<string | null>(null);
+  const versionTapRef = useRef({ count: 0, timer: 0 as number | undefined });
 
   useEffect(() => {
     const storedId = readStoredThemeColorId();
@@ -100,6 +104,26 @@ export function SettingsPage({ onOpenHelp, onOpenTerms, onOpenPrivacy, onLogout 
     setThemeColor(id);
     applyThemeColor(color);
     localStorage.setItem(THEME_STORAGE_KEY, id);
+  };
+
+  /** バージョンを連続タップでマップデバッグをトグル（iPhone 本番/Preview 調査用） */
+  const handleVersionTap = () => {
+    const state = versionTapRef.current;
+    window.clearTimeout(state.timer);
+    state.count += 1;
+    state.timer = window.setTimeout(() => {
+      state.count = 0;
+    }, 1500);
+
+    if (state.count < 7) return;
+    state.count = 0;
+    const next = !isMapDebugStorageOn();
+    setMapDebugStorage(next);
+    setVersionHint(
+      next
+        ? 'マップデバッグ ON（目標マップに数値が出ます）'
+        : 'マップデバッグ OFF',
+    );
   };
 
   return (
@@ -169,6 +193,20 @@ export function SettingsPage({ onOpenHelp, onOpenTerms, onOpenPrivacy, onLogout 
           <SettingsRow icon={Trash2} label="アカウントを削除" showChevron={false} danger />
         </div>
       </section>
+
+      <button
+        type="button"
+        className="settings-page__version"
+        onClick={handleVersionTap}
+        aria-label={`アプリバージョン ${getAppVersionLabel()}`}
+      >
+        {getAppVersionLabel()}
+      </button>
+      {versionHint && (
+        <p className="settings-page__version-hint" role="status">
+          {versionHint}
+        </p>
+      )}
     </div>
   );
 }
