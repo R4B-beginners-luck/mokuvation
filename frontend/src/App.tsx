@@ -127,8 +127,9 @@ function AppContent() {
       try {
         const userData = await authApi.getMe();
         await waitForBrandSplashAnimation(startedAt);
+        // オフライン作成用にキャッシュ／別アカウント切替を検知したらローカルデータを消去
+        await ensureUserScope(userData.user_id);
         setUser(userData);
-        cacheUserId(userData.user_id);
         setIsLoggedIn(true);
         setPage(getPersistedPage());
       } catch {
@@ -151,8 +152,9 @@ function AppContent() {
     try {
       const userData = await authApi.getMe();
       await waitForBrandSplashAnimation(startedAt);
+      // オフライン作成用にキャッシュ／別アカウント切替を検知したらローカルデータを消去
+      await ensureUserScope(userData.user_id);
       setUser(userData);
-      cacheUserId(userData.user_id);
       setIsLoggedIn(true);
       setPage('top');
       localStorage.setItem(LAST_PAGE_KEY, 'top');
