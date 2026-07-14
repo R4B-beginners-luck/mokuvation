@@ -1,6 +1,9 @@
+import type { ThemeColorIndex } from "../../../utils/theme";
+
 export interface User {
   user_id: string;
   user_name: string;
+  theme_color?: ThemeColorIndex;
 }
 
 export interface LoginCredentials {

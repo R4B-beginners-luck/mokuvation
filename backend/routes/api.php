@@ -46,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // --- ユーザー関連 ---
     Route::post('/auth/logout', [AuthController::class, 'logout']); // ログアウト（トークン破棄）
     Route::get('/users/me', [UserController::class, 'me']);         // ログイン中の自分の情報を取得
+    Route::patch('/users/me', [UserController::class, 'update']);   // ログイン中の自分の設定を更新
 
     // --- 目標管理 (Goals) ---
     // {goal} は「ルートモデルバインディング」機能を利用。URL の ID から自動で Goal モデルを取得します。

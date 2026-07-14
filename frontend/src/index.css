@@ -770,6 +770,10 @@ a { text-decoration: none; color: inherit; }
   background: var(--bg-base);
   position: relative;
   overflow: hidden;
+
+  /* ログイン・新規登録画面のみ専用のテーマカラー */
+  --color-primary: #5ab5a0;
+  --color-primary-rgb: 90, 181, 160;
 }
 
 .login-page__bg-decoration {

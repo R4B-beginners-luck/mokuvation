@@ -39,9 +39,12 @@ export interface ShortTermGoal {
   color_code?: string;
 }
 
+import type { ThemeColorIndex } from '../utils/theme';
+
 export interface User {
   user_id: string;
   user_name: string;
+  theme_color?: ThemeColorIndex;
 }
 
 export type Goal = LongTermGoal | MidTermGoal | ShortTermGoal;
