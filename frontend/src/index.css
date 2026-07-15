@@ -887,6 +887,98 @@ a { text-decoration: none; color: inherit; }
 
 .form-input::placeholder { color: var(--text-muted); }
 
+/* ─── GoalPicker（目標選択カスタムドロップダウン） ─────────────────
+   native <select>/<option> はプレーンテキストしか描画できず、CSSも
+   効かないため、長い目標名がプルダウンごと画面外にはみ出たり、
+   タグ（色付きバッジ）を表示できなかったりする問題があった。
+   div/buttonベースの独自ドロップダウンに置き換えることで、
+   ・アイコン/タグ/タイトルにCSSで省略表示(ellipsis)を効かせられる
+   ・幅をトリガーボタン（＝モーダル幅）に確実に収められる
+   ようにする。 */
+.goal-picker {
+  position: relative;
+}
+
+.goal-picker__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.goal-picker__trigger-value {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.goal-picker__placeholder {
+  color: var(--text-muted);
+  flex: 1;
+  text-align: left;
+}
+
+.goal-picker__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.goal-picker__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 1100;
+  padding: var(--sp-2) 0;
+}
+
+.goal-picker__group-label {
+  padding: var(--sp-2) var(--sp-4) 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-picker__option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-4);
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.goal-picker__option:hover { background: var(--bg-hover); }
+
+.goal-picker__option--selected {
+  background: rgba(var(--color-primary-rgb), 0.12);
+}
+
 .btn-primary {
   background: var(--color-primary);
   color: #16151a;
@@ -1331,6 +1423,8 @@ a { text-decoration: none; color: inherit; }
   background: var(--bg-raised);
   transition: border-color var(--dur-fast), background var(--dur-fast);
   cursor: pointer;
+  min-width: 0; /* 親(<li>)がflexの時、子のテキストが伸び切って
+                   カード全体の横幅を押し広げてしまうのを防ぐ */
 }
 
 .goal-item:hover { border-color: rgba(240,236,224,0.12); background: var(--bg-hover); }
@@ -1379,6 +1473,9 @@ a { text-decoration: none; color: inherit; }
   font-weight: 500;
   color: var(--text-primary);
   line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .goal-item__meta {
@@ -1397,6 +1494,10 @@ a { text-decoration: none; color: inherit; }
   padding: 2px var(--sp-2);
   border-radius: var(--r-sm);
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom; /* text-overflow: ellipsisにはブロック的な計算幅が必要 */
 }
 
 .tag--long  { background: rgba(232,162,52,0.12); color: var(--accent-gold); }

@@ -232,15 +232,39 @@ export const setPullCursor = async (id: number): Promise<void> => {
  * Automerge.applyChanges は取り込み済みの change を渡しても冪等なので、
  * 重複適用について呼び出し側で気にする必要はない。
  */
+/**
+ * /api/crdt/pull で取得した他端末発の変更（base64の配列）を自分のdocへマージする。
+ * Automerge.applyChanges は取り込み済みの change を渡しても冪等なので、
+ * 重複適用について呼び出し側で気にする必要はない。
+ *
+ * ⚠️ 以前は changesB64 を丸ごと一度に Automerge.applyChanges() へ渡していたため、
+ * その中の1件でもデコードに失敗する（例: 過去のCHUNKバグで壊れたbase64が
+ * サーバーに保存されてしまっていた等）と、catchで握りつぶされてバッチ全体が
+ * 適用されず、結果的に正常な他の変更まで巻き込まれて消えていた。
+ * さらに呼び出し元(pullCrdtChanges)はこの失敗に気づかずpullカーソルを
+ * 進めてしまうため、それらの変更は二度と取り込まれなくなっていた
+ * （「他端末発の変更が反映されなくなった」症状の直接原因）。
+ * 1件ずつ適用することで、壊れた1件だけをスキップし、他の正常な変更は
+ * 確実に取り込めるようにする。
+ */
 export const applyRemoteChanges = async (changesB64: string[]): Promise<void> => {
   if (changesB64.length === 0) return;
-  try {
-    const changes = changesB64.map(base64ToBinary);
-    const [newDoc] = Automerge.applyChanges(doc, changes);
-    doc = newDoc;
+
+  let appliedAny = false;
+  for (const b64 of changesB64) {
+    try {
+      const change = base64ToBinary(b64);
+      const [newDoc] = Automerge.applyChanges(doc, [change]);
+      doc = newDoc;
+      appliedAny = true;
+    } catch (e) {
+      // このchange1件は復元不能。スキップして他のchangeの適用は継続する。
+      console.warn('[crdtStore] 1件の変更の適用に失敗（スキップして継続）:', e);
+    }
+  }
+
+  if (appliedAny) {
     await _persistDoc();
-  } catch (e) {
-    console.warn('[crdtStore] リモート変更の適用に失敗:', e);
   }
 };
 
