@@ -16,6 +16,8 @@ import { isMapDebugStorageOn, setMapDebugStorage } from '../utils/debug';
 import { authApi } from '../features/auth/api/authApi';
 import { Modal } from '../components/Modal';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
+// 💡 ConfirmationModal をインポート (パスは環境に合わせて適宜調整してください)
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import {
   applyThemeColorIndex,
   DEFAULT_THEME_COLOR_INDEX,
@@ -248,18 +250,29 @@ function AccountEditModal({ user, onClose, onSave, isSaving = false, errorMessag
   );
 }
 
-// 💡 App.tsxからモーダル制御用の関数などを受け取れるようにインターフェースを定義
 interface SettingsPageProps {
   user: User | null;
   onOpenHelp: () => void;
   onOpenTerms: () => void;
   onOpenPrivacy: () => void;
   onLogout: () => void;
+  onDeleteAccount?: () => void | Promise<void>; // 💡 アカウント削除トリガーを追加
+  isDeletingAccount?: boolean;                  // 💡 削除API実行中のローディング状態用
   onThemeColorUpdated: (themeColor: ThemeColorIndex) => void;
   onAccountUpdated?: (user: User) => void;
 }
 
-export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onLogout, onThemeColorUpdated, onAccountUpdated }: SettingsPageProps) {
+export function SettingsPage({
+  user,
+  onOpenHelp,
+  onOpenTerms,
+  onOpenPrivacy,
+  onLogout,
+  onDeleteAccount,
+  isDeletingAccount = false,
+  onThemeColorUpdated,
+  onAccountUpdated,
+}: SettingsPageProps) {
   const [themeExpanded, setThemeExpanded] = useState(false);
   const [themeColorIndex, setThemeColorIndex] = useState<ThemeColorIndex>(DEFAULT_THEME_COLOR_INDEX);
   const [versionHint, setVersionHint] = useState<string | null>(null);
@@ -267,6 +280,10 @@ export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onL
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isSavingAccount, setIsSavingAccount] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
+
+  // 💡 確認ダイアログの開閉ステートを追加
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
     const initialIndex = isThemeColorIndex(user?.theme_color)
@@ -383,7 +400,6 @@ export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onL
       <section className="settings-page__section">
         <h2 className="settings-page__section-title">サポート</h2>
         <div className="settings-page__section-body">
-          {/* 💡 それぞれ onClick イベントにモーダルを開く処理を紐付けました */}
           <SettingsRow icon={HelpCircle} label="ヘルプ" onClick={onOpenHelp} />
           <SettingsRow icon={FileText} label="利用規約" onClick={onOpenTerms} />
           <SettingsRow icon={Shield} label="プライバシーポリシー" onClick={onOpenPrivacy} />
@@ -402,12 +418,26 @@ export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onL
               setIsAccountModalOpen(true);
             }}
           />
-          {/* 💡 ログアウト処理も連動させました */}
-          <SettingsRow icon={LogOut} label="ログアウト" showChevron={false} onClick={onLogout} />
+          {/* 💡 ログアウトボタンは確認ダイアログを開くようトリガーを変更 */}
+          <SettingsRow
+            icon={LogOut}
+            label="ログアウト"
+            showChevron={false}
+            onClick={() => setIsLogoutConfirmOpen(true)}
+          />
+        </div>
+      </section>
 
-          <div className="settings-page__separator" role="separator" />
-
-          <SettingsRow icon={Trash2} label="アカウントを削除" showChevron={false} danger />
+      {/* ── 危険エリア (視覚的・セクション的に完全に切り離し) ── */}
+      <section className="settings-page__section settings-page__section--danger" style={{ marginTop: '24px' }}>
+        <div className="settings-page__section-body">
+          <SettingsRow
+            icon={Trash2}
+            label="アカウントを削除"
+            showChevron={false}
+            danger
+            onClick={() => setIsDeleteConfirmOpen(true)}
+          />
         </div>
       </section>
 
@@ -432,6 +462,39 @@ export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onL
           onSave={handleUpdateAccount}
           isSaving={isSavingAccount}
           errorMessage={accountError}
+        />
+      )}
+
+      {/* 💡 ログアウト確認ダイアログ */}
+      {isLogoutConfirmOpen && (
+        <ConfirmationModal
+          title="ログアウト"
+          description="ログアウトしますか？"
+          confirmLabel="はい"
+          cancelLabel="キャンセル"
+          onConfirm={() => {
+            setIsLogoutConfirmOpen(false);
+            onLogout();
+          }}
+          onCancel={() => setIsLogoutConfirmOpen(false)}
+        />
+      )}
+
+      {/* 💡 アカウント削除確認ダイアログ（危険操作） */}
+      {isDeleteConfirmOpen && (
+        <ConfirmationModal
+          title="アカウントを削除"
+          description="アカウントを削除すると、すべての目標・タスクのデータが完全に削除され、元に戻せません。本当に削除しますか？"
+          confirmLabel="削除する"
+          cancelLabel="キャンセル"
+          isLoading={isDeletingAccount}
+          onConfirm={async () => {
+            if (onDeleteAccount) {
+              await onDeleteAccount();
+            }
+            setIsDeleteConfirmOpen(false);
+          }}
+          onCancel={() => setIsDeleteConfirmOpen(false)}
         />
       )}
     </div>
