@@ -137,13 +137,43 @@ interface GoalPickerProps {
   disabled?: boolean;
 }
 
+// ─── 開閉状態の永続化 ───────────────────────────────────────────
+// タスク追加のたびにモーダル（＝GoalPickerのインスタンス）が作り直され、
+// そのままだとコンポーネントのstateも毎回リセットされて開閉状態が
+// 覚えられない。localStorageに保存しておき、次にモーダルを開いた時も
+// 同じ展開状態から始められるようにする。
+const EXPANDED_STORAGE_KEY = 'mokuvation_goal_picker_expanded';
+
+const loadExpandedFromStorage = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(EXPANDED_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const saveExpandedToStorage = (expanded: Set<string>) => {
+  try {
+    localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify([...expanded]));
+  } catch {
+    // localStorageが使えない環境（プライベートモード等）では諦めて無視する
+  }
+};
+
 export function GoalPicker({ goals, value, onChange, disabled }: GoalPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(loadExpandedFromStorage);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const tree = useMemo(() => buildGoalTree(goals), [goals]);
   const selectedGoal = useMemo(() => goals.find((g) => g.id === value), [goals, value]);
+
+  // 開閉状態が変わるたびに保存しておく
+  useEffect(() => {
+    saveExpandedToStorage(expanded);
+  }, [expanded]);
 
   // 開いた時、選択中の目標がある階層まで自動的に展開しておく
   useEffect(() => {
