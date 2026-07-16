@@ -23,7 +23,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 interface TopPageProps {
   tasks: Task[];
-  onToggle: (id: string) => void;
+  onToggle: (id: string, currentCompleted?: boolean) => void;
   onAddTask: (goal: Task) => void;
   onDeleteTask: (taskId: string) => void;
   user: User | null;
@@ -235,8 +235,9 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
   }, [tasks]);
 
   const handleToggleWrapper = (id: string) => {
+    const current = localTasks.find((t) => t.id === id);
     setLocalTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-    onToggle(id);
+    onToggle(id, current?.completed);
   };
 
   const handleAddWrapper = (task: Task) => {

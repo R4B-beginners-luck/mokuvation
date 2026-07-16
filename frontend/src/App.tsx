@@ -200,9 +200,26 @@ function AppContent() {
   };
 
   // ── タスク完了トグル ─────────────────────────────────────────
-  const handleToggleTask = async (id: string) => {
-    const target = tasks.find((t) => t.id === id);
-    if (!target) return;
+  // ⚠️ TopPage は自前で taskApi.getTasks() を叩いた結果(localTasks)を表示に使っており、
+  // 他デバイスが作成した直後のタスク等、useLocalData 側の `tasks`（Dexie/CRDT経由の同期）
+  // にはまだ載っていないが画面には表示されている、というズレが起こり得る。
+  // 以前は `tasks.find()` で見つからない場合ここで即 return していたため、
+  // 「表示はされるのにトグルを押しても何も起きない」不具合の原因になっていた。
+  // 呼び出し元（TopPage側）が今画面に出している完了状態を fallbackCompleted として
+  // 渡してもらい、tasks / Dexie のどちらにも無い場合はそれを使って更新を続行する。
+  const handleToggleTask = async (id: string, fallbackCompleted?: boolean) => {
+    let target = tasks.find((t) => t.id === id);
+
+    if (!target) {
+      const dbTask = await db.tasks.get(id);
+      if (dbTask) {
+        target = localTaskToTask(dbTask);
+      } else if (fallbackCompleted !== undefined) {
+        target = { id, title: '', completed: fallbackCompleted, date: getJstTodayStr() } as Task;
+      } else {
+        return;
+      }
+    }
 
     const nextCompleted = !target.completed;
 

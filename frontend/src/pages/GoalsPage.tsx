@@ -17,11 +17,10 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { COLOR_PALETTE } from '../const/colors';
 import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
-import { Map, Plus } from 'lucide-react';
 import { db } from '../services/db';
 import type { LocalGoal, SyncQueueItem } from '../services/db';
 import { isOnline, isNetworkFailure } from '../services/syncService';
-import { crdtUpsertGoal, crdtDeleteGoal } from '../services/crdtStore';
+import { crdtUpsertGoal, crdtDeleteGoal, crdtDeleteTask } from '../services/crdtStore';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { vhToViewportPx } from '../utils/viewport';
 import {
@@ -1035,6 +1034,48 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       // オンラインで削除に成功した場合はDexieにゴーストレコードが残っていた
       // （loadGoals() は bulkPut のみで、サーバーから消えたレコードの削除は行わないため）。
       // 成功パスならどちらでも必ずローカルからも削除する。
+      //
+      // ⚠️ さらに、サーバー側（GoalService::deleteRecursively）は削除した目標の
+      // 「子目標」と「それらに紐づくタスク」も再帰的に削除するが、
+      // クライアント側ではこれまでクリックした対象の目標1件しかDexieから
+      // 消していなかった。そのため、子目標・配下タスクは次回の
+      // syncFromServer()（オンライン時の定期フルシンク）が走るまでの間、
+      // Dexieに孤児レコードとして残り続け、その間にオフラインへ切り替えると
+      // 「昔削除したはずの目標・タスクが復活する」ように見えてしまう。
+      // サーバーの再帰削除と同じ範囲を、ここでも先回りしてローカルから消す。
+      const allLocalGoals = await db.goals.toArray();
+      const childrenByParent = new Map<string, string[]>();
+      for (const g of allLocalGoals) {
+        if (!g.parent_goal_id) continue;
+        const list = childrenByParent.get(g.parent_goal_id) ?? [];
+        list.push(g.id);
+        childrenByParent.set(g.parent_goal_id, list);
+      }
+      const descendantGoalIds: string[] = [];
+      const stack = [goal.id];
+      while (stack.length > 0) {
+        const current = stack.pop()!;
+        for (const childId of childrenByParent.get(current) ?? []) {
+          descendantGoalIds.push(childId);
+          stack.push(childId);
+        }
+      }
+
+      const goalIdsToRemove = [goal.id, ...descendantGoalIds];
+      const goalIdsToRemoveSet = new Set(goalIdsToRemove);
+
+      const orphanedTasks = (await db.tasks.toArray())
+        .filter((t) => t.goal_id && goalIdsToRemoveSet.has(t.goal_id));
+
+      for (const taskId of orphanedTasks.map((t) => t.id)) {
+        await db.tasks.delete(taskId);
+        crdtDeleteTask(taskId);
+      }
+      for (const descendantId of descendantGoalIds) {
+        await db.goals.delete(descendantId);
+        crdtDeleteGoal(descendantId);
+      }
+
       await db.goals.delete(goal.id);
       crdtDeleteGoal(goal.id);
 
