@@ -21,6 +21,7 @@ class User extends Authenticatable
         'user_id',
         'user_name',
         'password',
+        'theme_color',
     ];
 
     // 3. リレーション：ユーザーは複数の目標を持つ（1対多）

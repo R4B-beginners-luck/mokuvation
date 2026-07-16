@@ -11,14 +11,14 @@ export function EmptyTodayCard({ onOpenModal }: EmptyTodayCardProps) {
       <span className="empty-today-card__emoji">
         <Sprout size={32} strokeWidth={1.75} aria-hidden />
       </span>
-      <p className="empty-today-card__text">今日の目標設定してないよぉ</p>
+      <p className="empty-today-card__text">今日のタスク設定してないよぉ</p>
       <p className="empty-today-card__sub">
         今日やることを決めると、<br />
         モチベーションが上がるよ！
       </p>
       <button className="empty-today-card__cta" onClick={(e) => { e.stopPropagation(); onOpenModal(); }}>
         <Plus size={15} strokeWidth={1.75} aria-hidden />
-        今日の目標を追加する
+        今日のタスクを追加する
       </button>
     </div>
   );

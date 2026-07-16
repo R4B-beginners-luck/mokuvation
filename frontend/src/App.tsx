@@ -13,6 +13,7 @@ import { GoalsPage }   from './pages/GoalsPage';
 import { authApi } from './features/auth/api/authApi';
 import { taskApi } from './features/tasks/api/taskApi';
 import { SettingsPage } from './pages/SettingsPage';
+import { applyThemeColor, applyThemeColorIndex, DEFAULT_THEME_COLOR_INDEX, isThemeColorIndex } from './utils/theme';
 
 // ── 【追加インポート】モーダルとコンテンツの読み込み ────────────────
 import { Modal } from './components/common/Modal'; 
@@ -20,7 +21,7 @@ import { HelpContent, TermsContent, PrivacyContent } from './components/common/M
 
 import { useLocalData, localTaskToTask } from './hooks/useLocalData';
 import { db, type LocalTask } from './services/db';
-import { updateTaskLocally, cacheUserId, isOnline, isNetworkFailure } from './services/syncService';
+import { updateTaskLocally, cacheUserId, ensureUserScope, isOnline, isNetworkFailure } from './services/syncService';
 import { crdtToggleTask, crdtAddTask, crdtDeleteTask } from './services/crdtStore';
 
 // ── DBレスポンス（snake_case）→ フロント共通型（camelCase）変換 ────────────────
@@ -120,6 +121,8 @@ function AppContent() {
     const verifyToken = async () => {
       const token = localStorage.getItem('auth_token');
       if (!token) {
+        applyThemeColorIndex(DEFAULT_THEME_COLOR_INDEX);
+        localStorage.removeItem('settings:themeColor');
         setShowEntrySplash(false);
         return;
       }
@@ -127,12 +130,21 @@ function AppContent() {
       try {
         const userData = await authApi.getMe();
         await waitForBrandSplashAnimation(startedAt);
+        // オフライン作成用にキャッシュ／別アカウント切替を検知したらローカルデータを消去
+        await ensureUserScope(userData.user_id);
         setUser(userData);
         cacheUserId(userData.user_id);
+        const theme = isThemeColorIndex(userData.theme_color)
+          ? userData.theme_color
+          : DEFAULT_THEME_COLOR_INDEX;
+        applyThemeColorIndex(theme);
+        localStorage.setItem('settings:themeColor', String(theme));
         setIsLoggedIn(true);
         setPage(getPersistedPage());
       } catch {
         localStorage.removeItem('auth_token');
+        localStorage.removeItem('settings:themeColor');
+        applyThemeColorIndex(DEFAULT_THEME_COLOR_INDEX);
         setIsLoggedIn(false);
         setUser(null);
       } finally {
@@ -151,8 +163,15 @@ function AppContent() {
     try {
       const userData = await authApi.getMe();
       await waitForBrandSplashAnimation(startedAt);
+      // オフライン作成用にキャッシュ／別アカウント切替を検知したらローカルデータを消去
+      await ensureUserScope(userData.user_id);
       setUser(userData);
       cacheUserId(userData.user_id);
+      const theme = isThemeColorIndex(userData.theme_color)
+        ? userData.theme_color
+        : DEFAULT_THEME_COLOR_INDEX;
+      applyThemeColorIndex(theme);
+      localStorage.setItem('settings:themeColor', String(theme));
       setIsLoggedIn(true);
       setPage('top');
       localStorage.setItem(LAST_PAGE_KEY, 'top');
@@ -160,6 +179,8 @@ function AppContent() {
     } catch (error) {
       console.error('ログイン後のユーザー情報取得に失敗しました', error);
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('settings:themeColor');
+      applyThemeColorIndex(DEFAULT_THEME_COLOR_INDEX);
       setIsLoggedIn(false);
       setUser(null);
       setPage('login');
@@ -171,6 +192,8 @@ function AppContent() {
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem(LAST_PAGE_KEY);
+    localStorage.removeItem('settings:themeColor');
+    applyThemeColorIndex(DEFAULT_THEME_COLOR_INDEX);
     setIsLoggedIn(false);
     setUser(null);
     setPage('login');
@@ -358,10 +381,12 @@ function AppContent() {
         {/* 💡 コピペ解決部分：SettingsPageに必要な関数やステートをバインドしました */}
         {page === 'settings' && (
           <SettingsPage
+            user={user}
             onOpenHelp={() => setActiveModal('help')}
             onOpenTerms={() => setActiveModal('terms')}
             onOpenPrivacy={() => setActiveModal('privacy')}
             onLogout={handleLogout}
+            onThemeColorUpdated={(themeColor) => setUser((prev) => prev ? { ...prev, theme_color: themeColor } : prev)}
           />
         )}
       </Layout>

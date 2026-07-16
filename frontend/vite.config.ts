@@ -29,12 +29,21 @@ export default defineConfig({
     topLevelAwait(),
     react(),
     VitePWA({
+      // ⚠️ 従来の generateSW（workboxオプションを直接書くだけの方式）では、
+      // /api/* のキャッシュキーにユーザー識別情報を混ぜるカスタムプラグイン
+      // (cacheKeyWillBeUsed)を差し込めないため、自前のService Worker
+      // (src/sw.ts)をビルドに注入する injectManifest 戦略に変更した。
+      // プリキャッシュ対象ファイルの一覧だけは、従来通り自動的に
+      // self.__WB_MANIFEST へ注入される。
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'prompt',
       injectRegister: false,
       devOptions: {
         enabled: false,
       },
-      workbox: {
+      injectManifest: {
         // キャッシュ対象ファイル
         // ⚠️ wasm が抜けていたため、Automerge(CRDT)が使う .wasm 本体が
         // オフライン時にキャッシュから読めず、起動処理が止まって画面が
@@ -43,33 +52,6 @@ export default defineConfig({
         // デフォルトの上限(2MB)だと automerge の wasm(約1.8MB)がギリギリ／
         // 将来的なバージョンアップで超える可能性があるため余裕を持たせる
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        // ⚠️ これが無いと、SPAのナビゲーションリクエスト（リロード/画面遷移）に
-        // 対するフォールバックルートがSWに生成されず、オフライン時にリロードすると
-        // アプリのindex.htmlではなくブラウザのネイティブ「オフライン」エラー画面
-        // （ERR_INTERNET_DISCONNECTED）が表示されてしまう。
-        // precacheされたindex.htmlを常に返すことでSPAとして正しく起動できるようにする。
-        navigateFallback: '/index.html',
-        // /api/ 宛のリクエストはnavigation(ページ遷移)ではないので通常は該当しないが、
-        // 念のため明示的にfallback対象から除外しておく。
-        navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [
-          {
-            // API は NetworkFirst（オフライン時のみキャッシュ使用）
-            // ⚠️ method指定が無いとPATCH/POST/DELETEまでSWが横取りしてしまう。
-            // Cache APIはGET以外をcache.put()できず、更新系リクエストがSW経由だと
-            // 素のfetch失敗と異なる壊れ方をして isNetworkFailure() の判定が
-            // すり抜け、オフラインフォールバックが効かないバグの原因になっていた。
-            // 更新系はキャッシュ不要なのでそもそもSWを通す必要がなく、GETのみに限定する。
-            urlPattern: /^https?:\/\/.*\/api\/.*/i,
-            method: 'GET',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              networkTimeoutSeconds: 5,
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
       },
       manifest: {
         name: 'Mokuvation',

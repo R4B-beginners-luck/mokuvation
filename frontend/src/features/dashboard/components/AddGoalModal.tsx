@@ -22,7 +22,12 @@ export function AddGoalModal({ longTermGoals, midTermGoals, onAdd, onClose }: Ad
   const handleSubmit = () => {
     if (!title.trim()) return;
     const newGoal: ShortTermGoal = {
-      id: `st_${Date.now()}`,
+      // ⚠️ st_${Date.now()} だと、短時間に連続追加した場合や、
+      // 複数端末でほぼ同時に追加した場合にIDが衝突する可能性がある。
+      // CRDT(Automerge)でのマルチデバイス同期では、IDが同じ＝同一オブジェクトと
+      // 判定されるため、衝突すると別々の目標が誤ってマージされてしまう。
+      // crypto.randomUUID() にすることで衝突の可能性を実質なくす。
+      id: crypto.randomUUID(),
       type: 'short',
       title: title.trim(),
       description: description.trim(),

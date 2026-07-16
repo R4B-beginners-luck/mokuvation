@@ -12,39 +12,36 @@ import {
 } from 'lucide-react';
 import { getAppVersionLabel } from '../utils/appVersion';
 import { isMapDebugStorageOn, setMapDebugStorage } from '../utils/debug';
+import { authApi } from '../features/auth/api/authApi';
+import {
+  applyThemeColorIndex,
+  DEFAULT_THEME_COLOR_INDEX,
+  getThemeColorIdByIndex,
+  getThemeColorIndexById,
+  isThemeColorIndex,
+  THEME_COLORS,
+} from '../utils/theme';
+import type { ThemeColorId, ThemeColorIndex } from '../utils/theme';
+import type { User } from '../types';
 
-type ThemeColorId = 'amber' | 'blue' | 'teal' | 'violet' | 'pink';
-
-type ThemeColorOption = {
-  id: ThemeColorId;
-  label: string;
-  hex: string;
-  rgb: string;
-};
-
-const THEME_COLORS: ThemeColorOption[] = [
-  { id: 'amber',  label: 'アンバー',     hex: '#E8A234', rgb: '232, 162, 52' },
-  { id: 'blue',   label: 'ブルー',       hex: '#4D8FE8', rgb: '77, 143, 232' },
-  { id: 'teal',   label: 'ティール',     hex: '#5AB5A0', rgb: '90, 181, 160' },
-  { id: 'violet', label: 'バイオレット', hex: '#9B7FD4', rgb: '155, 127, 212' },
-  { id: 'pink',   label: 'ピンク',       hex: '#D47A9B', rgb: '212, 122, 155' },
-];
-
-const DEFAULT_THEME_COLOR: ThemeColorId = 'amber';
 const THEME_STORAGE_KEY = 'settings:themeColor';
 
-function applyThemeColor(color: ThemeColorOption) {
-  const root = document.documentElement;
-  root.style.setProperty('--color-primary', color.hex);
-  root.style.setProperty('--color-primary-rgb', color.rgb);
-}
-
-function readStoredThemeColorId(): ThemeColorId {
+function readStoredThemeColorIndex(): ThemeColorIndex {
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
-  if (stored && THEME_COLORS.some((c) => c.id === stored)) {
-    return stored as ThemeColorId;
+  if (stored === null) {
+    return DEFAULT_THEME_COLOR_INDEX;
   }
-  return DEFAULT_THEME_COLOR;
+
+  const parsed = Number(stored);
+  if (isThemeColorIndex(parsed)) {
+    return parsed;
+  }
+
+  if (isThemeColorIndex(getThemeColorIndexById(stored as ThemeColorId))) {
+    return getThemeColorIndexById(stored as ThemeColorId);
+  }
+
+  return DEFAULT_THEME_COLOR_INDEX;
 }
 
 interface SettingsRowProps {
@@ -79,31 +76,40 @@ function SettingsRow({ icon: Icon, label, onClick, showChevron = true, expanded,
 
 // 💡 App.tsxからモーダル制御用の関数などを受け取れるようにインターフェースを定義
 interface SettingsPageProps {
+  user: User | null;
   onOpenHelp: () => void;
   onOpenTerms: () => void;
   onOpenPrivacy: () => void;
   onLogout: () => void;
+  onThemeColorUpdated: (themeColor: ThemeColorIndex) => void;
 }
 
-export function SettingsPage({ onOpenHelp, onOpenTerms, onOpenPrivacy, onLogout }: SettingsPageProps) {
+export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onLogout, onThemeColorUpdated }: SettingsPageProps) {
   const [themeExpanded, setThemeExpanded] = useState(false);
-  const [themeColor, setThemeColor] = useState<ThemeColorId>(DEFAULT_THEME_COLOR);
+  const [themeColorIndex, setThemeColorIndex] = useState<ThemeColorIndex>(DEFAULT_THEME_COLOR_INDEX);
   const [versionHint, setVersionHint] = useState<string | null>(null);
   const versionTapRef = useRef({ count: 0, timer: 0 as number | undefined });
 
   useEffect(() => {
-    const storedId = readStoredThemeColorId();
-    setThemeColor(storedId);
-    const stored = THEME_COLORS.find((c) => c.id === storedId);
-    if (stored) applyThemeColor(stored);
-  }, []);
+    const initialIndex = isThemeColorIndex(user?.theme_color)
+      ? user.theme_color
+      : readStoredThemeColorIndex();
+    setThemeColorIndex(initialIndex);
+    applyThemeColorIndex(initialIndex);
+    localStorage.setItem(THEME_STORAGE_KEY, String(initialIndex));
+  }, [user]);
 
-  const handleSelectThemeColor = (id: ThemeColorId) => {
-    const color = THEME_COLORS.find((c) => c.id === id);
-    if (!color) return;
-    setThemeColor(id);
-    applyThemeColor(color);
-    localStorage.setItem(THEME_STORAGE_KEY, id);
+  const handleSelectThemeColor = async (index: ThemeColorIndex) => {
+    setThemeColorIndex(index);
+    applyThemeColorIndex(index);
+    localStorage.setItem(THEME_STORAGE_KEY, String(index));
+
+    try {
+      await authApi.updateMe({ theme_color: index });
+      onThemeColorUpdated(index);
+    } catch (error) {
+      console.error('テーマカラーの保存に失敗しました', error);
+    }
   };
 
   /** バージョンを連続タップでマップデバッグをトグル（iPhone 本番/Preview 調査用） */
@@ -144,18 +150,18 @@ export function SettingsPage({ onOpenHelp, onOpenTerms, onOpenPrivacy, onLogout 
           {themeExpanded && (
             <div className="settings-swatch-panel">
               <div className="settings-swatch-grid">
-                {THEME_COLORS.map((color) => (
+                {THEME_COLORS.map((color, index) => (
                   <button
                     key={color.id}
                     type="button"
                     className="settings-swatch"
                     style={{ backgroundColor: color.hex }}
-                    onClick={() => handleSelectThemeColor(color.id)}
+                    onClick={() => handleSelectThemeColor(index as ThemeColorIndex)}
                     aria-label={color.label}
-                    aria-pressed={themeColor === color.id}
+                    aria-pressed={themeColorIndex === index}
                     title={color.label}
                   >
-                    {themeColor === color.id && (
+                    {themeColorIndex === index && (
                       <Check size={16} strokeWidth={2.5} className="settings-swatch__check" aria-hidden />
                     )}
                   </button>

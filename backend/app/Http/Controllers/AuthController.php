@@ -26,6 +26,7 @@ class AuthController extends Controller
             'user_id' => $request->user_id,
             'user_name' => $request->user_name,
             'password' => Hash::make($request->password), // ハッシュ化は必須
+            'theme_color' => 2,
         ]);
 
         // 3. SanctumによるAPIトークンの発行

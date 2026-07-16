@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useTaskMutations } from '../hooks/useTaskMutations';
-import { db } from '../../../services/db';
+import { db, type LocalGoal } from '../../../services/db';
 import type { Task } from '../types';
 import { DatePickerField } from '../../../components/ui/DatePickerField/DatePickerField';
 import { getTodayApiDate } from '../../../components/ui/DatePickerField/dateUtils';
+import { GoalPicker } from './GoalPicker';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 interface TaskAddModalProps {
   goalId?: string | null;
@@ -13,6 +15,11 @@ interface TaskAddModalProps {
 }
 
 export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }: TaskAddModalProps) {
+  // モーダル表示中は背景（<body>）のスクロールをロックする。
+  // モバイルだとオーバーレイの余白部分をドラッグして背景がスクロール
+  // できてしまっていたため。
+  useLockBodyScroll();
+
   const { addTask, isLoading, error } = useTaskMutations();
   
   const [title, setTitle] = useState('');
@@ -24,7 +31,7 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
   });
   
   const [selectedGoalId, setSelectedGoalId] = useState<string>(goalId || '');
-  const [goals, setGoals] = useState<any[]>([]);
+  const [goals, setGoals] = useState<LocalGoal[]>([]);
 
   // 修正箇所: 親から渡される initialDate の変更を検知して State を更新する
   useEffect(() => {
@@ -93,19 +100,12 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
         <form onSubmit={handleSubmit}>
           <div className="form-field">
             <label>紐づける目標（任意）</label>
-            <select 
-              className="form-input" 
-              value={selectedGoalId} 
-              onChange={(e) => setSelectedGoalId(e.target.value)}
+            <GoalPicker
+              goals={goals}
+              value={selectedGoalId}
+              onChange={setSelectedGoalId}
               disabled={isLoading}
-            >
-              <option value="">-- 指定なし（単独タスク） --</option>
-              {goals.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div className="form-field">

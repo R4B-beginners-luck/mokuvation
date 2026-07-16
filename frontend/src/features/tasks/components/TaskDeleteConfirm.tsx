@@ -1,4 +1,5 @@
 import { useTaskMutations } from '../hooks/useTaskMutations';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 interface TaskDeleteConfirmProps {
   taskId: string;
@@ -7,6 +8,9 @@ interface TaskDeleteConfirmProps {
 }
 
 export function TaskDeleteConfirm({ taskId, onClose, onSuccess }: TaskDeleteConfirmProps) {
+  // モーダル表示中は背景（<body>）のスクロールをロックする
+  useLockBodyScroll();
+
   const { removeTask, isLoading, error } = useTaskMutations();
 
   const handleDelete = async () => {
