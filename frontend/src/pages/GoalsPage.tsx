@@ -7,6 +7,7 @@ import { GoalPositionLeaveModal } from '../features/goals/components/GoalPositio
 import { GoalPositionSaveBar } from '../features/goals/components/GoalPositionSaveBar';
 import { GoalPositionSaveToast } from '../features/goals/components/GoalPositionSaveToast';
 import { GoalsMapSecondaryPanel } from '../features/goals/components/GoalsMapSecondaryPanel';
+import { GoalsMapEmptyState } from '../features/goals/components/GoalsMapEmptyState';
 import { useGoalsLeaveGuardRegistrar, useGoalsLeaveRequest } from '../layouts/GoalsLeaveGuardContext';
 import { usePageSecondaryPanel } from '../layouts/PageSecondaryPanelContext';
 import { computeInitialPositions, mergeGoalPositions } from '../features/goals/utils/goalMapLayout';
@@ -1267,6 +1268,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
             </div>
           ) : goalLoadError ? (
             <div className="goals-page__error">{goalLoadError}</div>
+          ) : longTermGoals.length === 0 ? (
+            <GoalsMapEmptyState onAdd={handleAddLongTerm} />
           ) : activeLt ? (
             <GoalGraph
               longTermGoal={activeLt}
@@ -1299,9 +1302,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               goalDisplayModes={goalDisplayModes}
               progressUnit={progressUnit}
             />
-          ) : (
-            <div className="goals-page__empty">長期目標がありません。</div>
-          )}
+          ) : null}
         </div>
       </div>
 
