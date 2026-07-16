@@ -227,39 +227,30 @@ export function GoalActionModal({
             ノード色
             <span className="form-field__optional">（任意）</span>
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, marginTop: 8 }}>
-            <button
-              type="button"
-              onClick={() => setSelectedPaletteIndex(null)}
-              style={{
-                width: '100%',
-                aspectRatio: '1',
-                backgroundColor: DEFAULT_GOAL_COLOR,
-                border: selectedPaletteIndex === null ? '3px solid #111' : '1px solid #ccc',
-                borderRadius: 4,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: selectedPaletteIndex === null ? '0 0 0 2px rgba(255,255,255,0.85) inset' : 'none',
-              }}
-              aria-label="デフォルト色"
-              title="デフォルト色"
+          <button
+            type="button"
+            className={`goal-color-default${selectedPaletteIndex === null ? ' goal-color-default--selected' : ''}`}
+            onClick={() => setSelectedPaletteIndex(null)}
+            aria-pressed={selectedPaletteIndex === null}
+            aria-label="初期色（未設定）"
+          >
+            <span
+              className="goal-color-default__swatch"
+              style={{ backgroundColor: DEFAULT_GOAL_COLOR }}
+              aria-hidden
             />
+            <span className="goal-color-default__label">初期色（未設定）</span>
+          </button>
+          <div className="goal-color-grid" role="listbox" aria-label="ノード色">
             {COLOR_PALETTE.map((color, idx) => (
               <button
                 key={idx}
                 type="button"
+                className={`goal-color-swatch${selectedPaletteIndex === idx ? ' goal-color-swatch--selected' : ''}`}
                 onClick={() => setSelectedPaletteIndex(idx)}
-                style={{
-                  width: '100%',
-                  aspectRatio: '1',
-                  backgroundColor: color,
-                  border: selectedPaletteIndex === idx ? '3px solid #111' : '1px solid #ccc',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  boxShadow: selectedPaletteIndex === idx ? '0 0 0 2px rgba(255,255,255,0.85) inset' : 'none',
-                }}
+                style={{ backgroundColor: color }}
                 aria-label={`ノード色 ${idx + 1}`}
+                aria-selected={selectedPaletteIndex === idx}
                 title={`ノード色 ${idx + 1}`}
               />
             ))}

@@ -1,21 +1,32 @@
 import { useState } from 'react';
-import { Eye, EyeOff, MapPin, Menu, X } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff, Hash, ListTree, MapPin } from 'lucide-react';
+import type { ProgressUnitMode } from '../utils/goalMapPreferences';
 
 interface GoalsMapFabProps {
   showCompleted: boolean;
+  progressUnit: ProgressUnitMode;
   onToggleCompleted: () => void;
+  onToggleProgressUnit: () => void;
   onRecenterToLongTerm: () => void;
 }
 
 export function GoalsMapFab({
   showCompleted,
+  progressUnit,
   onToggleCompleted,
+  onToggleProgressUnit,
   onRecenterToLongTerm,
 }: GoalsMapFabProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const isTaskUnit = progressUnit === 'task';
 
   const handleToggleCompleted = () => {
     onToggleCompleted();
+    setIsOpen(false);
+  };
+
+  const handleToggleProgressUnit = () => {
+    onToggleProgressUnit();
     setIsOpen(false);
   };
 
@@ -50,6 +61,20 @@ export function GoalsMapFab({
             )}
             <span>{showCompleted ? '達成を隠す' : '達成済みを表示'}</span>
           </button>
+          <button
+            type="button"
+            className="goals-map-fab__action"
+            role="menuitem"
+            onClick={handleToggleProgressUnit}
+            aria-pressed={isTaskUnit}
+          >
+            {isTaskUnit ? (
+              <Hash size={18} strokeWidth={1.75} aria-hidden />
+            ) : (
+              <ListTree size={18} strokeWidth={1.75} aria-hidden />
+            )}
+            <span>{isTaskUnit ? 'タスク数で統一中' : '子目標数で統一中'}</span>
+          </button>
         </div>
       )}
       <button
@@ -60,11 +85,12 @@ export function GoalsMapFab({
         aria-label={isOpen ? 'メニューを閉じる' : '表示メニューを開く'}
         onClick={() => setIsOpen((prev) => !prev)}
       >
-        {isOpen ? (
-          <X size={22} strokeWidth={1.75} aria-hidden />
-        ) : (
-          <Menu size={22} strokeWidth={1.75} aria-hidden />
-        )}
+        <ChevronDown
+          size={22}
+          strokeWidth={1.75}
+          aria-hidden
+          className={`goals-map-fab__chevron${isOpen ? ' goals-map-fab__chevron--open' : ''}`}
+        />
       </button>
     </div>
   );

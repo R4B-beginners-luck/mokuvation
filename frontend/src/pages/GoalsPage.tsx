@@ -17,13 +17,19 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { COLOR_PALETTE } from '../const/colors';
 import { GoalsPageSkeleton } from '../components/ui/GoalsPageSkeleton';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
-import { Map, Plus } from 'lucide-react';
 import { db } from '../services/db';
 import type { LocalGoal, SyncQueueItem } from '../services/db';
 import { isOnline, isNetworkFailure } from '../services/syncService';
 import { crdtUpsertGoal, crdtDeleteGoal } from '../services/crdtStore';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { vhToViewportPx } from '../utils/viewport';
+import {
+  readProgressUnitMode,
+  sortGoalsByStoredOrder,
+  writeLongTermGoalOrder,
+  writeProgressUnitMode,
+  type ProgressUnitMode,
+} from '../features/goals/utils/goalMapPreferences';
 import {
   GoalCelebrationOverlay,
   pickRandomGoalMessage,
@@ -294,6 +300,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const [shortTermGoalsState, setShortTermGoals] = useState<ShortTermGoal[]>(shortTermGoals);
   const [showCompletedGoals, setShowCompletedGoals] = useState(true);
   const [demoShowCompleted, setDemoShowCompleted] = useState(true);
+  const [progressUnit, setProgressUnit] = useState<ProgressUnitMode>(readProgressUnitMode);
   const [activeLtId, setActiveLtId] = useState('');
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [goalAction, setGoalAction] = useState<GoalActionState | null>(null);
@@ -428,7 +435,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         // オフライン：Dexieからフォールバック
         goals = await loadGoalsFromDexie();
       }
-      const { longTermGoals, midTermGoals, shortTermGoals } = buildGoalTree(goals);
+      const { longTermGoals: loadedLongTerm, midTermGoals, shortTermGoals } = buildGoalTree(goals);
+      const longTermGoals = sortGoalsByStoredOrder(loadedLongTerm);
+      writeLongTermGoalOrder(longTermGoals.map((g) => g.id));
       const validGoalIds = new Set(goals.map((goal) => goal.id));
       const apiLongTermIds = new Set(
         goals.filter((goal) => goal.period_type === 'long').map((goal) => goal.id)
@@ -592,6 +601,22 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setDemoShowCompleted((prev) => !prev);
   };
 
+  const handleProgressUnitToggle = useCallback(() => {
+    setProgressUnit((prev) => {
+      const next: ProgressUnitMode = prev === 'task' ? 'child' : 'task';
+      writeProgressUnitMode(next);
+      return next;
+    });
+  }, []);
+
+  const handleLongTermReorder = useCallback((orderedIds: string[]) => {
+    writeLongTermGoalOrder(orderedIds);
+    setLongTermGoals((prev) => {
+      const byId = new Map(prev.map((g) => [g.id, g]));
+      return orderedIds.map((id) => byId.get(id)).filter((g): g is LongTermGoal => !!g);
+    });
+  }, []);
+
   useEffect(() => {
     if (isMobileLayout) {
       setPanel(null);
@@ -603,11 +628,14 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         longTermGoals={longTermGoals}
         activeLtId={activeLtId}
         showCompleted={demoShowCompleted}
+        progressUnit={progressUnit}
         disabled={!!placementSession}
         onSelect={switchActiveLongTerm}
         onAdd={handleAddLongTerm}
         onToggleCompleted={handleDemoCompletedToggle}
+        onToggleProgressUnit={handleProgressUnitToggle}
         onRecenterToLongTerm={handleRecenterToLongTerm}
+        onReorder={handleLongTermReorder}
       />
     );
 
@@ -617,10 +645,13 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     longTermGoals,
     activeLtId,
     demoShowCompleted,
+    progressUnit,
     placementSession,
     setPanel,
     switchActiveLongTerm,
     handleRecenterToLongTerm,
+    handleProgressUnitToggle,
+    handleLongTermReorder,
   ]);
 
   const handlePositionCommit = useCallback((goalId: string, position: NodePosition) => {
@@ -1190,6 +1221,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
             disabled={!!placementSession}
             onSelect={switchActiveLongTerm}
             onAdd={handleAddLongTerm}
+            onReorder={handleLongTermReorder}
           />
         )}
         {placementSession && (
@@ -1265,32 +1297,11 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               onDeleteGoal={handleDeleteGoalFromMap}
               onPositionCommit={handlePositionCommit}
               goalDisplayModes={goalDisplayModes}
+              progressUnit={progressUnit}
             />
           ) : (
             <div className="goals-page__empty">長期目標がありません。</div>
           )}
-
-          {/* Legend */}
-          <div className="graph-legend">
-            <div className="graph-legend__item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <svg width="14" height="14" viewBox="-12 -12 24 24">
-                <polygon points="10,0 5,8.66 -5,8.66 -10,0 -5,-8.66 5,-8.66" fill="#B0B0B0" />
-              </svg>
-              長期目標
-            </div>
-            <div className="graph-legend__item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <svg width="14" height="14" viewBox="-10 -10 20 20">
-                <rect x="-8.5" y="-8.5" width="17" height="17" fill="#B0B0B0" />
-              </svg>
-              中期目標
-            </div>
-            <div className="graph-legend__item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <svg width="14" height="14" viewBox="-10 -10 20 20">
-                <circle cx="0" cy="0" r="8" fill="#B0B0B0" />
-              </svg>
-              短期目標
-            </div>
-          </div>
         </div>
       </div>
 
@@ -1302,6 +1313,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           midTermGoals={midTermGoals}
           shortTermGoals={shortTermGoalsState}
           tasks={tasks}
+          progressUnit={progressUnit}
           onSelectNode={handleSelectNode}
           onEditGoal={handleEditGoal}
           onAddGoal={handleAddGoal}
@@ -1328,6 +1340,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
               midTermGoals={midTermGoals}
               shortTermGoals={shortTermGoalsState}
               tasks={tasks}
+              progressUnit={progressUnit}
               onSelectNode={handleSelectNode}
               onEditGoal={handleEditGoal}
               onAddGoal={handleAddGoal}
@@ -1341,7 +1354,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       {isMobileLayout && (
         <GoalsMapFab
           showCompleted={demoShowCompleted}
+          progressUnit={progressUnit}
           onToggleCompleted={handleDemoCompletedToggle}
+          onToggleProgressUnit={handleProgressUnitToggle}
           onRecenterToLongTerm={handleRecenterToLongTerm}
         />
       )}

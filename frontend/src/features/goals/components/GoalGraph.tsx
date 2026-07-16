@@ -55,6 +55,8 @@ interface GoalGraphProps {
   mobileSheetObstructionPx?: number;
   /** 達成済み非表示ルール適用後の各ノード表示モード */
   goalDisplayModes?: Record<string, GoalDisplayMode>;
+  /** 進捗表示単位（タスク数 / 子目標数） */
+  progressUnit?: 'task' | 'child';
 }
 
 interface ContextMenuState {
@@ -92,6 +94,7 @@ export function GoalGraph({
   focusGoalId = null,
   mobileSheetObstructionPx = 0,
   goalDisplayModes = {},
+  progressUnit = 'child',
 }: GoalGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const isMobileLayout = useMediaQuery('(max-width: 768px)');
@@ -193,8 +196,9 @@ export function GoalGraph({
       midTermGoals,
       shortTermGoals,
       tasks,
+      progressUnit,
     }),
-    [longTermGoal, midTermGoals, shortTermGoals, tasks]
+    [longTermGoal, midTermGoals, shortTermGoals, tasks, progressUnit]
   );
 
   const dragRef = useRef<{ id: string; ox: number; oy: number } | null>(null);

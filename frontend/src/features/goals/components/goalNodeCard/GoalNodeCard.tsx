@@ -292,9 +292,11 @@ export default function GoalNodeCard({
       >
         <span className="gnc__bar" style={{ background: categoryColor }} aria-hidden />
         <div className="gnc__titleOneLine">{title}</div>
-        <div className="gnc__track gnc__track--thin">
-          <div className="gnc__fill" style={{ width: `${pct}%` }} />
-        </div>
+        {progress.total > 0 && (
+          <div className="gnc__track gnc__track--thin">
+            <div className="gnc__fill" style={{ width: `${pct}%` }} />
+          </div>
+        )}
       </div>
     );
   }
@@ -334,14 +336,16 @@ export default function GoalNodeCard({
 
       <div className="gnc__title">{title}</div>
 
-      <div className="gnc__progress">
-        <div className="gnc__track">
-          <div className="gnc__fill" style={{ width: `${pct}%` }} />
+      {progress.total > 0 && (
+        <div className="gnc__progress">
+          <div className="gnc__track">
+            <div className="gnc__fill" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="gnc__count">
+            {unit} {progress.done}/{progress.total}
+          </span>
         </div>
-        <span className="gnc__count">
-          {unit} {progress.done}/{progress.total}
-        </span>
-      </div>
+      )}
     </div>
   );
 }

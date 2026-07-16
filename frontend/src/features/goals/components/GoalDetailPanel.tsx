@@ -1,5 +1,17 @@
 import type { ReactNode } from 'react';
-import { Calendar, Check, Circle, MapPin, Pencil, Plus, Undo2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  Calendar,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  MapPin,
+  Pencil,
+  Plus,
+  Undo2,
+  X,
+} from 'lucide-react';
 import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal, Task } from '../../../types';
 import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
 import { createGoalNodeAdapter } from '../utils/goalNodeAdapter';
@@ -11,6 +23,7 @@ interface GoalDetailPanelProps {
   midTermGoals: MidTermGoal[];
   shortTermGoals: ShortTermGoal[];
   tasks: Task[];
+  progressUnit?: 'task' | 'child';
   onSelectNode: (goal: Goal) => void;
   onEditGoal: (goal: Goal) => void;
   onAddGoal: (goal: Goal, presetGoalType?: 'mid' | 'short') => void;
@@ -20,6 +33,39 @@ interface GoalDetailPanelProps {
   isClosing?: boolean;
   embedded?: boolean;
   sheetLevel?: GoalDetailSheetLevel;
+}
+
+type ChildSortMode = 'default' | 'color' | 'kana';
+
+function RelGroup({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`detail-panel__rel-group${open ? ' detail-panel__rel-group--open' : ''}`}>
+      <button
+        type="button"
+        className="detail-panel__summary"
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        {open ? (
+          <ChevronDown size={16} strokeWidth={2} className="detail-panel__summary-chevron" aria-hidden />
+        ) : (
+          <ChevronRight size={16} strokeWidth={2} className="detail-panel__summary-chevron" aria-hidden />
+        )}
+        <span className="detail-panel__summary-label">{title}</span>
+      </button>
+      {open && <div className="detail-panel__rel-body">{children}</div>}
+    </div>
+  );
 }
 
 function DetailPanelRoot({
@@ -82,21 +128,6 @@ function getDueDateMeta(dueDate: string): { label: string; tone: DueDateTone } {
   return { label: `あと${diff}日`, tone: 'neutral' };
 }
 
-function uniqueGoals(goals: Array<Goal | null>): Goal[] {
-  const seen = new Set<string>();
-  return goals.filter(isGoal).filter((goal) => {
-    if (seen.has(goal.id)) {
-      return false;
-    }
-    seen.add(goal.id);
-    return true;
-  });
-}
-
-function isGoal(goal: Goal | null): goal is Goal {
-  return goal !== null;
-}
-
 function getDueDateText(goal: MidTermGoal | ShortTermGoal): { text: string; tone: DueDateTone; date: string } {
   const { label, tone } = getDueDateMeta(goal.dueDate!);
   return { text: `${goal.dueDate} · ${label}`, tone, date: goal.dueDate! };
@@ -120,12 +151,39 @@ function resolveRootLongTerm(
   return longTermGoals.find((goal) => goal.id === longId) ?? null;
 }
 
+function sortChildGoals(goals: Goal[], mode: ChildSortMode): Goal[] {
+  if (mode === 'default') return goals;
+
+  const copy = [...goals];
+  if (mode === 'color') {
+    copy.sort((a, b) => {
+      const ca = a.color_code || DEFAULT_GOAL_COLOR;
+      const cb = b.color_code || DEFAULT_GOAL_COLOR;
+      const byColor = ca.localeCompare(cb);
+      if (byColor !== 0) return byColor;
+      const typeOrder = { mid: 0, short: 1, long: 2 } as const;
+      const byType = (typeOrder[a.type] ?? 9) - (typeOrder[b.type] ?? 9);
+      return byType || a.title.localeCompare(b.title, 'ja');
+    });
+    return copy;
+  }
+
+  copy.sort((a, b) => {
+    const byTitle = a.title.localeCompare(b.title, 'ja');
+    if (byTitle !== 0) return byTitle;
+    const typeOrder = { mid: 0, short: 1, long: 2 } as const;
+    return (typeOrder[a.type] ?? 9) - (typeOrder[b.type] ?? 9);
+  });
+  return copy;
+}
+
 export function GoalDetailPanel({
   selected,
   longTermGoals,
   midTermGoals,
   shortTermGoals,
   tasks,
+  progressUnit = 'child',
   onSelectNode,
   onEditGoal,
   onAddGoal,
@@ -136,6 +194,14 @@ export function GoalDetailPanel({
   embedded = false,
   sheetLevel,
 }: GoalDetailPanelProps) {
+  const [childSort, setChildSort] = useState<ChildSortMode>('default');
+  const [parentOpen, setParentOpen] = useState(true);
+  const [childrenOpen, setChildrenOpen] = useState(true);
+
+  useEffect(() => {
+    setChildSort('default');
+  }, [selected?.id]);
+
   if (!selected) {
     return (
       <DetailPanelRoot embedded={embedded} isClosing={isClosing}>
@@ -176,15 +242,8 @@ export function GoalDetailPanel({
       ? shortTermGoals.filter((goal) => goal.midTermGoalId === selected.id)
       : [];
 
-  const relatedGoals = uniqueGoals(
-    [
-      ...(selected.type === 'long'
-        ? longTermGoals
-            .find((goal) => goal.id === selected.id)
-            ?.relatedLongTermGoalIds?.map((relatedId) => longTermGoals.find((goal) => goal.id === relatedId) ?? null) ?? []
-        : []),
-    ]
-  );
+  const childGoals = [...childMidGoals, ...childShortGoals];
+  const sortedChildGoals = sortChildGoals(childGoals, childSort);
 
   let relatedTasks: Task[] = [];
   if (selected.type === 'short') {
@@ -219,6 +278,7 @@ export function GoalDetailPanel({
         midTermGoals,
         shortTermGoals,
         tasks,
+        progressUnit,
       }).toProgress(selected.id)
     : { done: 0, total: 0, unit: '子目標' };
   const peekPct = peekProgress.total > 0
@@ -254,17 +314,19 @@ export function GoalDetailPanel({
           >
             {selected.title}
           </div>
-          <div className="detail-panel__peek-progress">
-            <div className="detail-panel__peek-progress-label">
-              {peekProgress.done} / {peekProgress.total} {peekProgress.unit}
+          {peekProgress.total > 0 && (
+            <div className="detail-panel__peek-progress">
+              <div className="detail-panel__peek-progress-label">
+                {peekProgress.done} / {peekProgress.total} {peekProgress.unit}
+              </div>
+              <div className="detail-panel__peek-track">
+                <div
+                  className="detail-panel__peek-fill"
+                  style={{ width: `${peekPct}%`, background: accentColor }}
+                />
+              </div>
             </div>
-            <div className="detail-panel__peek-track">
-              <div
-                className="detail-panel__peek-fill"
-                style={{ width: `${peekPct}%`, background: accentColor }}
-              />
-            </div>
-          </div>
+          )}
         </div>
       </DetailPanelRoot>
     );
@@ -376,7 +438,7 @@ export function GoalDetailPanel({
           {selected.type === 'long' && (
             <>
               <button
-                className="btn-ghost"
+                className="btn-secondary"
                 style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
                 onClick={() => onAddGoal(selected, 'mid')}
               >
@@ -384,7 +446,7 @@ export function GoalDetailPanel({
                 中期目標
               </button>
               <button
-                className="btn-ghost"
+                className="btn-secondary"
                 style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
                 onClick={() => onAddGoal(selected, 'short')}
               >
@@ -395,7 +457,7 @@ export function GoalDetailPanel({
           )}
           {selected.type === 'mid' && (
             <button
-              className="btn-ghost"
+              className="btn-secondary"
               style={{ width: '100%', textAlign: 'center', fontSize: 13, ...iconBtnStyle }}
               onClick={() => onAddGoal(selected, 'short')}
             >
@@ -416,12 +478,13 @@ export function GoalDetailPanel({
       {showFullExtras && (
       <div>
         <div className="detail-panel__section-title">関係性</div>
-        <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
-          <details open>
-            <summary className="detail-panel__summary">
-              親目標（{parentGoal ? '1件' : '0件'}）
-            </summary>
-            <div className="detail-panel__goal-list" style={{ marginTop: 'var(--sp-2)' }}>
+        <div className="detail-panel__rel-list">
+          <RelGroup
+            title={`親目標（${parentGoal ? '1件' : '0件'}）`}
+            open={parentOpen}
+            onToggle={() => setParentOpen((v) => !v)}
+          >
+            <div className="detail-panel__goal-list">
               {parentGoal ? (
                 <div className="related-node" onClick={() => onSelectNode(parentGoal)} title={parentGoal.title}>
                   <span className="related-node__dot" style={{ background: parentGoal.color_code || DEFAULT_GOAL_COLOR }} />
@@ -436,70 +499,55 @@ export function GoalDetailPanel({
                 <div className="detail-panel__empty-copy">親目標はありません</div>
               )}
             </div>
-          </details>
+          </RelGroup>
 
-          <details open>
-            <summary className="detail-panel__summary" style={{ marginTop: 'var(--sp-2)' }}>
-              子目標（中期 {childMidGoals.length}件 / 短期 {childShortGoals.length}件）
-            </summary>
-            <div className="detail-panel__goal-list" style={{ marginTop: 'var(--sp-2)' }}>
-              {childMidGoals.length > 0 || childShortGoals.length > 0 ? (
-                <div className="detail-panel__goal-list">
-                  {[...childMidGoals, ...childShortGoals].map((goal) => (
-                    <div
-                      key={goal.id}
-                      className="related-node"
-                      onClick={() => onSelectNode(goal)}
-                      title={goal.title}
-                    >
-                      <span className="related-node__dot" style={{ background: getGoalColor(goal) }} />
-                      <span className="related-node__title">
-                        {goal.title}
-                      </span>
-                      <span className="related-node__type">
-                        {TYPE_LABEL[goal.type]}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+          <RelGroup
+            title={`子目標（中期 ${childMidGoals.length}件 / 短期 ${childShortGoals.length}件）`}
+            open={childrenOpen}
+            onToggle={() => setChildrenOpen((v) => !v)}
+          >
+            {childGoals.length > 0 && (
+              <label
+                className="detail-panel__sort detail-panel__sort--inline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="detail-panel__sort-label">並び</span>
+                <select
+                  className="detail-panel__sort-select"
+                  value={childSort}
+                  onChange={(e) => setChildSort(e.target.value as ChildSortMode)}
+                >
+                  <option value="default">デフォルト</option>
+                  <option value="color">色別</option>
+                  <option value="kana">あいうえお順</option>
+                </select>
+              </label>
+            )}
+            <div className="detail-panel__goal-list">
+              {childGoals.length > 0 ? (
+                sortedChildGoals.map((goal) => (
+                  <div
+                    key={goal.id}
+                    className="related-node"
+                    onClick={() => onSelectNode(goal)}
+                    title={goal.title}
+                  >
+                    <span className="related-node__dot" style={{ background: getGoalColor(goal) }} />
+                    <span className="related-node__title">
+                      {goal.title}
+                    </span>
+                    <span className="related-node__type">
+                      {TYPE_LABEL[goal.type]}
+                    </span>
+                  </div>
+                ))
               ) : (
                 <div className="detail-panel__empty-copy">子目標はありません</div>
               )}
             </div>
-          </details>
+          </RelGroup>
         </div>
       </div>
-      )}
-
-      {showFullExtras && relatedGoals.length > 0 && (
-        <div>
-          <div className="detail-panel__section-title">
-            関連目標（{relatedGoals.length}件）
-          </div>
-          <details open>
-            <summary className="detail-panel__summary">
-              関連目標一覧を表示
-            </summary>
-            <div className="detail-panel__goal-list" style={{ marginTop: 'var(--sp-2)' }}>
-              {relatedGoals.map((g) => (
-                <div
-                  key={g.id}
-                  className="related-node"
-                  onClick={() => onSelectNode(g)}
-                  title={g.title}
-                >
-                  <span className="related-node__dot" style={{ background: getGoalColor(g) }} />
-                  <span className="related-node__title">
-                    {g.title}
-                  </span>
-                  <span className="related-node__type">
-                    {TYPE_LABEL[g.type]}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </details>
-        </div>
       )}
 
       {showFullExtras && relatedTasks.length > 0 && (
@@ -508,7 +556,7 @@ export function GoalDetailPanel({
             関連タスク（{completedTasks} / {relatedTasks.length}件完了）
           </div>
           <details>
-            <summary className="detail-panel__summary">
+            <summary className="detail-panel__summary detail-panel__summary--native">
               タスク一覧
             </summary>
             <ul style={{ listStyle: 'none', margin: '8px 0 0 0', padding: 0 }}>
