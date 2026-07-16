@@ -4,7 +4,7 @@ import {
   HelpCircle,
   FileText,
   Shield,
-  User,
+  User as UserIcon,
   LogOut,
   Trash2,
   ChevronRight,
@@ -190,7 +190,7 @@ export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onL
       <section className="settings-page__section">
         <h2 className="settings-page__section-title">アカウント</h2>
         <div className="settings-page__section-body">
-          <SettingsRow icon={User} label="アカウントを変更" />
+          <SettingsRow icon={UserIcon} label="アカウントを変更" />
           {/* 💡 ログアウト処理も連動させました */}
           <SettingsRow icon={LogOut} label="ログアウト" showChevron={false} onClick={onLogout} />
 
