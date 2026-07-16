@@ -9,10 +9,13 @@ import {
   Trash2,
   ChevronRight,
   Check,
+  Save,
 } from 'lucide-react';
 import { getAppVersionLabel } from '../utils/appVersion';
 import { isMapDebugStorageOn, setMapDebugStorage } from '../utils/debug';
 import { authApi } from '../features/auth/api/authApi';
+import { Modal } from '../components/Modal';
+import { ButtonSpinner } from '../components/ui/ButtonSpinner';
 import {
   applyThemeColorIndex,
   DEFAULT_THEME_COLOR_INDEX,
@@ -74,6 +77,177 @@ function SettingsRow({ icon: Icon, label, onClick, showChevron = true, expanded,
   );
 }
 
+// ==========================================
+// アカウント変更モーダル
+// ==========================================
+
+type AccountEditPayload = {
+  user_id: string;
+  user_name: string;
+  currentPassword?: string;
+  newPassword?: string;
+};
+
+interface AccountEditModalProps {
+  user: User;
+  onClose: () => void;
+  onSave: (payload: AccountEditPayload) => void | Promise<void>;
+  isSaving?: boolean;
+  errorMessage?: string | null;
+}
+
+function AccountEditModal({ user, onClose, onSave, isSaving = false, errorMessage }: AccountEditModalProps) {
+  const [userId, setUserId] = useState(user.user_id);
+  const [userName, setUserName] = useState(user.user_name);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+
+  const wantsPasswordChange = Boolean(currentPassword || newPassword || newPasswordConfirm);
+  const passwordFieldsComplete = Boolean(currentPassword && newPassword && newPasswordConfirm);
+  const passwordsMatch = newPassword === newPasswordConfirm;
+
+  let passwordValidationError: string | null = null;
+  if (wantsPasswordChange && !passwordFieldsComplete) {
+    passwordValidationError = 'パスワードを変更する場合は3つの項目すべてを入力してください';
+  } else if (wantsPasswordChange && !passwordsMatch) {
+    passwordValidationError = '新しいパスワードと確認用パスワードが一致しません';
+  }
+
+  const saveDisabled = Boolean(
+    !userId.trim()
+    || !userName.trim()
+    || (wantsPasswordChange && !passwordFieldsComplete)
+    || (wantsPasswordChange && !passwordsMatch)
+    || isSaving
+  );
+
+  const handleSave = () => {
+    if (saveDisabled) return;
+    onSave({
+      user_id: userId.trim(),
+      user_name: userName.trim(),
+      ...(wantsPasswordChange
+        ? { currentPassword, newPassword }
+        : {}),
+    });
+  };
+
+  return (
+    <Modal title="アカウントを変更" onClose={onClose}>
+      <div className="modal__form">
+        <div className="form-field">
+          <label htmlFor="account-user-id">ユーザーID</label>
+          <input
+            id="account-user-id"
+            className="form-input"
+            type="text"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            disabled={isSaving}
+            autoFocus
+          />
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="account-user-name">ユーザー名</label>
+          <input
+            id="account-user-name"
+            className="form-input"
+            type="text"
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            disabled={isSaving}
+          />
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="account-current-password">
+            現在のパスワード
+            <span className="form-field__optional">（パスワードを変更する場合のみ）</span>
+          </label>
+          <input
+            id="account-current-password"
+            className="form-input"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            disabled={isSaving}
+            autoComplete="current-password"
+          />
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="account-new-password">
+            新しいパスワード
+            <span className="form-field__optional">（任意）</span>
+          </label>
+          <input
+            id="account-new-password"
+            className="form-input"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            disabled={isSaving}
+            autoComplete="new-password"
+          />
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="account-new-password-confirm">
+            新しいパスワード（確認用）
+            <span className="form-field__optional">（任意）</span>
+          </label>
+          <input
+            id="account-new-password-confirm"
+            className="form-input"
+            type="password"
+            value={newPasswordConfirm}
+            onChange={(e) => setNewPasswordConfirm(e.target.value)}
+            disabled={isSaving}
+            autoComplete="new-password"
+          />
+        </div>
+
+        {(passwordValidationError || errorMessage) && (
+          <p role="alert" style={{ color: 'var(--accent-coral)', fontSize: '13px' }}>
+            {passwordValidationError ?? errorMessage}
+          </p>
+        )}
+
+        <div className="modal__actions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'center' }}>
+          <button className="btn-secondary" onClick={onClose} disabled={isSaving}>キャンセル</button>
+          <button
+            className="btn-primary"
+            onClick={handleSave}
+            disabled={saveDisabled}
+            style={{
+              opacity: saveDisabled ? 0.5 : 1,
+              cursor: saveDisabled ? 'default' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+            }}
+          >
+            {isSaving ? (
+              <>
+                <ButtonSpinner />
+                保存中…
+              </>
+            ) : (
+              <>
+                <Save size={15} strokeWidth={1.75} aria-hidden />
+                保存する
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // 💡 App.tsxからモーダル制御用の関数などを受け取れるようにインターフェースを定義
 interface SettingsPageProps {
   user: User | null;
@@ -82,13 +256,17 @@ interface SettingsPageProps {
   onOpenPrivacy: () => void;
   onLogout: () => void;
   onThemeColorUpdated: (themeColor: ThemeColorIndex) => void;
+  onAccountUpdated?: (user: User) => void;
 }
 
-export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onLogout, onThemeColorUpdated }: SettingsPageProps) {
+export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onLogout, onThemeColorUpdated, onAccountUpdated }: SettingsPageProps) {
   const [themeExpanded, setThemeExpanded] = useState(false);
   const [themeColorIndex, setThemeColorIndex] = useState<ThemeColorIndex>(DEFAULT_THEME_COLOR_INDEX);
   const [versionHint, setVersionHint] = useState<string | null>(null);
   const versionTapRef = useRef({ count: 0, timer: 0 as number | undefined });
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
 
   useEffect(() => {
     const initialIndex = isThemeColorIndex(user?.theme_color)
@@ -109,6 +287,32 @@ export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onL
       onThemeColorUpdated(index);
     } catch (error) {
       console.error('テーマカラーの保存に失敗しました', error);
+    }
+  };
+
+  const handleUpdateAccount = async (payload: AccountEditPayload) => {
+    setAccountError(null);
+    setIsSavingAccount(true);
+    try {
+      const updatedUser = await authApi.updateMe({
+        user_id: payload.user_id,
+        user_name: payload.user_name,
+      });
+
+      if (payload.currentPassword && payload.newPassword) {
+        await authApi.changePassword({
+          current_password: payload.currentPassword,
+          new_password: payload.newPassword,
+          new_password_confirmation: payload.newPassword,
+        });
+      }
+
+      onAccountUpdated?.(updatedUser);
+      setIsAccountModalOpen(false);
+    } catch (err: any) {
+      setAccountError(err?.data?.message ?? 'アカウント情報の更新に失敗しました。もう一度お試しください。');
+    } finally {
+      setIsSavingAccount(false);
     }
   };
 
@@ -190,7 +394,14 @@ export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onL
       <section className="settings-page__section">
         <h2 className="settings-page__section-title">アカウント</h2>
         <div className="settings-page__section-body">
-          <SettingsRow icon={UserIcon} label="アカウントを変更" />
+          <SettingsRow
+            icon={UserIcon}
+            label="アカウントを変更"
+            onClick={() => {
+              setAccountError(null);
+              setIsAccountModalOpen(true);
+            }}
+          />
           {/* 💡 ログアウト処理も連動させました */}
           <SettingsRow icon={LogOut} label="ログアウト" showChevron={false} onClick={onLogout} />
 
@@ -212,6 +423,16 @@ export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onL
         <p className="settings-page__version-hint" role="status">
           {versionHint}
         </p>
+      )}
+
+      {isAccountModalOpen && user && (
+        <AccountEditModal
+          user={user}
+          onClose={() => setIsAccountModalOpen(false)}
+          onSave={handleUpdateAccount}
+          isSaving={isSavingAccount}
+          errorMessage={accountError}
+        />
       )}
     </div>
   );

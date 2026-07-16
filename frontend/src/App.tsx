@@ -387,6 +387,10 @@ function AppContent() {
             onOpenPrivacy={() => setActiveModal('privacy')}
             onLogout={handleLogout}
             onThemeColorUpdated={(themeColor) => setUser((prev) => prev ? { ...prev, theme_color: themeColor } : prev)}
+            onAccountUpdated={(updatedUser) => {
+              setUser(updatedUser);
+              cacheUserId(updatedUser.user_id);
+            }}
           />
         )}
       </Layout>
