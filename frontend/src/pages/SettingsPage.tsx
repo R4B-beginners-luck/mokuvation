@@ -384,7 +384,7 @@ export function SettingsPage({ user, onOpenHelp, onOpenTerms, onOpenPrivacy, onL
         <h2 className="settings-page__section-title">サポート</h2>
         <div className="settings-page__section-body">
           {/* 💡 それぞれ onClick イベントにモーダルを開く処理を紐付けました */}
-          <SettingsRow icon={HelpCircle} label="ヘルプ機能" onClick={onOpenHelp} />
+          <SettingsRow icon={HelpCircle} label="ヘルプ" onClick={onOpenHelp} />
           <SettingsRow icon={FileText} label="利用規約" onClick={onOpenTerms} />
           <SettingsRow icon={Shield} label="プライバシーポリシー" onClick={onOpenPrivacy} />
         </div>

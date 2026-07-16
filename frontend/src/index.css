@@ -4384,4 +4384,212 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     min-width: 0;
   }
 }
+/* ============================================================
+   SETTINGS PAGE (Responsive & Layout Styles)
+   ============================================================ */
+
+/* 1. ページ全体のレイアウト調整 */
+.settings-page {
+  padding: var(--sp-6) var(--sp-8);
+  max-width: 680px; /* PC・タブレットで横に広がりすぎず、可読性を保つ幅 */
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-page__title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--sp-6);
+  color: var(--text-primary);
+}
+
+/* セクション（外観、サポート、アカウントなど） */
+.settings-page__section {
+  margin-bottom: var(--sp-6);
+}
+
+.settings-page__section-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-3);
+  padding-left: var(--sp-1);
+}
+
+.settings-page__section-body {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden; /* 子要素（row）の角丸はみ出しを防止 */
+}
+
+/* 2. 各設定行 (SettingsRow) */
+.settings-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--sp-4) var(--sp-5);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+.settings-row:hover {
+  background: var(--bg-hover);
+}
+
+/* 危険・削除系アクションのアウトライン */
+.settings-row--danger {
+  color: var(--color-danger);
+}
+
+.settings-row--danger .settings-row__icon {
+  color: var(--color-danger);
+}
+
+.settings-row__icon {
+  display: flex;
+  align-items: center;
+  margin-right: var(--sp-4);
+  color: var(--text-secondary);
+}
+
+.settings-row__label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.settings-row__chevron {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+/* 3. テーマカラースウォッチ（パレット） */
+.settings-swatch-panel {
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.settings-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.settings-swatch {
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
+  border: 2px solid transparent;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+  padding: 0;
+}
+
+.settings-swatch:hover {
+  transform: scale(1.05);
+}
+
+.settings-swatch__check {
+  color: #16151a; /* 暗い背景にも映えるチェックマーク用 */
+}
+
+.settings-swatch-panel__hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 4. バージョン表記 */
+.settings-page__version {
+  display: block;
+  width: max-content;
+  margin: var(--sp-8) auto var(--sp-2);
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.7;
+  background: none;
+  border: none;
+}
+
+.settings-page__version:hover {
+  opacity: 1;
+}
+
+.settings-page__version-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--accent-gold);
+}
+
+/* 5. モーダルのモバイル対応補強 */
+.modal {
+  /* 既存の styles.css にある .modal を上書き・補強 */
+  max-width: calc(100vw - var(--sp-8)) !important;
+  max-height: calc(100dvh - var(--sp-8)) !important; /* iOSのツールバーを考慮した dvh */
+  display: flex;
+  flex-direction: column;
+}
+
+.modal form {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* 入力項目が多い場合にフォーム内スクロールを有効化 */
+  max-height: 100%;
+}
+
+/* ──────────────────────────────────────────────────────────
+   RESPONSIVE DESIGN (スマートフォン用メディアクエリ)
+   ────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .settings-page {
+    /* モバイル環境では左右の余白を詰め、下部ナビゲーションの被りを防ぐ padding を設定 */
+    padding: var(--sp-4) var(--sp-4) calc(var(--sp-6) + var(--bottom-nav-height, 60px));
+  }
+
+  .settings-page__title {
+    font-size: 20px;
+    margin-bottom: var(--sp-4);
+  }
+
+  /* タップ領域（44px以上）を確保しつつコンパクトに */
+  .settings-row {
+    padding: var(--sp-3.5) var(--sp-4);
+    font-size: 13.5px;
+  }
+
+  .settings-swatch-panel {
+    padding: var(--sp-3.5) var(--sp-4);
+  }
+
+  /* 横幅が狭い画面でもスウォッチが綺麗に並ぶよう、6列固定に調整 */
+  .settings-swatch-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--sp-2);
+  }
+}
 }
