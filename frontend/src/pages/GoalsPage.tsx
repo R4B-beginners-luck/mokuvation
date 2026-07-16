@@ -416,6 +416,32 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           goals = await goalApi.getAll();
           // Dexieにキャッシュ
           await db.goals.bulkPut(goals.map(toLocalGoal));
+
+          // ⚠️ bulkPutは追加・更新のみで、サーバー上ではもう存在しない
+          // （カスケード削除やマージ不具合等で消えた）目標をDexieから
+          // 消してはくれない。これを放置すると、オンライン中は気づかず、
+          // オフラインでDexieを直読みした瞬間に「削除済みの目標が復活する」
+          // 不具合になる（syncService側の定期フルシンクだけがこの掃除を
+          // 行っていたため、オンライン→裏で定期シンクが走った時だけ消えて
+          // いた）。ここでも同様にstale分を明示的に削除しておく。
+          const keepGoalIds = new Set(goals.map((g) => g.id));
+
+          // まだサーバーに送信できていない pending create/update は、
+          // サーバー応答にまだ現れないため keepGoalIds に無くても消してはいけない。
+          const pendingGoalQueue = await db.sync_queue
+            .where('entity').equals('goal').toArray();
+          for (const item of pendingGoalQueue) {
+            if (item.operation === 'create' || item.operation === 'update') {
+              const id = (item.payload as { id?: string })?.id;
+              if (id) keepGoalIds.add(id);
+            }
+          }
+
+          const localGoalIds = await db.goals.toCollection().primaryKeys();
+          const staleGoalIds = localGoalIds.filter((id) => !keepGoalIds.has(String(id)));
+          if (staleGoalIds.length > 0) {
+            await db.goals.bulkDelete(staleGoalIds);
+          }
         } catch (error) {
           if (!isNetworkFailure(error)) throw error;
           // navigator.onLine=true だが実際は通信不可 → Dexieからフォールバック
