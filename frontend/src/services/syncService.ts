@@ -11,6 +11,7 @@ import { goalApi } from '../features/goals/api/goalApi';
 import {
   initDoc,
   crdtUpsertTask,
+  crdtUpsertGoal,
   crdtDeleteTask,
   getDeviceId,
   getPullCursor,
@@ -536,13 +537,37 @@ export const flushQueue = async (): Promise<void> => {
     // サーバー側で失敗した操作までキューから消えてしまい、
     // 変更が「サイレントに消失」していた。
     const body = await res.json().catch(() => null);
-    const results: Array<{ index: number; status: 'ok' | 'error'; message?: string }> =
+    const results: Array<{ index: number; status: 'ok' | 'error'; message?: string; data?: Record<string, any> }> =
       body?.results ?? [];
 
     if (results.length !== items.length) {
       // 想定外のレスポンス形状。安全側に倒して何も削除しない。
       console.warn('[syncService] flushQueue: results の件数が operations と一致しません');
       return;
+    }
+
+    // ✅ サーバー側で値が補正されて保存された場合（例：参照先の目標が
+    // 既に削除されていたため goal_id/parent_goal_id が null に補正された）、
+    // その補正後の実データ(results[i].data)でローカル(Dexie + CRDT doc)を
+    // 上書きし、サーバーDBとローカルDBの内容を一致させる。
+    // これをやらないと、CRDT変更ログにはオフライン送信時の古い値
+    // （削除済みIDへの参照）が残り続け、次のCRDTポーリングのたびに
+    // syncDocToDexie() がその古い値でDexieを上書きしてしまい、
+    // サーバーとローカルの状態が永久にズレたままになる。
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status !== 'ok' || !r.data) continue;
+      const item = items[i];
+
+      if (item.entity === 'task') {
+        const normalized = normalizeTaskForStorage(r.data as Partial<LocalTask> & { id: string });
+        await db.tasks.put(normalized);
+        await crdtUpsertTask(normalized);
+      } else if (item.entity === 'goal') {
+        const normalized = normalizeGoalForStorage(r.data as Partial<LocalGoal> & { id: string });
+        await db.goals.put(normalized);
+        await crdtUpsertGoal(normalized);
+      }
     }
 
     const failed = results.filter((r) => r.status === 'error');

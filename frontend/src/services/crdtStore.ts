@@ -364,11 +364,47 @@ export const crdtToggleTask = async (taskId: string, isCompleted: boolean): Prom
   await _enqueueLastChange();
 };
 
-/** タスクを CRDT ドキュメントに追加・更新 */
+/**
+ * タスクを CRDT ドキュメントに追加・更新
+ *
+ * ⚠️ 既存タスクの「編集」時に `d.tasks[id] = {...}` のようにキーへ
+ * まるごと put してしまうと、他端末が同じタイミングで
+ * `delete d.tasks[id]`（crdtDeleteTask）していた場合、
+ * 「キーへの put」と「キーの delete」が Automerge 上で
+ * "同一キーへの並行書き込み" として競合する。
+ * この場合の勝敗は Lamport timestamp（オペレーションカウンタ→actorId）
+ * 順で決まり、削除側が必ず勝つとは限らない。運が悪いと、
+ * 他端末で削除されたはずのタスクが、この端末の編集内容ごと
+ * 復活してしまう（ゾンビタスク）。
+ *
+ * これを避けるため、既にキーが存在する場合は「キーの put」ではなく
+ * 「既存オブジェクトのプロパティを1つずつ上書きする」方式にする
+ * （crdtToggleTask と同じやり方）。プロパティ単位の変更は
+ * マップキー自体には触れないため、他端末の delete と競合しない。
+ * → 他端末で削除されていれば、削除が確実に優先され、
+ *   syncDocToDexie() によってこの端末のローカル(Dexie)からも
+ *   タスクが消える（意図した挙動）。
+ *
+ * まだキーが存在しない（新規作成）場合だけは、キーへの put が必要。
+ */
 export const crdtUpsertTask = async (task: LocalTask): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
     ensureDocShape(d);
-    d.tasks[task.id] = normalizeTaskEntry(task);
+    const normalized = normalizeTaskEntry(task);
+    const existing = d.tasks[task.id];
+    if (existing) {
+      existing.user_id      = normalized.user_id;
+      existing.goal_id      = normalized.goal_id;
+      existing.title        = normalized.title;
+      existing.description  = normalized.description;
+      existing.scheduled_at = normalized.scheduled_at;
+      existing.is_completed = normalized.is_completed;
+      existing.completed_at = normalized.completed_at;
+      existing.created_at   = normalized.created_at;
+      existing.updated_at   = normalized.updated_at;
+    } else {
+      d.tasks[task.id] = normalized;
+    }
   });
   await _persistDoc();
   await _enqueueLastChange();
@@ -387,11 +423,32 @@ export const crdtDeleteTask = async (taskId: string): Promise<void> => {
   await _enqueueLastChange();
 };
 
-/** 目標を CRDT ドキュメントに追加・更新 */
+/**
+ * 目標を CRDT ドキュメントに追加・更新
+ * ⚠️ crdtUpsertTask と同じ理由で、既存キーがある場合はフィールド単位の
+ * 上書きにする（他端末の delete との並行 put 競合＝ゾンビ復活を防ぐため）。
+ */
 export const crdtUpsertGoal = async (goal: LocalGoal): Promise<void> => {
   doc = Automerge.change(doc, (d) => {
     ensureDocShape(d);
-    d.goals[goal.id] = normalizeGoalEntry(goal);
+    const normalized = normalizeGoalEntry(goal);
+    const existing = d.goals[goal.id];
+    if (existing) {
+      existing.user_id        = normalized.user_id;
+      existing.title          = normalized.title;
+      existing.description    = normalized.description;
+      existing.parent_goal_id = normalized.parent_goal_id;
+      existing.period_type    = normalized.period_type;
+      existing.due_at         = normalized.due_at;
+      existing.is_completed   = normalized.is_completed;
+      existing.color_code     = normalized.color_code;
+      existing.position_x     = normalized.position_x;
+      existing.position_y     = normalized.position_y;
+      existing.created_at     = normalized.created_at;
+      existing.updated_at     = normalized.updated_at;
+    } else {
+      d.goals[goal.id] = normalized;
+    }
   });
   await _persistDoc();
   await _enqueueLastChange();

@@ -29,6 +29,15 @@ class GoalService
             if ($parent && $parent->user_id !== Auth::id()) {
                 return ['error' => '不正な親目標へのアクセスです', 'status' => 403];
             }
+            // ⚠️ TaskService::create() と同じ理由。親目標が既に削除されて
+            // いる場合、そのまま insert すると goals.parent_goal_id の
+            // 外部キー制約違反で例外→500→無限リトライになってしまう。
+            // 親が消えている以上リトライしても直らないので、
+            // 目標自体は失わずに parent_goal_id だけ null にして
+            // トップレベル扱いで作成する。
+            if (!$parent) {
+                $data['parent_goal_id'] = null;
+            }
         }
 
         // ⚠️ Task 側と同じ理由で、create の二重送信は主キー重複の

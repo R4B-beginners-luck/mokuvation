@@ -88,10 +88,26 @@ class SyncController extends Controller
                     'code'    => $result['status'],
                 ];
             } else {
-                $results[] = [
+                $entry = [
                     'index'  => $index,
                     'status' => 'ok',
                 ];
+
+                // ⚠️ Task::create() 内で goal_id を、Goal::create() 内で
+                // parent_goal_id を「参照先が既に削除されていたら null に
+                // 補正する」処理を追加した。しかし今まではこのレスポンスが
+                // { status: 'ok' } しか返さなかったため、フロント側は
+                // サーバーがそう補正したこと自体を知る手段が無く、
+                // ローカルDexie・CRDT docは送信時のまま（削除済みIDを
+                // 参照した状態）で取り残されていた。
+                // Task/Goal モデルが返ってきた（＝create/update成功）場合は
+                // 補正後の実データも一緒に返し、フロント側で
+                // ローカルの内容をこれに合わせて上書きできるようにする。
+                if ($result instanceof \App\Models\Task || $result instanceof \App\Models\Goal) {
+                    $entry['data'] = $result->toArray();
+                }
+
+                $results[] = $entry;
             }
         }
 

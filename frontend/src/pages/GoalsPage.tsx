@@ -1115,7 +1115,31 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
 
         if (isOnline()) {
           try {
-            await goalApi.update(goal.id, updatePayload);
+            const updatedGoal = await goalApi.update(goal.id, updatePayload);
+            // ✅ オンライン成功時も Dexie + CRDT doc へ反映する。
+            // 以前はここで何もしていなかったため、CRDT doc がこの編集を
+            // 一切知らないまま古い内容で取り残されていた。結果として：
+            //  - この編集が crdt_changes へ push されず、他端末の
+            //    CRDTポーリング（7秒毎）ではタイトル等の変更に気づけない
+            //    （他端末が明示的に画面を開き直すREST経路でしか反映されない）
+            //  - 後で別の操作（完了トグル・位置移動等）がこの goal に対して
+            //    crdtUpsertGoal を呼んだ時、doc内の別フィールドが巻き戻る/
+            //    他端末の delete と衝突する余地を残す
+            // toggle・位置保存ハンドラと同じパターンに揃え、必ず両方を
+            // 更新しておく。
+            const dbGoal = await db.goals.get(goal.id);
+            if (dbGoal) {
+              const updated = {
+                ...dbGoal,
+                title:        updatedGoal.title ?? updatePayload.title ?? dbGoal.title,
+                description:  updatedGoal.description ?? updatePayload.description ?? null,
+                due_at:       updatedGoal.due_at ?? updatePayload.due_at ?? null,
+                is_completed: updatedGoal.is_completed ?? updatePayload.is_completed ?? dbGoal.is_completed,
+                color_code:   updatedGoal.color_code ?? updatePayload.color_code ?? null,
+              };
+              await db.goals.put(updated);
+              crdtUpsertGoal(updated);
+            }
           } catch (error) {
             if (!isNetworkFailure(error)) throw error;
             // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
