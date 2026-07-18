@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Palette,
   HelpCircle,
@@ -12,7 +12,6 @@ import {
   Save,
 } from 'lucide-react';
 import { getAppVersionLabel } from '../utils/appVersion';
-import { isMapDebugStorageOn, setMapDebugStorage } from '../utils/debug';
 import { authApi } from '../features/auth/api/authApi';
 import { Modal } from '../components/Modal';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
@@ -275,8 +274,6 @@ export function SettingsPage({
 }: SettingsPageProps) {
   const [themeExpanded, setThemeExpanded] = useState(false);
   const [themeColorIndex, setThemeColorIndex] = useState<ThemeColorIndex>(DEFAULT_THEME_COLOR_INDEX);
-  const [versionHint, setVersionHint] = useState<string | null>(null);
-  const versionTapRef = useRef({ count: 0, timer: 0 as number | undefined });
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isSavingAccount, setIsSavingAccount] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -333,25 +330,9 @@ export function SettingsPage({
     }
   };
 
-  /** バージョンを連続タップでマップデバッグをトグル（iPhone 本番/Preview 調査用） */
-  const handleVersionTap = () => {
-    const state = versionTapRef.current;
-    window.clearTimeout(state.timer);
-    state.count += 1;
-    state.timer = window.setTimeout(() => {
-      state.count = 0;
-    }, 1500);
-
-    if (state.count < 7) return;
-    state.count = 0;
-    const next = !isMapDebugStorageOn();
-    setMapDebugStorage(next);
-    setVersionHint(
-      next
-        ? 'マップデバッグ ON（目標マップに数値が出ます）'
-        : 'マップデバッグ OFF',
-    );
-  };
+  /** バージョン連打でのデバッグ起動は廃止（発表中の誤操作防止）。
+   * デバッグ自体は ?mapDebug=1（開発）や localStorage `goal-map-debug` で有効化できる。
+   */
 
   return (
     <div className="settings-page">
@@ -441,20 +422,9 @@ export function SettingsPage({
         </div>
       </section>
 
-      <button
-        type="button"
-        className="settings-page__version"
-        onClick={handleVersionTap}
-        aria-label={`アプリバージョン ${getAppVersionLabel()}`}
-      >
+      <p className="settings-page__version" aria-label={`アプリバージョン ${getAppVersionLabel()}`}>
         {getAppVersionLabel()}
-      </button>
-      {versionHint && (
-        <p className="settings-page__version-hint" role="status">
-          {versionHint}
-        </p>
-      )}
-
+      </p>
       {isAccountModalOpen && user && (
         <AccountEditModal
           user={user}

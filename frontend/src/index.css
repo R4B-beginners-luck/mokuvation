@@ -643,122 +643,6 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* ============================================================
-   BOTTOM SHEET
-   ============================================================ */
-.bottom-sheet-root {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.bottom-sheet-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-  border: none;
-  cursor: pointer;
-  animation: fadeIn 0.15s var(--ease);
-}
-
-.bottom-sheet {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-  padding: var(--sp-4) var(--sp-5) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border);
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  box-shadow: var(--shadow-lg);
-  animation: slideUpSheet 0.22s var(--ease);
-}
-
-@keyframes slideUpSheet {
-  from { opacity: 0; transform: translateY(100%); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.bottom-sheet__handle {
-  width: 36px;
-  height: 4px;
-  margin: 0 auto var(--sp-4);
-  border-radius: var(--r-full);
-  background: rgba(240, 236, 224, 0.18);
-}
-
-.bottom-sheet__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--sp-5);
-}
-
-.bottom-sheet__title {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.bottom-sheet__close {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-sm);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  font-size: 18px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--dur-fast), color var(--dur-fast);
-}
-
-.bottom-sheet__close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.bottom-sheet__user {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-4);
-  margin-bottom: var(--sp-5);
-  border-radius: var(--r-lg);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-}
-
-.bottom-sheet__avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--r-full);
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-teal));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
-  color: #16151a;
-  flex-shrink: 0;
-}
-
-.bottom-sheet__username {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.bottom-sheet__logout {
-  width: 100%;
-  justify-content: center;
-}
-
-/* ============================================================
    LOGIN PAGE
    ============================================================ */
 .login-page {
@@ -1846,6 +1730,117 @@ a { text-decoration: none; color: inherit; }
 }
 
 .modal__close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* 設定のヘルプ／規約／ポリシー本文（ダーク Modal 向け） */
+.legal-modal-content {
+  color: var(--text-primary);
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.legal-modal-content h3,
+.legal-modal-content h4 {
+  color: var(--text-primary);
+}
+
+.legal-modal-content p,
+.legal-modal-content li {
+  color: var(--text-secondary);
+}
+
+/* ヘルプ FAQ（アコーディオン） */
+.help-faq {
+  padding: var(--sp-2) 0 var(--sp-3);
+  line-height: 1.65;
+}
+
+.help-faq__group + .help-faq__group {
+  margin-top: var(--sp-5);
+}
+
+.help-faq__group-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin: 0 0 var(--sp-2);
+}
+
+.help-faq__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.faq-item {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.faq-item__trigger {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.faq-item__trigger:hover {
+  background: var(--bg-hover);
+}
+
+.faq-item__question {
+  flex: 1;
+  min-width: 0;
+}
+
+.faq-item__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--text-muted);
+}
+
+.faq-item__answer {
+  padding: 0 var(--sp-4) var(--sp-3);
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.faq-item__answer p {
+  margin: var(--sp-2) 0 0;
+}
+
+.faq-item__answer p:first-child {
+  margin-top: var(--sp-3);
+}
+
+.faq-item__answer ul {
+  margin: var(--sp-2) 0 0;
+  padding-left: 1.25em;
+}
+
+.faq-item__answer li + li {
+  margin-top: 0.35em;
+}
+
+.faq-item__answer strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
 
 .modal__form {
   display: flex;
@@ -3777,6 +3772,8 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  min-height: 52px;
+  box-sizing: border-box;
   padding: var(--sp-4);
   color: var(--text-primary);
   background: transparent;
@@ -3842,18 +3839,11 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   user-select: text;
 }
 
-.settings-page__version-hint {
-  margin: var(--sp-2) 0 0;
-  padding: 0 var(--sp-4);
-  font-size: 12px;
-  color: var(--accent-gold);
-  text-align: center;
-}
-
-/* テーマカラー：インライン展開パネル */
+/* テーマカラー：インライン展開パネル（行本体の高さは変えない） */
 .settings-swatch-panel {
-  padding: var(--sp-2) var(--sp-4) var(--sp-4);
-  border-bottom: 1px solid var(--border);
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--border);
+  background: var(--bg-base);
 }
 
 .settings-swatch-grid {
@@ -4236,9 +4226,9 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   .top-page__streak-wrapper {
     width: 100%;
   }
+}
 
-
-  /* ============================================================
+/* ============================================================
    RESPONSIVE: TABLET ADJUSTMENTS (1024px以下への対応)
    ============================================================ */
 @media (max-width: 1024px) {
@@ -4397,6 +4387,28 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   box-sizing: border-box;
 }
 
+@media (min-width: 769px) {
+  /* PC: 左右に十分な余白を取り、コンテンツ幅を抑える */
+  .settings-page {
+    max-width: 520px;
+    padding-left: clamp(var(--sp-8), 6vw, 64px);
+    padding-right: clamp(var(--sp-8), 6vw, 64px);
+  }
+
+  /* テーマカラー行：開閉しても行本体の高さは固定（パネルは行の下に展開） */
+  .settings-page .settings-row {
+    min-height: 56px;
+    height: 56px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .settings-page .settings-swatch-panel {
+    /* 行の外に出すので、行高さには影響しない */
+    flex-shrink: 0;
+  }
+}
+
 .settings-page__title {
   font-family: var(--font-display);
   font-size: 24px;
@@ -4523,27 +4535,18 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   line-height: 1.5;
 }
 
-/* 4. バージョン表記 */
+/* 4. バージョン表記（タップ入口なし・静的表示） */
 .settings-page__version {
   display: block;
   width: max-content;
   margin: var(--sp-8) auto var(--sp-2);
   font-size: 12px;
   color: var(--text-muted);
-  cursor: pointer;
+  cursor: default;
   opacity: 0.7;
   background: none;
   border: none;
-}
-
-.settings-page__version:hover {
-  opacity: 1;
-}
-
-.settings-page__version-hint {
-  text-align: center;
-  font-size: 11px;
-  color: var(--accent-gold);
+  user-select: text;
 }
 
 /* 5. モーダルのモバイル対応補強 */
@@ -4591,5 +4594,4 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     grid-template-columns: repeat(6, 1fr);
     gap: var(--sp-2);
   }
-}
 }

@@ -16,8 +16,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { applyThemeColor, applyThemeColorIndex, DEFAULT_THEME_COLOR_INDEX, isThemeColorIndex } from './utils/theme';
 
 // ── 【追加インポート】モーダルとコンテンツの読み込み ────────────────
-import { Modal } from './components/common/Modal'; 
-import { HelpContent, TermsContent, PrivacyContent } from './components/common/ModalContents';
+import { HelpTermsPrivacyModals } from './components/common/Modal';
 
 import { useLocalData, localTaskToTask } from './hooks/useLocalData';
 import { db, type LocalTask } from './services/db';
@@ -350,7 +349,7 @@ function AppContent() {
 
   return (
     <>
-      <Layout currentPage={page} onNavigate={handleNavigate} onLogout={handleLogout} user={user}>
+      <Layout currentPage={page} onNavigate={handleNavigate}>
       {/* オフライン表示バナー */}
         {!isOnline() && (
           <div style={{
@@ -395,24 +394,11 @@ function AppContent() {
         )}
       </Layout>
 
-      {/* ── 【追加】条件が一致した時だけモーダルを表示する処理 ──────────────── */}
-      {activeModal === 'help' && (
-        <Modal title="目標マップ ヘルプ" onClose={closeModal}>
-          <HelpContent />
-        </Modal>
-      )}
-
-      {activeModal === 'terms' && (
-        <Modal title="利用規約" onClose={closeModal}>
-          <TermsContent />
-        </Modal>
-      )}
-
-      {activeModal === 'privacy' && (
-        <Modal title="プライバシーポリシー" onClose={closeModal}>
-          <PrivacyContent />
-        </Modal>
-      )}
+      {/* ── 設定：ヘルプ／利用規約／プライバシー ──────────────── */}
+      <HelpTermsPrivacyModals
+        type={activeModal === 'none' ? null : activeModal}
+        onClose={closeModal}
+      />
     </>
   );
 }

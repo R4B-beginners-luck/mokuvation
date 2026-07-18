@@ -2,12 +2,11 @@
  * デバッグ表示の有効判定。
  *
  * 通常は開発サーバー（import.meta.env.DEV）のみ。
- * 本番 / Preview の実機調査用に、設定画面のバージョン連打で
- * localStorage を ON にした場合も有効になる。
+ * 本番 / Preview の実機調査用に、localStorage フラグでも有効にできる。
  *
  * 有効化:
- * - 開発: URL ?mapDebug=1 または localStorage
- * - 本番/Preview: 設定のバージョン表示を連続タップ → 目標マップへ
+ * - 開発: URL ?mapDebug=1 または localStorage `goal-map-debug=1`
+ * - 本番/Preview: localStorage `goal-map-debug=1`（設定のバージョン連打入口は廃止）
  */
 export function isDebugEnabled(options?: {
   /** localStorage のキー（例: 'goal-map-debug'） */
