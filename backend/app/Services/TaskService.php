@@ -41,18 +41,25 @@ class TaskService
             }
         }
 
-        return Task::create([
-            // クライアント（オフライン作成時）が生成した UUID をそのまま採用する。
-            // これを省略すると HasUuids が新規 UUID を発行してしまい、
-            // クライアント側の一時ID（Dexie上のレコード）と紐付かなくなる
-            // ＝再同期時に「同じタスクが重複して見える」原因になる。
-            'id'           => $data['id'] ?? null,
-            'goal_id'      => $data['goal_id'] ?? null,
-            'user_id'      => $data['user_id'],
-            'title'        => $data['title'],
-            'description'  => $data['description'] ?? null,
-            'scheduled_at' => $data['scheduled_at'] ?? null,
-        ]);
+        // ⚠️ クライアント生成UUIDを使うため、同じ create 操作が二重送信されると
+        // （オンライン復帰直後に複数のタイマー/イベントから flushQueue() が
+        // 同時に走る等）Task::create() が主キー重複の PDOException を投げ、
+        // /api/sync のリクエスト全体が 500 で落ちる。その結果、同じバッチに
+        // 含まれる他の操作（他デバイスのタスク完了状態更新など）も一切処理
+        // されずに巻き添えで失敗し、キューに残って何度も再送→再度500…という
+        // 無限ループになっていた。
+        // updateOrCreate にして「そのIDが既にあれば中身を合わせるだけ」の
+        // 冪等な処理にすることで、二重送信されても安全に成功として扱える。
+        return Task::updateOrCreate(
+            ['id' => $data['id'] ?? null],
+            [
+                'goal_id'      => $data['goal_id'] ?? null,
+                'user_id'      => $data['user_id'],
+                'title'        => $data['title'],
+                'description'  => $data['description'] ?? null,
+                'scheduled_at' => $data['scheduled_at'] ?? null,
+            ]
+        );
     }
 
     /**

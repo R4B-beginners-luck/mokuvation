@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { taskApi } from '../features/tasks/api/taskApi';
 import { longTermGoals, midTermGoals, TODAY } from '../data/dummy';
-import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongTermSummary, AddGoalModal } from '../features/dashboard';
+import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongTermSummary } from '../features/dashboard';
+import { TaskAddModal } from '../features/tasks';
 import { TopPageSkeleton } from '../components/ui/TopPageSkeleton';
 import type { Task, User, ShortTermGoal, LongTermGoal, MidTermGoal } from '../types';
 import { goalApi, type BackendGoal } from '../features/goals/api/goalApi';
@@ -364,11 +365,33 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
       )}
 
       {modalOpen && (
-        <AddGoalModal
-          longTermGoals={longTermGoalsList}
-          midTermGoals={midTermGoalsList}
-          onAdd={handleAddWrapper}
+        <TaskAddModal
           onClose={() => setModalOpen(false)}
+          onSuccess={(newTask: any) => {
+            // TodaySection内のTaskAddModal.onSuccessと同じ整形ロジック。
+            // ここを揃えないと、0件時に追加したタスクだけAPI未保存/型不正になり
+            // リロードで消える・親フィルターを通過しないバグが再発する。
+            const jstDate = new Date(Date.now() + ((new Date().getTimezoneOffset() + 540) * 60 * 1000));
+            const todayStr = jstDate.getFullYear() + '-' +
+                             String(jstDate.getMonth() + 1).padStart(2, '0') + '-' +
+                             String(jstDate.getDate()).padStart(2, '0');
+
+            let taskDate = todayStr;
+            if (newTask.scheduled_at) {
+              taskDate = String(newTask.scheduled_at).substring(0, 10);
+            }
+
+            const formattedTask: Task = {
+              id: String(newTask.id),
+              title: newTask.title,
+              goalId: (newTask.goal_id && String(newTask.goal_id) !== '0') ? String(newTask.goal_id) : undefined,
+              completed: Boolean(newTask.is_completed ?? newTask.completed),
+              date: taskDate,
+            };
+
+            handleAddWrapper(formattedTask);
+            setModalOpen(false);
+          }}
         />
       )}
     </>

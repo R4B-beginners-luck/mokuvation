@@ -5,6 +5,7 @@ import type { Task } from '../types';
 import { DatePickerField } from '../../../components/ui/DatePickerField/DatePickerField';
 import { getTodayApiDate } from '../../../components/ui/DatePickerField/dateUtils';
 import { GoalPicker } from './GoalPicker';
+import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
 
 interface TaskAddModalProps {
   goalId?: string | null;
@@ -14,6 +15,11 @@ interface TaskAddModalProps {
 }
 
 export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }: TaskAddModalProps) {
+  // モーダル表示中は背景（<body>）のスクロールをロックする。
+  // モバイルだとオーバーレイの余白部分をドラッグして背景がスクロール
+  // できてしまっていたため。
+  useLockBodyScroll();
+
   const { addTask, isLoading, error } = useTaskMutations();
   
   const [title, setTitle] = useState('');

@@ -94,3 +94,27 @@ class MokuvationDB extends Dexie {
 }
 
 export const db = new MokuvationDB();
+
+/**
+ * ローカルに残っている全データ（tasks / goals / sync_queue / crdt_meta）を消去する。
+ *
+ * 【なぜ必要か】
+ * このDB（'mokuvation'）はユーザーIDごとに分かれておらず、crdt_meta の
+ * ドキュメントキーも固定（'crdt_doc_binary'）のため、同じ端末で別アカウントに
+ * ログインすると、前のユーザーのタスク・目標・CRDTドキュメントがそのまま
+ * 残り続け、新しいユーザーの画面に混ざって表示されてしまう。
+ *
+ * ログイン時に「前回ログインしていたユーザーIDと今回のユーザーIDが違う」と
+ * 判定できた場合に、この関数で確実にローカルデータを空にしてから
+ * 再同期させることで、別アカウントのデータ混入を防ぐ。
+ *
+ * （syncService.ts の ensureUserScope() から呼ばれる想定）
+ */
+export async function clearAllLocalData(): Promise<void> {
+  await db.transaction('rw', db.tasks, db.goals, db.sync_queue, db.crdt_meta, async () => {
+    await db.tasks.clear();
+    await db.goals.clear();
+    await db.sync_queue.clear();
+    await db.crdt_meta.clear();
+  });
+}

@@ -43,4 +43,5 @@ export function GoalTypeBadge({ type, fullLabel = false }: GoalTypeBadgeProps) {
   );
 }
 
+// 旧名でも参照できるようにしておく（呼び出し側の移行漏れ対策）
 export const GoalTypeIcon = GoalTypeBadge;

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Calendar, Check, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Calendar, Check, ChevronLeft, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { TaskAddModal, TaskDeleteConfirm } from '../../tasks';
 import type { Task as CreatedTask } from '../../tasks';
 import type { Task, Goal } from '../types';
@@ -10,6 +10,7 @@ interface DayGoalListProps {
   goals: Goal[];
   onTaskAdded?: (task: CreatedTask) => void;
   onTaskDeleted?: (taskId: string) => void;
+  onClose?: () => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -32,21 +33,24 @@ function getTodayLocalDateString(): string {
   return `${year}-${month}-${day}`;
 }
 
-export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: DayGoalListProps) {
+export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, onClose }: DayGoalListProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [deleteConfirmTaskId, setDeleteConfirmTaskId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (!date) {
-    return (
-      <div className="day-detail">
-        <div className="day-detail__empty">
-          <Calendar size={32} strokeWidth={1.75} aria-hidden style={{ marginBottom: 8 }} />
-          日付を選択してください
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const dayTasks = tasks.filter((task) => {
@@ -73,7 +77,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
   };
 
   return (
-    <div className="day-detail">
+    <div className={`day-detail${isMobile ? ' day-detail--mobile' : ''}`}>
       <div className="day-detail__header">
         <div>
           <div className="day-detail__date">{formatDate(date)}</div>
@@ -129,6 +133,18 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted }: 
             title={canModifyTasks ? (isEditingEnabled ? '編集を終了' : '編集する') : '過去の日付は編集できません'}
           >
             <Pencil size={15} strokeWidth={1.75} aria-hidden />
+          </button>
+
+          <button
+            type="button"
+            className="day-detail__close-button"
+            onClick={() => {
+              onClose?.();
+            }}
+            aria-label="閉じる"
+            title="このパネルを閉じる"
+          >
+            <ChevronLeft size={15} strokeWidth={1.75} aria-hidden />
           </button>
         </div>
       </div>

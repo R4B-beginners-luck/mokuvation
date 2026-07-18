@@ -146,7 +146,7 @@ export function TodaySection({
           <li
             key={goal.id}
             className={isCelebratingRow ? 'today-goals__item--celebrating' : undefined}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', minWidth: 0 }}
           >
             <div
               className={[

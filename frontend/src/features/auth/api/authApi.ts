@@ -1,4 +1,6 @@
 import type { AuthResponse, LoginCredentials, User } from '../types/index.ts';
+import type { ThemeColorIndex } from '../../../utils/theme';
+import { isThemeColorIndex } from '../../../utils/theme';
 
 // バックエンドのURLを定数として定義
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
@@ -59,12 +61,49 @@ export const authApi = {
       method: 'GET',
     });
 
+    const rawThemeColor = data?.theme_color;
+    const theme_color: ThemeColorIndex | undefined = (() => {
+      if (isThemeColorIndex(rawThemeColor)) return rawThemeColor as ThemeColorIndex;
+      if (typeof rawThemeColor === 'string' && /^[0-9]+$/.test(rawThemeColor)) {
+        const n = Number(rawThemeColor);
+        if (isThemeColorIndex(n)) return n as ThemeColorIndex;
+      }
+      return undefined;
+    })();
+
     return {
       user_id: String(data?.user_id ?? ''),
       user_name:
         typeof data?.user_name === 'string'
           ? data.user_name
           : 'ゲスト',
+      theme_color,
+    };
+  },
+
+  updateMe: async (payload: { theme_color?: ThemeColorIndex }): Promise<User> => {
+    const data = await fetchWithAuth('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+
+    const rawThemeColor = data?.theme_color;
+    const theme_color: ThemeColorIndex | undefined = (() => {
+      if (isThemeColorIndex(rawThemeColor)) return rawThemeColor as ThemeColorIndex;
+      if (typeof rawThemeColor === 'string' && /^[0-9]+$/.test(rawThemeColor)) {
+        const n = Number(rawThemeColor);
+        if (isThemeColorIndex(n)) return n as ThemeColorIndex;
+      }
+      return undefined;
+    })();
+
+    return {
+      user_id: String(data?.user_id ?? ''),
+      user_name:
+        typeof data?.user_name === 'string'
+          ? data.user_name
+          : 'ゲスト',
+      theme_color,
     };
   },
 
