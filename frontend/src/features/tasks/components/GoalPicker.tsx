@@ -37,7 +37,10 @@ const findRootLongId = (byId: Map<string, LocalGoal>, goal: LocalGoal): string =
 
 // parent_goal_id を遡り、period_type が 'short' でない最初の祖先を返す
 // （短期目標同士の連鎖を1つの階層に畳み込むため）
-const findNearestNonShortAncestorId = (byId: Map<string, LocalGoal>, goal: LocalGoal): string | null => {
+const findNearestNonShortAncestorId = (
+  byId: Map<string, LocalGoal>,
+  goal: LocalGoal,
+): string | null => {
   let parent = goal.parent_goal_id ? byId.get(goal.parent_goal_id) : undefined;
   const seen = new Set<string>();
   while (parent && parent.period_type === 'short' && !seen.has(parent.id)) {
@@ -175,7 +178,8 @@ export function GoalPicker({ goals, value, onChange, disabled }: GoalPickerProps
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };

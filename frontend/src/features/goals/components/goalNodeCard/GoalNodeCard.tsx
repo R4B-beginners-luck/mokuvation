@@ -231,11 +231,14 @@ export default function GoalNodeCard({
   const cls = [
     "gnc",
     `gnc--${density}`,
-    isLong && "gnc--long",
+    goalType === "long" && "gnc--long",
+    goalType === "mid" && "gnc--mid",
+    goalType === "short" && "gnc--short",
     isGhost && "gnc--ghost",
     selected && "gnc--selected",
-    !isGhost && st.outline && "gnc--overdue",
-    !isGhost && st.warningOutline && "gnc--due-soon",
+    // 長期は金色ピン＋光彩があるため、期限切れ／間近は枠を付けずバッジのみ
+    !isGhost && !isLong && st.outline && "gnc--overdue",
+    !isGhost && !isLong && st.warningOutline && "gnc--due-soon",
     !isGhost && st.dimmed && "gnc--done",
   ]
     .filter(Boolean)
@@ -292,9 +295,11 @@ export default function GoalNodeCard({
       >
         <span className="gnc__bar" style={{ background: categoryColor }} aria-hidden />
         <div className="gnc__titleOneLine">{title}</div>
-        <div className="gnc__track gnc__track--thin">
-          <div className="gnc__fill" style={{ width: `${pct}%` }} />
-        </div>
+        {progress.total > 0 && (
+          <div className="gnc__track gnc__track--thin">
+            <div className="gnc__fill" style={{ width: `${pct}%` }} />
+          </div>
+        )}
       </div>
     );
   }
@@ -334,14 +339,16 @@ export default function GoalNodeCard({
 
       <div className="gnc__title">{title}</div>
 
-      <div className="gnc__progress">
-        <div className="gnc__track">
-          <div className="gnc__fill" style={{ width: `${pct}%` }} />
+      {progress.total > 0 && (
+        <div className="gnc__progress">
+          <div className="gnc__track">
+            <div className="gnc__fill" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="gnc__count">
+            {unit} {progress.done}/{progress.total}
+          </span>
         </div>
-        <span className="gnc__count">
-          {unit} {progress.done}/{progress.total}
-        </span>
-      </div>
+      )}
     </div>
   );
 }
