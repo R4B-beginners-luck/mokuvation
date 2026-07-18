@@ -33,10 +33,18 @@
   --border-accent:  rgba(232, 162, 52, 0.35);
   --border-teal:    rgba(90, 181, 160, 0.35);
 
-  /* Node colors (graph) */
-  --node-long:  #e8a234;
-  --node-mid:   #5ab5a0;
-  --node-short: #9b7fd4;
+  /* Node colors (graph) — 種別カラーのエイリアス */
+  --node-long:  var(--goal-type-long);
+  --node-mid:   var(--goal-type-mid);
+  --node-short: var(--goal-type-short);
+
+  /* 目標種別カラー（正式ルール: Todayタグと同じ 金 / ティール / 紫） */
+  --goal-type-long:  #e8a234;
+  --goal-type-mid:   #5ab5a0;
+  --goal-type-short: #9b7fd4;
+  --goal-type-long-bg:  rgba(232, 162, 52, 0.12);
+  --goal-type-mid-bg:   rgba(90, 181, 160, 0.12);
+  --goal-type-short-bg: rgba(155, 127, 212, 0.12);
 
   /* Spacing */
   --sp-1: 4px;
@@ -1497,9 +1505,152 @@ a { text-decoration: none; color: inherit; }
   white-space: nowrap;
 }
 
-.tag--long  { background: rgba(232,162,52,0.12); color: var(--accent-gold); }
-.tag--mid   { background: rgba(90,181,160,0.12); color: var(--accent-teal); }
-.tag--short { background: rgba(155,127,212,0.12); color: var(--accent-violet); }
+.tag--long  { background: var(--goal-type-long-bg); color: var(--goal-type-long); }
+.tag--mid   { background: var(--goal-type-mid-bg); color: var(--goal-type-mid); }
+.tag--short { background: var(--goal-type-short-bg); color: var(--goal-type-short); }
+
+/* 目標種別バッジ（GoalPicker / 詳細パネル共通） */
+.goal-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.goal-type-badge--long {
+  color: var(--goal-type-long);
+  background: var(--goal-type-long-bg);
+}
+
+.goal-type-badge--mid {
+  color: var(--goal-type-mid);
+  background: var(--goal-type-mid-bg);
+}
+
+.goal-type-badge--short {
+  color: var(--goal-type-short);
+  background: var(--goal-type-short-bg);
+}
+
+.goal-picker {
+  position: relative;
+}
+
+.goal-picker__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.goal-picker__trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.goal-picker__trigger-value {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.goal-picker__placeholder {
+  color: var(--text-muted);
+  flex: 1;
+  text-align: left;
+}
+
+.goal-picker__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.goal-picker__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: var(--sp-1) 0;
+}
+
+.goal-picker__empty {
+  padding: var(--sp-3) var(--sp-4);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.goal-picker__row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 2px;
+}
+
+.goal-picker__row--selected {
+  background: rgba(var(--color-primary-rgb), 0.12);
+}
+
+.goal-picker__twisty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.goal-picker__twisty:disabled {
+  cursor: default;
+  opacity: 0;
+}
+
+.goal-picker__option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) 0;
+  cursor: pointer;
+}
+
+.goal-picker__option--flat {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-4);
+}
+
+.goal-picker__option:hover {
+  background: var(--bg-hover);
+}
 
 .today-goals__list {
   display: flex;
@@ -3064,12 +3215,18 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-primary);
   margin-bottom: var(--sp-2);
   cursor: pointer;
+  text-align: left;
+  font-family: inherit;
   transition: background var(--dur-fast), border-color var(--dur-fast);
 }
 
 .related-node:hover { background: var(--bg-hover); border-color: rgba(240,236,224,0.12); }
 
 .related-node:last-child { margin-bottom: 0; }
+
+.related-node--depth-1 {
+  border-left: 2px solid rgba(var(--color-primary-rgb), 0.28);
+}
 
 .related-node__dot {
   width: 10px; height: 10px;
@@ -3096,8 +3253,9 @@ a { text-decoration: none; color: inherit; }
 }
 
 .detail-panel__goal-list {
-  display: grid;
-  gap: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   width: 100%;
 }
 
@@ -3175,44 +3333,34 @@ a { text-decoration: none; color: inherit; }
 .status-dot--complete { background: var(--color-success); }
 .status-dot--pending  { background: var(--accent-gold); }
 
+/* 折りたたみ見出し（親目標 / 子目標 / 関連タスクで共通）。
+   外枠カードは持たず、下に薄い横線を1本引くフラットな見出し。 */
 .detail-panel__summary {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   margin: 0;
-  padding: 8px 10px;
+  padding: 6px 2px;
   border: none;
-  border-radius: var(--r-md);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
   background: transparent;
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease);
+  transition: color var(--dur-fast) var(--ease);
 }
 
 .detail-panel__summary:hover {
-  background: var(--bg-hover);
-}
-
-.detail-panel__summary--native {
-  display: list-item;
-  width: auto;
-  padding: 0;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: transparent;
-}
-
-.detail-panel__summary--native:hover {
-  background: transparent;
+  color: var(--color-primary);
 }
 
 .detail-panel__summary-chevron {
   flex-shrink: 0;
-  color: var(--text-primary);
+  color: currentColor;
 }
 
 .detail-panel__summary-label {
@@ -3220,21 +3368,144 @@ a { text-decoration: none; color: inherit; }
   min-width: 0;
 }
 
-.detail-panel__rel-list {
-  display: grid;
+/* 親/子/関連タスクを1階層のフラットなセクションとして縦に並べる */
+.detail-panel__relations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  margin-top: var(--sp-5);
+}
+
+.detail-panel__task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.detail-panel__child-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  padding: 0 var(--sp-1);
+}
+
+.detail-panel__sort--inline {
+  margin-bottom: 0;
+  width: auto;
+  justify-content: flex-end;
+}
+
+.detail-panel__filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.detail-panel__filter-btn--active,
+.detail-panel__filter-btn:hover {
+  border-color: rgba(var(--color-primary-rgb), 0.45);
+  color: var(--text-primary);
+  background: rgba(var(--color-primary-rgb), 0.08);
+}
+
+.detail-panel__color-filter {
+  margin: 0 0 var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+}
+
+.detail-panel__color-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-2);
+}
+
+.detail-panel__color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-panel__color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.detail-panel__color-swatch--active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.35);
+}
+
+.detail-panel__color-filter-clear {
+  margin-top: var(--sp-2);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
 }
 
 .detail-panel__rel-group {
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
-  overflow: hidden;
+  display: block;
 }
 
 .detail-panel__rel-body {
-  padding: 0 var(--sp-2) var(--sp-2);
-  background: var(--bg-base);
+  padding: var(--sp-3) 0 0;
+  background: transparent;
+}
+
+/* 個々の目標行：GoalPicker の「紐づける目標」ドロップダウンと同じ
+   インデント＋種別チップのパターン（外枠なし・種別チップは先頭）。 */
+.detail-panel__goal-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: var(--sp-2);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.detail-panel__goal-row:hover {
+  background: var(--bg-hover);
+}
+
+.detail-panel__goal-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-panel__section-title--with-control {
@@ -3260,14 +3531,6 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   background: var(--bg-raised);
   color: var(--text-primary);
-}
-
-.detail-panel__sort--inline {
-  display: flex;
-  justify-content: flex-end;
-  width: 100%;
-  margin-bottom: var(--sp-2);
-  padding: 0 var(--sp-1);
 }
 
 .detail-panel__empty-copy {

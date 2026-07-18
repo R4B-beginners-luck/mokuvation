@@ -231,7 +231,9 @@ export default function GoalNodeCard({
   const cls = [
     "gnc",
     `gnc--${density}`,
-    isLong && "gnc--long",
+    goalType === "long" && "gnc--long",
+    goalType === "mid" && "gnc--mid",
+    goalType === "short" && "gnc--short",
     isGhost && "gnc--ghost",
     selected && "gnc--selected",
     !isGhost && st.outline && "gnc--overdue",
