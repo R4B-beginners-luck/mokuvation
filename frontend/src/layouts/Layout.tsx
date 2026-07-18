@@ -114,7 +114,7 @@ export function Layout({ currentPage, onNavigate, children }: LayoutProps) {
         </main>
         <BottomNav
           currentPage={currentPage}
-          onNavigate={handleNavigate}
+          onNavigate={onNavigate}
         />
       </div>
     </PageSecondaryPanelProvider>
