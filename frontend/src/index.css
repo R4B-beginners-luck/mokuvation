@@ -777,122 +777,6 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* ============================================================
-   BOTTOM SHEET
-   ============================================================ */
-.bottom-sheet-root {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.bottom-sheet-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-  border: none;
-  cursor: pointer;
-  animation: fadeIn 0.15s var(--ease);
-}
-
-.bottom-sheet {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-  padding: var(--sp-4) var(--sp-5) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px));
-  background: var(--bg-surface);
-  border-top: 1px solid var(--border);
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  box-shadow: var(--shadow-lg);
-  animation: slideUpSheet 0.22s var(--ease);
-}
-
-@keyframes slideUpSheet {
-  from { opacity: 0; transform: translateY(100%); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.bottom-sheet__handle {
-  width: 36px;
-  height: 4px;
-  margin: 0 auto var(--sp-4);
-  border-radius: var(--r-full);
-  background: rgba(240, 236, 224, 0.18);
-}
-
-.bottom-sheet__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--sp-5);
-}
-
-.bottom-sheet__title {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.bottom-sheet__close {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-sm);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  font-size: 18px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--dur-fast), color var(--dur-fast);
-}
-
-.bottom-sheet__close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.bottom-sheet__user {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-4);
-  margin-bottom: var(--sp-5);
-  border-radius: var(--r-lg);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-}
-
-.bottom-sheet__avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--r-full);
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-teal));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
-  color: #16151a;
-  flex-shrink: 0;
-}
-
-.bottom-sheet__username {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.bottom-sheet__logout {
-  width: 100%;
-  justify-content: center;
-}
-
-/* ============================================================
    LOGIN PAGE
    ============================================================ */
 .login-page {
@@ -2123,6 +2007,117 @@ a { text-decoration: none; color: inherit; }
 }
 
 .modal__close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* 設定のヘルプ／規約／ポリシー本文（ダーク Modal 向け） */
+.legal-modal-content {
+  color: var(--text-primary);
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.legal-modal-content h3,
+.legal-modal-content h4 {
+  color: var(--text-primary);
+}
+
+.legal-modal-content p,
+.legal-modal-content li {
+  color: var(--text-secondary);
+}
+
+/* ヘルプ FAQ（アコーディオン） */
+.help-faq {
+  padding: var(--sp-2) 0 var(--sp-3);
+  line-height: 1.65;
+}
+
+.help-faq__group + .help-faq__group {
+  margin-top: var(--sp-5);
+}
+
+.help-faq__group-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin: 0 0 var(--sp-2);
+}
+
+.help-faq__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.faq-item {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.faq-item__trigger {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.faq-item__trigger:hover {
+  background: var(--bg-hover);
+}
+
+.faq-item__question {
+  flex: 1;
+  min-width: 0;
+}
+
+.faq-item__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--text-muted);
+}
+
+.faq-item__answer {
+  padding: 0 var(--sp-4) var(--sp-3);
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.faq-item__answer p {
+  margin: var(--sp-2) 0 0;
+}
+
+.faq-item__answer p:first-child {
+  margin-top: var(--sp-3);
+}
+
+.faq-item__answer ul {
+  margin: var(--sp-2) 0 0;
+  padding-left: 1.25em;
+}
+
+.faq-item__answer li + li {
+  margin-top: 0.35em;
+}
+
+.faq-item__answer strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
 
 .modal__form {
   display: flex;
@@ -4521,6 +4516,8 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  min-height: 52px;
+  box-sizing: border-box;
   padding: var(--sp-4);
   color: var(--text-primary);
   background: transparent;
@@ -4586,18 +4583,11 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   user-select: text;
 }
 
-.settings-page__version-hint {
-  margin: var(--sp-2) 0 0;
-  padding: 0 var(--sp-4);
-  font-size: 12px;
-  color: var(--accent-gold);
-  text-align: center;
-}
-
-/* テーマカラー：インライン展開パネル */
+/* テーマカラー：インライン展開パネル（行本体の高さは変えない） */
 .settings-swatch-panel {
-  padding: var(--sp-2) var(--sp-4) var(--sp-4);
-  border-bottom: 1px solid var(--border);
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--border);
+  background: var(--bg-base);
 }
 
 .settings-swatch-grid {
@@ -4980,9 +4970,9 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   .top-page__streak-wrapper {
     width: 100%;
   }
+}
 
-
-  /* ============================================================
+/* ============================================================
    RESPONSIVE: TABLET ADJUSTMENTS (1024px以下への対応)
    ============================================================ */
 @media (max-width: 1024px) {
@@ -5128,4 +5118,224 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     min-width: 0;
   }
 }
+/* ============================================================
+   SETTINGS PAGE (Responsive & Layout Styles)
+   ============================================================ */
+
+/* 1. ページ全体のレイアウト調整 */
+.settings-page {
+  padding: var(--sp-6) var(--sp-8);
+  max-width: 680px; /* PC・タブレットで横に広がりすぎず、可読性を保つ幅 */
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 769px) {
+  /* PC: 左右に十分な余白を取り、コンテンツ幅を抑える */
+  .settings-page {
+    max-width: 520px;
+    padding-left: clamp(var(--sp-8), 6vw, 64px);
+    padding-right: clamp(var(--sp-8), 6vw, 64px);
+  }
+
+  /* テーマカラー行：開閉しても行本体の高さは固定（パネルは行の下に展開） */
+  .settings-page .settings-row {
+    min-height: 56px;
+    height: 56px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .settings-page .settings-swatch-panel {
+    /* 行の外に出すので、行高さには影響しない */
+    flex-shrink: 0;
+  }
+}
+
+.settings-page__title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--sp-6);
+  color: var(--text-primary);
+}
+
+/* セクション（外観、サポート、アカウントなど） */
+.settings-page__section {
+  margin-bottom: var(--sp-6);
+}
+
+.settings-page__section-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-3);
+  padding-left: var(--sp-1);
+}
+
+.settings-page__section-body {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden; /* 子要素（row）の角丸はみ出しを防止 */
+}
+
+/* 2. 各設定行 (SettingsRow) */
+.settings-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--sp-4) var(--sp-5);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+.settings-row:hover {
+  background: var(--bg-hover);
+}
+
+/* 危険・削除系アクションのアウトライン */
+.settings-row--danger {
+  color: var(--color-danger);
+}
+
+.settings-row--danger .settings-row__icon {
+  color: var(--color-danger);
+}
+
+.settings-row__icon {
+  display: flex;
+  align-items: center;
+  margin-right: var(--sp-4);
+  color: var(--text-secondary);
+}
+
+.settings-row__label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.settings-row__chevron {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+/* 3. テーマカラースウォッチ（パレット） */
+.settings-swatch-panel {
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.settings-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.settings-swatch {
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
+  border: 2px solid transparent;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+  padding: 0;
+}
+
+.settings-swatch:hover {
+  transform: scale(1.05);
+}
+
+.settings-swatch__check {
+  color: #16151a; /* 暗い背景にも映えるチェックマーク用 */
+}
+
+.settings-swatch-panel__hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 4. バージョン表記（タップ入口なし・静的表示） */
+.settings-page__version {
+  display: block;
+  width: max-content;
+  margin: var(--sp-8) auto var(--sp-2);
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.7;
+  background: none;
+  border: none;
+  user-select: text;
+}
+
+/* 5. モーダルのモバイル対応補強 */
+.modal {
+  /* 既存の styles.css にある .modal を上書き・補強 */
+  max-width: calc(100vw - var(--sp-8)) !important;
+  max-height: calc(100dvh - var(--sp-8)) !important; /* iOSのツールバーを考慮した dvh */
+  display: flex;
+  flex-direction: column;
+}
+
+.modal form {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* 入力項目が多い場合にフォーム内スクロールを有効化 */
+  max-height: 100%;
+}
+
+/* ──────────────────────────────────────────────────────────
+   RESPONSIVE DESIGN (スマートフォン用メディアクエリ)
+   ────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .settings-page {
+    /* モバイル環境では左右の余白を詰め、下部ナビゲーションの被りを防ぐ padding を設定 */
+    padding: var(--sp-4) var(--sp-4) calc(var(--sp-6) + var(--bottom-nav-height, 60px));
+  }
+
+  .settings-page__title {
+    font-size: 20px;
+    margin-bottom: var(--sp-4);
+  }
+
+  /* タップ領域（44px以上）を確保しつつコンパクトに */
+  .settings-row {
+    padding: var(--sp-3.5) var(--sp-4);
+    font-size: 13.5px;
+  }
+
+  .settings-swatch-panel {
+    padding: var(--sp-3.5) var(--sp-4);
+  }
+
+  /* 横幅が狭い画面でもスウォッチが綺麗に並ぶよう、6列固定に調整 */
+  .settings-swatch-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--sp-2);
+  }
 }

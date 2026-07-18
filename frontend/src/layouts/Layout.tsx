@@ -3,7 +3,7 @@ import { Menu, X } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { PageSecondaryPanelProvider } from './PageSecondaryPanelContext';
 import { Sidebar } from './Sidebar.tsx';
-import type { Page, User } from '../types';
+import type { Page } from '../types';
 
 const GOALS_SECONDARY_COLLAPSED_KEY = 'goals-secondary-sidebar-collapsed';
 
@@ -17,12 +17,10 @@ function readGoalsSecondaryCollapsed(): boolean {
 interface LayoutProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
-  onLogout: () => void;
-  user: User | null;
   children: ReactNode;
 }
 
-export function Layout({ currentPage, onNavigate, onLogout, user, children }: LayoutProps) {
+export function Layout({ currentPage, onNavigate, children }: LayoutProps) {
   const [secondaryPanel, setSecondaryPanel] = useState<ReactNode | null>(null);
   const [goalsSecondaryCollapsed, setGoalsSecondaryCollapsed] = useState(readGoalsSecondaryCollapsed);
   const [railExpanded, setRailExpanded] = useState(false);
@@ -116,9 +114,7 @@ export function Layout({ currentPage, onNavigate, onLogout, user, children }: La
         </main>
         <BottomNav
           currentPage={currentPage}
-          onNavigate={onNavigate}
-          onLogout={onLogout}
-          user={user}
+          onNavigate={handleNavigate}
         />
       </div>
     </PageSecondaryPanelProvider>

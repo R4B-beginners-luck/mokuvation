@@ -81,7 +81,11 @@ export const authApi = {
     };
   },
 
-  updateMe: async (payload: { theme_color?: ThemeColorIndex }): Promise<User> => {
+  updateMe: async (payload: {
+    theme_color?: ThemeColorIndex;
+    user_id?: string;
+    user_name?: string;
+  }): Promise<User> => {
     const data = await fetchWithAuth('/users/me', {
       method: 'PATCH',
       body: JSON.stringify(payload),
@@ -105,6 +109,19 @@ export const authApi = {
           : 'ゲスト',
       theme_color,
     };
+  },
+
+  // ⚠️ エンドポイントのパス・メソッドはバックエンドの実装に合わせて調整してください。
+  // 想定: PUT /users/me/password { current_password, new_password, new_password_confirmation }
+  changePassword: async (payload: {
+    current_password: string;
+    new_password: string;
+    new_password_confirmation: string;
+  }): Promise<void> => {
+    await fetchWithAuth('/users/me/password', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
   },
 
   register: async (credentials: any): Promise<any> => {
