@@ -183,7 +183,7 @@ function getDueDateMeta(dueDate: string): { label: string; tone: DueDateTone } {
   return { label: `あと${diff}日`, tone: 'neutral' };
 }
 
-function getDueDateText(goal: MidTermGoal | ShortTermGoal): { text: string; tone: DueDateTone; date: string } {
+function getDueDateText(goal: { dueDate?: string }): { text: string; tone: DueDateTone; date: string } {
   const { label, tone } = getDueDateMeta(goal.dueDate!);
   return { text: `${goal.dueDate} · ${label}`, tone, date: goal.dueDate! };
 }
@@ -317,8 +317,7 @@ export function GoalDetailPanel({
 
   const completedTasks = relatedTasks.filter(t => t.completed).length;
   const accentColor = selected.color_code || DEFAULT_GOAL_COLOR;
-  const selectedGoal = selected as MidTermGoal | ShortTermGoal;
-  const dueDateInfo = 'dueDate' in selectedGoal && selectedGoal.dueDate ? getDueDateText(selectedGoal) : null;
+  const dueDateInfo = selected.dueDate ? getDueDateText(selected) : null;
 
   const showPeek = sheetLevel === 'peek';
   const showActions = sheetLevel === undefined || sheetLevel === 'half' || sheetLevel === 'full';
@@ -521,6 +520,11 @@ export function GoalDetailPanel({
                   onClick={() => onSelectNode(parentGoal)}
                   title={parentGoal.title}
                 >
+                  <span
+                    className="detail-panel__goal-dot"
+                    style={{ background: getGoalColor(parentGoal) }}
+                    aria-hidden
+                  />
                   <GoalTypeBadge type={parentGoal.type} />
                   <span className="detail-panel__goal-title">{parentGoal.title}</span>
                 </button>
@@ -618,6 +622,11 @@ export function GoalDetailPanel({
                     onClick={() => onSelectNode(goal)}
                     title={goal.title}
                   >
+                    <span
+                      className="detail-panel__goal-dot"
+                      style={{ background: getGoalColor(goal) }}
+                      aria-hidden
+                    />
                     <GoalTypeBadge type={goal.type} />
                     <span className="detail-panel__goal-title">{goal.title}</span>
                   </button>

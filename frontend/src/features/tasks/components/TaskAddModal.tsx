@@ -93,7 +93,10 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
         
         <form onSubmit={handleSubmit}>
           <div className="form-field">
-            <label>紐づける目標（任意）</label>
+            <label>
+              紐づける目標
+              <span className="form-field__optional">（任意）</span>
+            </label>
             <GoalPicker
               goals={goals}
               value={selectedGoalId}
@@ -103,16 +106,23 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
           </div>
 
           <div className="form-field">
-            <label>タイトル <span style={{ color: 'red' }}>*</span></label>
+            <label>
+              タイトル
+              <span className="form-field__required" aria-hidden>*</span>
+            </label>
             <input 
               className="form-input" type="text" 
               value={title} onChange={(e) => setTitle(e.target.value)}
               required autoFocus disabled={isLoading}
+              aria-required="true"
             />
           </div>
 
           <div className="form-field">
-            <label>詳細・備考</label>
+            <label>
+              詳細・備考
+              <span className="form-field__optional">（任意）</span>
+            </label>
             <textarea 
               className="form-input" rows={3}
               value={description} onChange={(e) => setDescription(e.target.value)}
@@ -121,7 +131,10 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
           </div>
 
           <div className="form-field">
-            <label htmlFor="task-scheduled-date">実行予定日</label>
+            <label htmlFor="task-scheduled-date">
+              実行予定日
+              <span className="form-field__optional">（任意）</span>
+            </label>
             <DatePickerField
               id="task-scheduled-date"
               value={scheduledAt}

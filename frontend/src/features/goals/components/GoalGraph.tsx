@@ -4,7 +4,6 @@ import type {  LongTermGoal, MidTermGoal, ShortTermGoal, Goal, NodePosition, Tas
 import { DEFAULT_GOAL_COLOR } from '../../../const/colors';
 import {
   computeInitialPositions,
-  DEFAULT_MAP_VIEWPORT,
   GOAL_CARD_MIN_HEIGHT,
   GOAL_CARD_WIDTH,
   GOAL_LONG_PIN_OFFSET,
@@ -12,6 +11,7 @@ import {
   MAP_VIEWPORT_SCALE_MIN,
   mergeGoalPositions,
   computeMapFocusCenter,
+  getDefaultMapViewport,
   panViewportToLogicalPoint,
   viewportPxToCanvasPx,
   setViewportScaleAtCenter,
@@ -98,6 +98,8 @@ export function GoalGraph({
 }: GoalGraphProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const isMobileLayout = useMediaQuery('(max-width: 768px)');
+  const isMobileLayoutRef = useRef(isMobileLayout);
+  isMobileLayoutRef.current = isMobileLayout;
   const [size, setSize] = useState({ w: 800, h: 600 });
 
   useEffect(() => {
@@ -114,7 +116,13 @@ export function GoalGraph({
   const cx = size.w / 2;
   const cy = size.h / 2;
 
-  const [mapViewport, setMapViewport] = useState<MapViewport>(DEFAULT_MAP_VIEWPORT);
+  // スマホのみ初期 scale を下げる（PC は 100% のまま）
+  const [mapViewport, setMapViewport] = useState<MapViewport>(() =>
+    getDefaultMapViewport(
+      typeof window !== 'undefined'
+        && window.matchMedia('(max-width: 768px)').matches,
+    ),
+  );
   const mapViewportRef = useRef(mapViewport);
   mapViewportRef.current = mapViewport;
 
@@ -143,12 +151,12 @@ export function GoalGraph({
   }, [cx, cy, mapViewport]);
 
   useEffect(() => {
-    setMapViewport(DEFAULT_MAP_VIEWPORT);
+    setMapViewport(getDefaultMapViewport(isMobileLayoutRef.current));
   }, [longTermGoal.id]);
 
   useEffect(() => {
     if (recenterRequest === 0) return;
-    animateToViewport(DEFAULT_MAP_VIEWPORT);
+    animateToViewport(getDefaultMapViewport(isMobileLayoutRef.current));
   }, [recenterRequest, animateToViewport]);
 
   const panListenersRef = useRef<{ move: (e: PointerEvent) => void; up: () => void } | null>(null);
@@ -173,12 +181,17 @@ export function GoalGraph({
     [longTermGoal, midTermGoals, shortTermGoals, savedPositions, pendingPositions]
   );
 
+  // 注目ノード自身の座標だけを依存にする。
+  // mergedPositions 全体を依存にすると、別ノードのドラッグ commit でも
+  // この effect が再実行され、古い focusGoalId へ視点が引き戻される。
+  const focusPosX = focusGoalId != null ? mergedPositions[focusGoalId]?.x : undefined;
+  const focusPosY = focusGoalId != null ? mergedPositions[focusGoalId]?.y : undefined;
+
   useEffect(() => {
     if (!focusGoalId) return;
-    const pos = mergedPositions[focusGoalId];
-    if (!pos) return;
+    if (focusPosX == null || focusPosY == null) return;
     const pinOffset = focusGoalId === longTermGoal.id ? GOAL_LONG_PIN_OFFSET : 0;
-    const nodeCenter = { x: pos.x, y: pos.y - pinOffset };
+    const nodeCenter = { x: focusPosX, y: focusPosY - pinOffset };
     const bottomInset = mobileSheetObstructionPx > 0
       ? viewportPxToCanvasPx(mobileSheetObstructionPx, size.h)
       : 0;
@@ -188,7 +201,7 @@ export function GoalGraph({
     animateToViewport(
       panViewportToLogicalPoint(nodeCenter, focusCenter.x, focusCenter.y, mapViewportRef.current),
     );
-  }, [focusGoalId, longTermGoal.id, mergedPositions, cx, cy, size.w, size.h, mobileSheetObstructionPx, animateToViewport]);
+  }, [focusGoalId, focusPosX, focusPosY, longTermGoal.id, cx, cy, size.w, size.h, mobileSheetObstructionPx, animateToViewport]);
 
   const goalNodeAdapter = useMemo(
     () => createGoalNodeAdapter({

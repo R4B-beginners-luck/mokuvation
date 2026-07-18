@@ -92,14 +92,34 @@ export interface MapViewport {
   scale: number;
 }
 
-export const MAP_VIEWPORT_SCALE_MIN = 0.4;
-export const MAP_VIEWPORT_SCALE_MAX = 2.5;
+export const MAP_VIEWPORT_SCALE_MIN = 0.5;
+export const MAP_VIEWPORT_SCALE_MAX = 1.5;
 
 export const DEFAULT_MAP_VIEWPORT: MapViewport = {
   panX: 0,
   panY: 0,
   scale: 1,
 };
+
+/**
+ * スマホ初期表示倍率。
+ * カード論理寸法（GOAL_CARD_WIDTH 等）は変えず、ビューポート scale だけ下げる。
+ * 見え方に応じて 0.7〜0.8 の範囲で微調整する。
+ */
+export const MOBILE_DEFAULT_MAP_VIEWPORT_SCALE = 0.75;
+
+export const MOBILE_DEFAULT_MAP_VIEWPORT: MapViewport = {
+  panX: 0,
+  panY: 0,
+  scale: MOBILE_DEFAULT_MAP_VIEWPORT_SCALE,
+};
+
+/** PC は 100%、スマホは MOBILE_DEFAULT_MAP_VIEWPORT_SCALE */
+export function getDefaultMapViewport(isMobile: boolean): MapViewport {
+  return isMobile
+    ? { ...MOBILE_DEFAULT_MAP_VIEWPORT }
+    : { ...DEFAULT_MAP_VIEWPORT };
+}
 
 export function toLogicalPoint(
   svgPoint: { x: number; y: number },

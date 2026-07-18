@@ -152,6 +152,7 @@ function buildGoalTree(goals: BackendGoal[]) {
       title: goal.title,
       description: goal.description ?? '',
       createdAt: formatDateString(goal.created_at) ?? '',
+      dueDate: formatDateString(goal.due_at),
       completed: goal.is_completed,
       color_code: typeof goal.color_code === 'number' ? COLOR_PALETTE[goal.color_code] : goal.color_code ?? undefined,
     }));
@@ -382,12 +383,14 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   useEffect(() => {
     if (!showCompletedGoals && selectedGoal?.completed) {
       setSelectedGoal(null);
+      setFocusGoalId(null);
     }
   }, [showCompletedGoals, selectedGoal]);
 
   useEffect(() => {
     if (!demoShowCompleted && selectedGoal && isGoalHiddenOnMap(selectedGoal.id, goalDisplayModes)) {
       setSelectedGoal(null);
+      setFocusGoalId(null);
     }
   }, [demoShowCompleted, selectedGoal, goalDisplayModes]);
 
@@ -484,6 +487,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
   const requestCloseDetail = useCallback(() => {
     setDetailClosing(true);
     setMobileSheetHeightPx(0);
+    // 詳細を閉じても focusGoalId が残ると、別ノードの座標コミット時に
+    // GoalGraph のフォーカス effect が古いノードへ視点を引き戻す
+    setFocusGoalId(null);
     window.setTimeout(() => {
       setSelectedGoal(null);
       setDetailClosing(false);
@@ -587,6 +593,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       },
     });
     setSelectedGoal(null);
+    setFocusGoalId(null);
   };
 
   const handleDeleteGoal = () => {
@@ -1050,6 +1057,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
 
       await loadGoals(preferredActiveLtId);
       setSelectedGoal(null);
+      setFocusGoalId(null);
       setGoalAction(null);
       setIsDeleteConfirmOpen(false);
     } catch (error) {
@@ -1124,6 +1132,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           beginPlacementSession('edit', movableGoalIds, data, activeLongTermId);
         } else {
           setSelectedGoal(null);
+          setFocusGoalId(null);
         }
         return;
       }
@@ -1202,6 +1211,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         beginPlacementSession('add', [createdId], data, activeLongTermId);
       } else {
         setSelectedGoal(null);
+        setFocusGoalId(null);
       }
     } catch (error) {
       console.error('Goal save failed', error);
@@ -1399,6 +1409,9 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
             longTermGoals={longTermGoals}
             midTermGoals={midTermGoals}
             presetGoalType={goalAction.presetGoalType}
+            lockedLongTermGoalId={
+              goalAction.mode === 'add-goal' ? activeLtId : undefined
+            }
             onClose={() => setGoalAction(null)}
             onSave={handleSaveGoalAction}
             onDelete={handleDeleteGoal}

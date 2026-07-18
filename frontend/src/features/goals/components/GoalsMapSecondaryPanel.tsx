@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Hash, ListTree, MapPin, Plus } from 'lucide-react';
+import { Check, Eye, EyeOff, Hash, ListTree, MapPin, Plus } from 'lucide-react';
 import type { LongTermGoal } from '../../../types';
 import type { ProgressUnitMode } from '../utils/goalMapPreferences';
 
@@ -67,6 +67,7 @@ export function GoalsMapSecondaryPanel({
       <nav className="goals-map-secondary-panel__list" aria-label="長期目標一覧">
         {longTermGoals.map((goal, index) => {
           const isActive = goal.id === activeLtId;
+          const isCompleted = Boolean(goal.completed);
           return (
             <div key={goal.id} className="goals-map-secondary-panel__slot">
               {showIndicatorAt === index && (
@@ -74,7 +75,12 @@ export function GoalsMapSecondaryPanel({
               )}
               <button
                 type="button"
-                className={`goals-map-secondary-panel__item${isActive ? ' goals-map-secondary-panel__item--active' : ''}${dragFrom === index ? ' goals-map-secondary-panel__item--dragging' : ''}`}
+                className={[
+                  'goals-map-secondary-panel__item',
+                  isActive ? 'goals-map-secondary-panel__item--active' : '',
+                  isCompleted ? 'goals-map-secondary-panel__item--completed' : '',
+                  dragFrom === index ? 'goals-map-secondary-panel__item--dragging' : '',
+                ].filter(Boolean).join(' ')}
                 disabled={disabled}
                 draggable={!disabled && !!onReorder}
                 onDragStart={(e) => {
@@ -109,6 +115,14 @@ export function GoalsMapSecondaryPanel({
                 onClick={() => onSelect(goal.id)}
                 title={goal.title}
               >
+                {isCompleted && (
+                  <Check
+                    className="goals-map-secondary-panel__completed-icon"
+                    size={14}
+                    strokeWidth={2.5}
+                    aria-hidden
+                  />
+                )}
                 <span className="goals-map-secondary-panel__item-label">{goal.title}</span>
               </button>
             </div>

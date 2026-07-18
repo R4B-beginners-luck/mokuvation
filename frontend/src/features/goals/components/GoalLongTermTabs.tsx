@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import type { LongTermGoal } from '../../../types';
 
 interface GoalLongTermTabsProps {
@@ -273,6 +273,7 @@ export function GoalLongTermTabs({
           const isActive = goal.id === activeLtId;
           const isSource = draggingFrom === index;
           const isArming = armingIndex === index;
+          const isCompleted = Boolean(goal.completed);
           return (
             <div key={goal.id} className="goal-lt-tabs__slot">
               {showIndicatorAt === index && (
@@ -288,6 +289,7 @@ export function GoalLongTermTabs({
                 className={[
                   'goal-lt-tabs__tab',
                   isActive ? 'goal-lt-tabs__tab--active' : '',
+                  isCompleted ? 'goal-lt-tabs__tab--completed' : '',
                   isArming ? 'goal-lt-tabs__tab--arming' : '',
                   isSource ? 'goal-lt-tabs__tab--dragging' : '',
                 ].filter(Boolean).join(' ')}
@@ -302,6 +304,14 @@ export function GoalLongTermTabs({
                 onClick={() => onClickTab(goal.id)}
                 title={canReorder ? `${goal.title}（長押しで並び替え）` : goal.title}
               >
+                {isCompleted && (
+                  <Check
+                    className="goal-lt-tabs__completed-icon"
+                    size={12}
+                    strokeWidth={2.5}
+                    aria-hidden
+                  />
+                )}
                 <span className="goal-lt-tabs__tab-label">{goal.title}</span>
               </button>
             </div>

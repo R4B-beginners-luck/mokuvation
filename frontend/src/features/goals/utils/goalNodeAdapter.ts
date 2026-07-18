@@ -28,7 +28,6 @@ function isGoalCompleted(goal: Goal): boolean {
 }
 
 function getDueDate(goal: Goal): string | undefined {
-  if (goal.type === 'long') return undefined;
   return goal.dueDate;
 }
 

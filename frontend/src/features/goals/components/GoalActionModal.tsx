@@ -4,7 +4,6 @@ import type { Goal, LongTermGoal, MidTermGoal, ShortTermGoal } from '../../../ty
 import { Modal } from '../../../components/Modal';
 import { ButtonSpinner } from '../../../components/ui/ButtonSpinner';
 import { DatePickerField } from '../../../components/ui/DatePickerField/DatePickerField';
-import { TODAY } from '../../../data/dummy';
 import { COLOR_PALETTE, DEFAULT_GOAL_COLOR } from '../../../const/colors';
 
 export type GoalActionMode = 'edit' | 'add-goal' | 'add-long';
@@ -27,6 +26,11 @@ interface GoalActionModalProps {
   longTermGoals: LongTermGoal[];
   midTermGoals: MidTermGoal[];
   presetGoalType?: 'mid' | 'short';
+  /**
+   * 指定時は「関連付ける長期目標」をこの ID に固定し、変更不可にする。
+   * 目標マップのタブ選択中など、ツリー文脈が決まっている追加フロー向け。
+   */
+  lockedLongTermGoalId?: string;
   onClose: () => void;
   onSave: (payload: GoalActionPayload) => void;
   onDelete?: () => void;
@@ -54,6 +58,7 @@ export function GoalActionModal({
   longTermGoals,
   midTermGoals,
   presetGoalType,
+  lockedLongTermGoalId,
   onClose,
   onSave,
   onDelete,
@@ -65,6 +70,7 @@ export function GoalActionModal({
   const isLong = goal.type === 'long';
   const isMid = goal.type === 'mid';
   const isShort = goal.type === 'short';
+  const isLongTermLocked = Boolean(lockedLongTermGoalId);
 
   const defaultGoalType: Goal['type'] = goal.type === 'long' ? 'mid' : 'short';
 
@@ -74,9 +80,12 @@ export function GoalActionModal({
     if (isEditMode || isAddLongMode) return goal.type;
     return presetGoalType ?? defaultGoalType;
   });
-  const [longTermGoalId, setLongTermGoalId] = useState(
-    isLong ? goal.id : isMid ? (goal as MidTermGoal).longTermGoalId : (goal as ShortTermGoal).longTermGoalId
-  );
+  const [longTermGoalId, setLongTermGoalId] = useState(() => {
+    if (lockedLongTermGoalId) return lockedLongTermGoalId;
+    if (isLong) return goal.id;
+    if (isMid) return (goal as MidTermGoal).longTermGoalId;
+    return (goal as ShortTermGoal).longTermGoalId;
+  });
   const [midTermGoalId, setMidTermGoalId] = useState(() => {
     if (isEditMode && isShort) return (goal as ShortTermGoal).midTermGoalId ?? '';
     if (isAddMode && presetGoalType === 'short' && isMid) return goal.id;
@@ -86,7 +95,13 @@ export function GoalActionModal({
     isEditMode ? getInitialPaletteIndex(goal.color_code) : null
   );
   const [dueDate, setDueDate] = useState(
-    isEditMode && (isMid || isShort) ? (goal as MidTermGoal | ShortTermGoal).dueDate ?? TODAY : TODAY
+    isEditMode ? (
+      isLong
+        ? (goal as LongTermGoal).dueDate ?? ''
+        : isMid || isShort
+          ? (goal as MidTermGoal | ShortTermGoal).dueDate ?? ''
+          : ''
+    ) : ''
   );
   const [completed, setCompleted] = useState(isEditMode ? (goal.completed ?? false) : false);
 
@@ -96,8 +111,6 @@ export function GoalActionModal({
     (!isEditMode && goalType === 'short') || (isEditMode && isShort);
 
   const availableMid = midTermGoals.filter((m) => m.longTermGoalId === longTermGoalId);
-
-  const canSetDueDate = isEditMode ? goal.type !== 'long' : goalType !== 'long';
 
   const saveDisabled = Boolean(
     !title.trim()
@@ -146,7 +159,10 @@ export function GoalActionModal({
       <div className="modal__form">
         {mode === 'add-goal' && (
           <div className="form-field">
-            <label htmlFor="goal-action-type">目標の粒度</label>
+            <label htmlFor="goal-action-type">
+              目標の粒度
+              <span className="form-field__required" aria-hidden>*</span>
+            </label>
             <select
               id="goal-action-type"
               className="form-select"
@@ -160,7 +176,10 @@ export function GoalActionModal({
         )}
 
         <div className="form-field">
-          <label htmlFor="goal-action-title">目標名</label>
+          <label htmlFor="goal-action-title">
+            目標名
+            <span className="form-field__required" aria-hidden>*</span>
+          </label>
           <input
             id="goal-action-title"
             className="form-input"
@@ -169,6 +188,8 @@ export function GoalActionModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             autoFocus
+            required
+            aria-required="true"
           />
         </div>
 
@@ -188,17 +209,27 @@ export function GoalActionModal({
 
         {showLongTermSelect && (
           <div className="form-field">
-            <label htmlFor="goal-action-long">関連付ける長期目標</label>
+            <label htmlFor="goal-action-long">
+              関連付ける長期目標
+              <span className="form-field__required" aria-hidden>*</span>
+            </label>
             <select
               id="goal-action-long"
               className="form-select"
               value={longTermGoalId}
               onChange={(e) => handleLongTermChange(e.target.value)}
+              required
+              aria-required="true"
+              disabled={isLongTermLocked || isSaving}
+              aria-readonly={isLongTermLocked || undefined}
             >
               {longTermGoals.map((item) => (
                 <option key={item.id} value={item.id}>{item.title}</option>
               ))}
             </select>
+            {isLongTermLocked && (
+              <p className="form-field__hint">現在表示中の長期目標に追加します</p>
+            )}
           </div>
         )}
 
@@ -260,21 +291,19 @@ export function GoalActionModal({
           </p>
         </div>
 
-        {canSetDueDate && (
-          <div className="form-field">
-            <label htmlFor="goal-action-date">
-              期限
-              <span className="form-field__optional">（任意）</span>
-            </label>
-            <DatePickerField
-              id="goal-action-date"
-              value={dueDate}
-              onChange={setDueDate}
-              clearable
-              placeholder="未設定"
-            />
-          </div>
-        )}
+        <div className="form-field">
+          <label htmlFor="goal-action-date">
+            期限
+            <span className="form-field__optional">（任意）</span>
+          </label>
+          <DatePickerField
+            id="goal-action-date"
+            value={dueDate}
+            onChange={setDueDate}
+            clearable
+            placeholder="未設定"
+          />
+        </div>
 
         <div className="modal__actions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'center' }}>
           <button className="btn-secondary" onClick={onClose} disabled={isSaving}>キャンセル</button>
@@ -284,7 +313,7 @@ export function GoalActionModal({
               onSave({
                 title: title.trim(),
                 description: description.trim(),
-                dueDate: canSetDueDate && dueDate ? dueDate : undefined,
+                dueDate: dueDate || undefined,
                 completed: isEditMode ? completed : undefined,
                 goalType: resolveGoalType(),
                 longTermGoalId: resolveLongTermGoalId(),

@@ -93,9 +93,9 @@ export function Layout({ currentPage, onNavigate, onLogout, user, children }: La
               title={secondaryOpen ? '目標パネルを閉じる' : '目標パネルを開く'}
             >
               {secondaryOpen ? (
-                <X size={22} strokeWidth={1.75} aria-hidden />
+                <X size={28} strokeWidth={1.75} aria-hidden />
               ) : (
-                <Menu size={22} strokeWidth={1.75} aria-hidden />
+                <Menu size={28} strokeWidth={1.75} aria-hidden />
               )}
             </button>
           )}

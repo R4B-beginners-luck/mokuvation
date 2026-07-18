@@ -236,8 +236,9 @@ export default function GoalNodeCard({
     goalType === "short" && "gnc--short",
     isGhost && "gnc--ghost",
     selected && "gnc--selected",
-    !isGhost && st.outline && "gnc--overdue",
-    !isGhost && st.warningOutline && "gnc--due-soon",
+    // 長期は金色ピン＋光彩があるため、期限切れ／間近は枠を付けずバッジのみ
+    !isGhost && !isLong && st.outline && "gnc--overdue",
+    !isGhost && !isLong && st.warningOutline && "gnc--due-soon",
     !isGhost && st.dimmed && "gnc--done",
   ]
     .filter(Boolean)

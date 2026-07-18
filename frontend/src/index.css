@@ -437,6 +437,9 @@ a { text-decoration: none; color: inherit; }
 
 .goals-map-secondary-panel__item {
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   text-align: left;
   padding: var(--sp-3);
   border-radius: var(--r-md);
@@ -460,6 +463,25 @@ a { text-decoration: none; color: inherit; }
   color: var(--accent-gold);
 }
 
+.goals-map-secondary-panel__item--completed {
+  color: var(--color-success);
+}
+
+.goals-map-secondary-panel__item--completed:hover:not(:disabled) {
+  color: var(--color-success);
+}
+
+.goals-map-secondary-panel__item--active.goals-map-secondary-panel__item--completed {
+  color: var(--color-success);
+  background: rgba(109, 179, 128, 0.12);
+  border-color: rgba(109, 179, 128, 0.4);
+}
+
+.goals-map-secondary-panel__completed-icon {
+  flex-shrink: 0;
+  color: var(--color-success);
+}
+
 .goals-map-secondary-panel__item--dragging {
   opacity: 0.45;
 }
@@ -471,6 +493,7 @@ a { text-decoration: none; color: inherit; }
 
 .goals-map-secondary-panel__item-label {
   display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -537,16 +560,17 @@ a { text-decoration: none; color: inherit; }
   .sidebar-secondary-launch {
     position: absolute;
     left: var(--sidebar-collapsed);
-    top: 14px;
+    top: 0;
     z-index: 50;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 52px;
+    width: 52px;
+    height: 60px;
     border: 1px solid var(--border);
     border-left: none;
-    border-radius: 0 var(--r-md) var(--r-md) 0;
+    border-top: none;
+    border-radius: 0 0 var(--r-md) 0;
     background: var(--bg-surface);
     color: var(--text-secondary);
     box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.18);
@@ -1961,6 +1985,25 @@ a { text-decoration: none; color: inherit; }
   font-weight: 400;
   color: var(--text-muted);
   margin-left: var(--sp-2);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.form-field__required {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-coral, #d47a6a);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.form-field__hint {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
 .goal-color-default {
@@ -2041,6 +2084,12 @@ a { text-decoration: none; color: inherit; }
 .form-select:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
+}
+
+.form-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  color: var(--text-secondary);
 }
 
 .form-select option { background: var(--bg-raised); }
@@ -3475,8 +3524,8 @@ a { text-decoration: none; color: inherit; }
   background: transparent;
 }
 
-/* 個々の目標行：GoalPicker の「紐づける目標」ドロップダウンと同じ
-   インデント＋種別チップのパターン（外枠なし・種別チップは先頭）。 */
+/* 個々の目標行：インデント＋ノードカラードット＋種別チップ（外枠なし）。
+   ドット＝ユーザー設定の分野色、種別チップ＝長期/中期/短期の意味色。 */
 .detail-panel__goal-row {
   display: flex;
   align-items: center;
@@ -3498,6 +3547,13 @@ a { text-decoration: none; color: inherit; }
 
 .detail-panel__goal-row:hover {
   background: var(--bg-hover);
+}
+
+.detail-panel__goal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .detail-panel__goal-title {
@@ -3816,6 +3872,10 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   width: 80px;
   min-width: 80px;
   max-width: 80px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   padding: 10px 8px;
   font-size: 13px;
   font-weight: 600;
@@ -3841,6 +3901,7 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
 
 .goal-lt-tabs__tab-label {
   display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3855,6 +3916,25 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
   background: rgba(var(--color-primary-rgb), 0.06);
+}
+
+.goal-lt-tabs__tab--completed {
+  color: var(--color-success);
+}
+
+.goal-lt-tabs__tab--completed:hover:not(:disabled) {
+  color: var(--color-success);
+}
+
+.goal-lt-tabs__tab--active.goal-lt-tabs__tab--completed {
+  color: var(--color-success);
+  border-bottom-color: var(--color-success);
+  background: rgba(109, 179, 128, 0.1);
+}
+
+.goal-lt-tabs__completed-icon {
+  flex-shrink: 0;
+  color: var(--color-success);
 }
 
 .goal-lt-tabs__tab--arming {

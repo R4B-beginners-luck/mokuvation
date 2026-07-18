@@ -6,6 +6,8 @@ export interface LongTermGoal {
   title: string;
   description: string;
   createdAt: string;
+  /** YYYY-MM-DD */
+  dueDate?: string;
   completed?: boolean;
   color_code?: string;
   /** IDs of other long-term goals that are related (bidirectional) */
