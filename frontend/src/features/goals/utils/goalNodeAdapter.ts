@@ -18,6 +18,8 @@ export interface GoalNodeAdapterContext {
   midTermGoals: MidTermGoal[];
   shortTermGoals: ShortTermGoal[];
   tasks: Task[];
+  /** 進捗表示単位。task=常にタスク数 / child=常に子目標数（自動切替なし） */
+  progressUnit?: 'task' | 'child';
 }
 
 function isGoalCompleted(goal: Goal): boolean {
@@ -26,7 +28,6 @@ function isGoalCompleted(goal: Goal): boolean {
 }
 
 function getDueDate(goal: Goal): string | undefined {
-  if (goal.type === 'long') return undefined;
   return goal.dueDate;
 }
 
@@ -54,7 +55,7 @@ function isDueSoon(due: string): boolean {
 }
 
 export function createGoalNodeAdapter(ctx: GoalNodeAdapterContext) {
-  const { longTermGoal, midTermGoals, shortTermGoals, tasks } = ctx;
+  const { longTermGoal, midTermGoals, shortTermGoals, tasks, progressUnit = 'child' } = ctx;
 
   const goalById = new Map<string, Goal>();
   goalById.set(longTermGoal.id, longTermGoal);
@@ -92,9 +93,9 @@ export function createGoalNodeAdapter(ctx: GoalNodeAdapterContext) {
     if (cached) return cached;
 
     const subtreeIds = new Set(getSubtreeGoalIds(goalId));
-    const subtreeTasks = tasks.filter((t) => t.goalId && subtreeIds.has(t.goalId));
 
-    if (subtreeTasks.length > 0) {
+    if (progressUnit === 'task') {
+      const subtreeTasks = tasks.filter((t) => t.goalId && subtreeIds.has(t.goalId));
       const result: GoalProgress = {
         done: subtreeTasks.filter((t) => t.completed).length,
         total: subtreeTasks.length,
@@ -105,22 +106,16 @@ export function createGoalNodeAdapter(ctx: GoalNodeAdapterContext) {
     }
 
     const childGoalIds = getDescendantGoalIds(goalId);
-    if (childGoalIds.length > 0) {
-      const childGoals = childGoalIds
-        .map((id) => goalById.get(id))
-        .filter((g): g is Goal => g !== undefined);
-      const result: GoalProgress = {
-        done: childGoals.filter(isGoalCompleted).length,
-        total: childGoals.length,
-        unit: '子目標',
-      };
-      progressCache.set(goalId, result);
-      return result;
-    }
-
-    const empty: GoalProgress = { done: 0, total: 0, unit: 'タスク' };
-    progressCache.set(goalId, empty);
-    return empty;
+    const childGoals = childGoalIds
+      .map((id) => goalById.get(id))
+      .filter((g): g is Goal => g !== undefined);
+    const result: GoalProgress = {
+      done: childGoals.filter(isGoalCompleted).length,
+      total: childGoals.length,
+      unit: '子目標',
+    };
+    progressCache.set(goalId, result);
+    return result;
   }
 
   const hasCompletedTaskCache = new Map<string, boolean>();
