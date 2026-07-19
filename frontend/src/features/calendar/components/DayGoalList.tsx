@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Calendar, Check, ChevronLeft, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, ChevronLeft, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { TaskAddModal, TaskDeleteConfirm } from '../../tasks';
 import type { Task as CreatedTask } from '../../tasks';
 import type { Task, Goal } from '../types';
@@ -23,14 +23,6 @@ function extractDateFromScheduled(scheduledAt: string | null): string | null {
   if (!scheduledAt) return null;
   const normalized = scheduledAt.replace(' ', 'T');
   return normalized.split('T')[0] ?? null;
-}
-
-function getTodayLocalDateString(): string {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, onClose }: DayGoalListProps) {
@@ -57,10 +49,6 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
     const taskDate = extractDateFromScheduled(task.scheduled_at);
     return taskDate === date;
   });
-
-  const isPastDate = date < getTodayLocalDateString();
-  const canModifyTasks = !isPastDate;
-  const isEditingEnabled = isEditing && canModifyTasks;
 
   const completedCount = dayTasks.filter((task) => task.is_completed).length;
 
@@ -89,7 +77,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
         </div>
 
         <div className="day-detail__actions">
-          {isEditingEnabled ? (
+          {isEditing ? (
             <button
               type="button"
               className="day-detail__delete-button"
@@ -108,13 +96,9 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
             <button
               type="button"
               className="day-detail__add-button"
-              onClick={() => {
-                if (!canModifyTasks) return;
-                setIsModalOpen(true);
-              }}
-              disabled={!canModifyTasks}
+              onClick={() => setIsModalOpen(true)}
               aria-label="タスクを追加"
-              title={canModifyTasks ? 'タスクを追加' : '過去の日付にはタスクを追加できません'}
+              title="タスクを追加"
             >
               <Plus size={15} strokeWidth={1.75} aria-hidden />
             </button>
@@ -122,15 +106,13 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
 
           <button
             type="button"
-            className={`day-detail__edit-button${isEditingEnabled ? ' is-active' : ''}`}
+            className={`day-detail__edit-button${isEditing ? ' is-active' : ''}`}
             onClick={() => {
-              if (!canModifyTasks) return;
               setIsEditing((prev) => !prev);
               setSelectedTaskIds([]);
             }}
-            disabled={!canModifyTasks}
-            aria-label={isEditingEnabled ? '編集を終了' : '編集モードにする'}
-            title={canModifyTasks ? (isEditingEnabled ? '編集を終了' : '編集する') : '過去の日付は編集できません'}
+            aria-label={isEditing ? '編集を終了' : '編集モードにする'}
+            title={isEditing ? '編集を終了' : '編集する'}
           >
             <Pencil size={15} strokeWidth={1.75} aria-hidden />
           </button>
@@ -149,11 +131,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
         </div>
       </div>
 
-      {!canModifyTasks ? (
-        <div className="day-detail__hint">
-          今日より前の日付のタスクは追加も削除もできません。
-        </div>
-      ) : isEditingEnabled ? (
+      {isEditing ? (
         <div className="day-detail__hint">
           編集モードではタスクを押すと削除対象として赤く選択されます。
         </div>
@@ -179,13 +157,13 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
                 <div
                   className={`goal-item${task.is_completed ? ' completed' : ''}`}
                   style={{
-                    cursor: isEditingEnabled ? 'pointer' : 'default',
+                    cursor: isEditing ? 'pointer' : 'default',
                     backgroundColor: isSelected ? 'rgba(212, 122, 106, 0.14)' : undefined,
                     borderColor: isSelected ? 'rgba(212, 122, 106, 0.6)' : undefined,
                     borderRadius: '8px',
                   }}
                   onClick={() => {
-                    if (!isEditingEnabled) return;
+                    if (!isEditing) return;
 
                     setSelectedTaskIds((prev) => (
                       prev.includes(task.id)
@@ -244,7 +222,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
         </ul>
       )}
 
-      {isModalOpen && canModifyTasks && (
+      {isModalOpen && (
         <div className="calendar-task-add-modal">
           <TaskAddModal
             initialDate={date}
@@ -257,7 +235,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
         </div>
       )}
 
-      {deleteConfirmTaskId && canModifyTasks && (
+      {deleteConfirmTaskId && (
         <TaskDeleteConfirm
           taskId={deleteConfirmTaskId}
           onClose={() => setDeleteConfirmTaskId(null)}
