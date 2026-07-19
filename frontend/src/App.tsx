@@ -34,6 +34,7 @@ const toTask = (t: any): Task => {
     goalId: t.goal_id ? String(t.goal_id) : undefined,
     completed: Boolean(t.is_completed ?? t.completed),
     date: t.scheduled_at ? String(t.scheduled_at).substring(0, 10) : todayStr,
+    createdAt: t.created_at ?? t.createdAt,
   };
 };
 

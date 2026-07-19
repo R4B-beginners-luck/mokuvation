@@ -232,7 +232,8 @@ export function TodaySection({
               // goal_id が 0、null、空文字、undefined のどれであっても綺麗に undefined に統一
               goalId: (newTask.goal_id && String(newTask.goal_id) !== '0') ? String(newTask.goal_id) : undefined,
               completed: Boolean(newTask.is_completed ?? newTask.completed),
-              date: taskDate // ➔ これで親の「g.date === TODAY」を確実に突破します！
+              date: taskDate, // ➔ これで親の「g.date === TODAY」を確実に突破します！
+              createdAt: newTask.created_at ?? newTask.createdAt ?? new Date().toISOString(),
             };
 
             onAddTask(formattedTask);

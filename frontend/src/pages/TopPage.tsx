@@ -84,6 +84,7 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
           goalId: (t.goal_id && String(t.goal_id) !== '0') ? String(t.goal_id) : undefined,
           completed: Boolean(t.is_completed ?? t.completed),
           date: t.scheduled_at ? String(t.scheduled_at).substring(0, 10) : TODAY,
+          createdAt: t.created_at ?? t.createdAt,
         }));
 
         const taskById = new Map<string, Task>();
@@ -249,7 +250,14 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
     onDeleteTask(taskId);
   };
 
-  const todayGoals = localTasks.filter((g) => g.date === TODAY);
+  // 完了トグルで親 tasks（Dexie主キー順）に上書きされても、作成順を維持する
+  const todayGoals = localTasks
+    .filter((g) => g.date === TODAY)
+    .slice()
+    .sort((a, b) => {
+      const byCreated = (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
+      return byCreated !== 0 ? byCreated : a.id.localeCompare(b.id);
+    });
   const hasGoalsToday = todayGoals.length > 0;
 
   const msgIdx = new Date().getDate() % MOTIVATIONAL_MESSAGES.length;
@@ -387,6 +395,7 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
               goalId: (newTask.goal_id && String(newTask.goal_id) !== '0') ? String(newTask.goal_id) : undefined,
               completed: Boolean(newTask.is_completed ?? newTask.completed),
               date: taskDate,
+              createdAt: newTask.created_at ?? newTask.createdAt ?? new Date().toISOString(),
             };
 
             handleAddWrapper(formattedTask);
