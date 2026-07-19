@@ -1,3 +1,4 @@
+import { getJstTodayStr } from '../../../components/ui/DatePickerField/dateUtils';
 import type { Task } from '../types';
 
 interface CalendarGridProps {
@@ -37,7 +38,7 @@ export function CalendarGrid({
   selectedDate,
   onSelectDate,
 }: CalendarGridProps) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getJstTodayStr();
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();

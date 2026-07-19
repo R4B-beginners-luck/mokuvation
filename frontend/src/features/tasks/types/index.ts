@@ -19,3 +19,10 @@ export interface CreateTaskPayload {
   description?: string;
   scheduled_at?: string;
 }
+
+export interface UpdateTaskPayload {
+  title?: string;
+  description?: string;
+  scheduled_at?: string;
+  is_completed?: boolean;
+}

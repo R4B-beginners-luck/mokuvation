@@ -5,46 +5,64 @@ import type { Task } from '../types';
 import { DatePickerField } from '../../../components/ui/DatePickerField/DatePickerField';
 import { getTodayApiDate } from '../../../components/ui/DatePickerField/dateUtils';
 import { GoalPicker } from './GoalPicker';
-import { useLockBodyScroll } from '../../../hooks/useLockBodyScroll';
+import { TaskModalShell } from './TaskModalShell';
+
+export type TaskFormMode = 'create' | 'edit';
 
 interface TaskAddModalProps {
+  mode?: TaskFormMode;
+  /** edit 時の初期値（snake_case / カレンダー Task 両対応） */
+  task?: Partial<Task> & {
+    id: string;
+    title: string;
+    goalId?: string | null;
+    goal_id?: string | null;
+    date?: string;
+    description?: string | null;
+    scheduled_at?: string | null;
+  };
   goalId?: string | null;
   initialDate?: string;
   onClose: () => void;
-  onSuccess: (newTask: Task) => void;
+  onSuccess: (task: Task) => void;
 }
 
-export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }: TaskAddModalProps) {
-  // モーダル表示中は背景（<body>）のスクロールをロックする。
-  // モバイルだとオーバーレイの余白部分をドラッグして背景がスクロール
-  // できてしまっていたため。
-  useLockBodyScroll();
+function extractDatePrefix(value?: string | null): string {
+  if (!value) return '';
+  return value.replace(' ', 'T').split('T')[0] ?? '';
+}
 
-  const { addTask, isLoading, error } = useTaskMutations();
-  
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  
+export function TaskAddModal({
+  mode = 'create',
+  task,
+  goalId = null,
+  initialDate,
+  onClose,
+  onSuccess,
+}: TaskAddModalProps) {
+  const isEdit = mode === 'edit';
+  const { addTask, updateTask, isLoading, error } = useTaskMutations();
+
+  const [title, setTitle] = useState(() => task?.title ?? '');
+  const [description, setDescription] = useState(() => task?.description ?? '');
   const [scheduledAt, setScheduledAt] = useState(() => {
+    if (isEdit) {
+      return extractDatePrefix(task?.scheduled_at) || task?.date || getTodayApiDate();
+    }
     if (initialDate) return initialDate;
     return getTodayApiDate();
   });
-  
-  const [selectedGoalId, setSelectedGoalId] = useState<string>(goalId || '');
+  const [selectedGoalId, setSelectedGoalId] = useState<string>(
+    () => String(task?.goal_id ?? task?.goalId ?? goalId ?? ''),
+  );
   const [goals, setGoals] = useState<LocalGoal[]>([]);
 
-  // 修正箇所: 親から渡される initialDate の変更を検知して State を更新する
   useEffect(() => {
-    if (initialDate) {
+    if (initialDate && !isEdit) {
       setScheduledAt(initialDate);
     }
-  }, [initialDate]);
+  }, [initialDate, isEdit]);
 
-  // ✅ 目標一覧はAPIへ直接取りに行かず、Dexie(db.goals)から読む。
-  // db.goalsはsyncFromServer()で常に最新状態に保たれているローカルDBなので、
-  // オフライン中でもここから読めば親目標の選択肢が空にならない。
-  // （以前はtaskApi.getGoals()でAPIを直叩きしていたため、オフラインだと
-  //   fetch失敗→選択肢が空のまま→親目標を選べずタスク作成に支障が出ていた）
   useEffect(() => {
     const fetchGoals = async () => {
       try {
@@ -54,16 +72,29 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
         console.error('目標一覧の取得に失敗しました', err);
       }
     };
-    fetchGoals();
+    void fetchGoals();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
+    if (isEdit && task?.id) {
+      const updated = await updateTask(task.id, {
+        title: title.trim(),
+        description: description || undefined,
+        scheduled_at: scheduledAt || undefined,
+      });
+      if (updated) {
+        onSuccess(updated);
+        onClose();
+      }
+      return;
+    }
+
     const payload = {
       goal_id: selectedGoalId || null,
-      title,
+      title: title.trim(),
       description: description || undefined,
       scheduled_at: scheduledAt || undefined,
     };
@@ -75,29 +106,23 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
     }
   };
 
-  const overlayStyle: React.CSSProperties = {
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1000,
-    display: 'flex', alignItems: 'center', justifyContent: 'center'
-  };
+  const linkedGoalTitle = (() => {
+    if (!selectedGoalId) return null;
+    return goals.find((g) => g.id === selectedGoalId)?.title ?? null;
+  })();
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div 
-        className="card" 
-        style={{ 
-          width: '100%', 
-          maxWidth: '400px', 
-          padding: '24px', 
-          backgroundColor: '#1f1e24',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-          borderRadius: '8px'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>タスクの追加</h2>
-        
-        <form onSubmit={handleSubmit}>
+    <TaskModalShell title={isEdit ? 'タスクの編集' : 'タスクの追加'} onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        {isEdit ? (
+          <div className="form-field">
+            <label>紐づいている目標</label>
+            <div className="task-form__goal-readonly">
+              {linkedGoalTitle ?? 'なし'}
+              <span className="form-field__optional">（編集では変更できません）</span>
+            </div>
+          </div>
+        ) : (
           <div className="form-field">
             <label>
               紐づける目標
@@ -110,57 +135,73 @@ export function TaskAddModal({ goalId = null, initialDate, onClose, onSuccess }:
               disabled={isLoading}
             />
           </div>
+        )}
 
-          <div className="form-field">
-            <label>
-              タイトル
-              <span className="form-field__required" aria-hidden>*</span>
-            </label>
-            <input 
-              className="form-input" type="text" 
-              value={title} onChange={(e) => setTitle(e.target.value)}
-              required autoFocus disabled={isLoading}
-              aria-required="true"
-            />
-          </div>
+        <div className="form-field">
+          <label>
+            タイトル
+            <span className="form-field__required" aria-hidden>*</span>
+          </label>
+          <input
+            className="form-input"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            autoFocus
+            disabled={isLoading}
+            aria-required="true"
+          />
+        </div>
 
-          <div className="form-field">
-            <label>
-              詳細・備考
-              <span className="form-field__optional">（任意）</span>
-            </label>
-            <textarea 
-              className="form-input" rows={3}
-              value={description} onChange={(e) => setDescription(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
+        <div className="form-field">
+          <label>
+            詳細・備考
+            <span className="form-field__optional">（任意）</span>
+          </label>
+          <textarea
+            className="form-input"
+            rows={3}
+            value={description ?? ''}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={isLoading}
+          />
+        </div>
 
-          <div className="form-field">
-            <label htmlFor="task-scheduled-date">
-              実行予定日
-              <span className="form-field__optional">（任意）</span>
-            </label>
-            <DatePickerField
-              id="task-scheduled-date"
-              value={scheduledAt}
-              onChange={setScheduledAt}
-              disabled={isLoading}
-            />
-          </div>
+        <div className="form-field">
+          <label htmlFor="task-scheduled-date">
+            実行予定日
+            <span className="form-field__optional">（任意）</span>
+          </label>
+          <DatePickerField
+            id="task-scheduled-date"
+            value={scheduledAt}
+            onChange={setScheduledAt}
+            disabled={isLoading}
+          />
+        </div>
 
-          {error && <p style={{ color: 'var(--accent-coral)', fontSize: '12px' }}>{error}</p>}
+        {error && <p style={{ color: 'var(--accent-coral)', fontSize: '12px' }}>{error}</p>}
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: '12px', color: 'var(--text-primary)' }} disabled={isLoading}>
-              キャンセル
-            </button>
-            <button type="submit" className="btn-primary" style={{ flex: 1, color: 'var(--text-primary)' }} disabled={isLoading}>
-              {isLoading ? '追加中...' : '追加する'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ flex: 1, padding: '12px', color: 'var(--text-primary)' }}
+            disabled={isLoading}
+          >
+            キャンセル
+          </button>
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ flex: 1, color: 'var(--text-primary)' }}
+            disabled={isLoading}
+          >
+            {isLoading ? (isEdit ? '保存中...' : '追加中...') : isEdit ? '保存する' : '追加する'}
+          </button>
+        </div>
+      </form>
+    </TaskModalShell>
   );
 }

@@ -2008,6 +2008,147 @@ a { text-decoration: none; color: inherit; }
 
 .modal__close:hover { background: var(--bg-hover); color: var(--text-primary); }
 
+/* ============================================================
+   TASK SHEET（カレンダー等・スマホ用ボトムシート）
+   date-picker-sheet と同系統。PC は共有 Modal を使う。
+   ============================================================ */
+.task-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.15s var(--ease);
+}
+
+.task-sheet {
+  width: 100%;
+  max-height: min(90dvh, 100%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  box-shadow: var(--shadow-lg);
+  animation: task-sheet-up 0.28s var(--ease);
+}
+
+@keyframes task-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.task-sheet__handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  margin: 4px auto 10px;
+  flex-shrink: 0;
+}
+
+.task-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  flex-shrink: 0;
+}
+
+.task-sheet__title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.task-sheet__close {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.task-sheet__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.task-sheet__body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--sp-2);
+}
+
+.task-detail__section {
+  margin-bottom: var(--sp-4);
+}
+
+.task-detail__label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.task-detail__title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.task-detail__value {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.task-detail__description {
+  color: var(--text-secondary);
+}
+
+.task-detail__muted {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.task-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.task-detail__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: var(--sp-5);
+}
+
+.task-form__goal-readonly {
+  font-size: 14px;
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+}
+
 /* 設定のヘルプ／規約／ポリシー本文（ダーク Modal 向け） */
 .legal-modal-content {
   color: var(--text-primary);
@@ -4973,106 +5114,35 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
 }
 
 /* ============================================================
-   RESPONSIVE: TABLET ADJUSTMENTS (1024px以下への対応)
+   RESPONSIVE: TABLET ADJUSTMENTS (769px〜1024px)
+   ────────────────────────────────────────────────────────────
+   以前はこのブレークポイントで .sidebar を下部横並びナビに作り替え、
+   かつ .app-shell を column + .app-shell__sidebars { height:100vh } のまま
+   にしていたため、メインが画面外へ押し出され真っ黒に見えていた。
+
+   769px以上は PC と同じ左レール＋.page-content。
+   下部ナビ（.bottom-nav）は max-width:768px のみ。
    ============================================================ */
 @media (max-width: 1024px) {
-  /* PC用の固定画面縛りを解除し、縦スクロールを可能にする */
-  html, body, #root, .app-shell {
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
-    overflow-x: hidden;
-  }
-
-  .app-shell {
-    flex-direction: column;
-  }
-
-  /* サイドバーをスマホ同様に下部ナビゲーション化、あるいは非表示に */
-  /* 今回はスマホと同じ下部ナビ形式へ切り替える設定を1024pxから適用 */
-  .sidebar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
-    height: 64px;
-    min-height: 64px;
-    flex-direction: row;
-    border-right: none;
-    border-top: 1px solid var(--border);
-    z-index: 1000;
-  }
-  .sidebar__brand, .sidebar__footer {
-    display: none;
-  }
-  .sidebar__nav {
-    flex: 1;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    align-items: center;
-    padding: 0 var(--sp-2);
-    height: 100%;
-  }
-  .sidebar__nav-item {
-    flex: 1;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    height: 100%;
-    font-size: 11px;
-  }
-  .sidebar__nav-item.active::before {
-    top: 0; left: 50%; transform: translateX(-50%); width: 40px; height: 3px;
-  }
-
-  /* メインコンテンツを横幅いっぱいに広げる */
-  .page-content {
-    width: 100%;
-    padding: var(--sp-5) var(--sp-5) 84px var(--sp-5); /* 下部にナビ分の余白 */
-  }
-
-  /* トップページのグリッドを1カラムに強制変更 */
+  /* TopPage は1カラム（タブレット幅ではサイドバー列を落とす） */
   .top-page {
     display: flex;
     flex-direction: column;
     gap: var(--sp-5);
-    padding: 0;
   }
 
-  /* ヘッダー周りの要素が潰れないよう縦並び or 柔軟なレイアウトに */
   .top-page__header {
     flex-direction: column;
     align-items: stretch;
     gap: var(--sp-4);
   }
 
-  /* 達成マップ（中央）と継続状況（右）のラッパーを幅100%に */
   .week-check-map {
     margin-left: 0;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
-  }
-
-  .week-check-map__content {
-    display: flex;
-    justify-content: space-between; /* 曜日アイコンを横いっぱいに均等配置 */
-    align-items: center;
-    width: 100%;
-  }
-
-  .week-check-map__days {
-    flex: 1;
-    display: flex;
-    justify-content: space-around; /* 曜日同士の間隔を等間隔にする */
-    margin-left: var(--sp-4); /* 「達成マップ」の文字との間の余白 */
   }
 
   .top-page__streak-wrapper {

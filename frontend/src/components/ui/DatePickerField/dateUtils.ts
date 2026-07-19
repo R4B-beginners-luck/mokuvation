@@ -28,8 +28,20 @@ export function formatApiDate(date: Date): string {
   return format(date, API_DATE_FORMAT);
 }
 
+/**
+ * アプリ共通の「今日」(JST)。
+ * `toISOString().slice(0,10)` は UTC 日付になり、日本時間 0:00〜8:59 で前日になるため使わない。
+ */
+export function getJstTodayStr(): string {
+  const jst = new Date(Date.now() + (new Date().getTimezoneOffset() + 540) * 60 * 1000);
+  const y = jst.getFullYear();
+  const m = String(jst.getMonth() + 1).padStart(2, '0');
+  const d = String(jst.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function getTodayApiDate(): string {
-  return formatApiDate(new Date());
+  return getJstTodayStr();
 }
 
 /** トリガーボタンに表示する読みやすい形式 */

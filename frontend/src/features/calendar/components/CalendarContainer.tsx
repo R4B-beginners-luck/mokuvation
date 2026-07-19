@@ -70,6 +70,14 @@ export function CalendarContainer() {
     setCalendarTasks((prev) => prev.filter((task) => task.id !== taskId));
   };
 
+  const handleTaskUpdated = (updated: CreatedTask) => {
+    const mappedTask: Task = {
+      ...updated,
+      deleted_at: null,
+    };
+    setCalendarTasks((prev) => prev.map((t) => (t.id === mappedTask.id ? { ...t, ...mappedTask } : t)));
+  };
+
   const handleSelectDate = (date: string) => {
     setSelectedDate((prev) => (prev === date ? null : date));
   };
@@ -205,6 +213,7 @@ export function CalendarContainer() {
           tasks={calendarTasks}
           goals={goals}
           onTaskAdded={handleTaskAdded}
+          onTaskUpdated={handleTaskUpdated}
           onTaskDeleted={handleTaskDeleted}
           onClose={() => setSelectedDate(null)}
         />
