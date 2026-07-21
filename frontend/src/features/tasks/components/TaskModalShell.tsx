@@ -16,8 +16,8 @@ interface TaskModalShellProps {
 }
 
 /**
- * PC: 共有 Modal / スマホ: SnapBottomSheet（9/10・1段階・スワイプ閉じ）。
- * 目標マップと同じスワイプ仕組みを使い、段階数だけカレンダー向けに絞る。
+ * PC: 共有 Modal / スマホ: SnapBottomSheet（6/10・1段階・スワイプ閉じ）。
+ * 目標マップと同じスワイプ仕組みを使い、段階数・高さだけカレンダー向けに絞る。
  */
 export function TaskModalShell({ title, onClose, children, resetKey }: TaskModalShellProps) {
   const isMobile = useMediaQuery('(max-width: 768px)');

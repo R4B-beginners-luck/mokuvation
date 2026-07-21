@@ -12,9 +12,9 @@ export const GOALS_SHEET_LEVELS: SnapSheetLevel[] = [
   { id: 'full', vh: 90 },
 ];
 
-/** カレンダー詳細・追加：背後操作不要のため 9/10 のみ */
+/** カレンダー詳細・追加：情報量が少ないため 6/10。背後カレンダーも少し見える */
 export const CALENDAR_SHEET_LEVELS: SnapSheetLevel[] = [
-  { id: 'full', vh: 90 },
+  { id: 'full', vh: 60 },
 ];
 
 const DEFAULT_CLOSE_THRESHOLD_VH = 12;

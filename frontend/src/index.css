@@ -2665,7 +2665,8 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: slide-up-from-bottom var(--dur-normal) var(--ease) both;
+  /* both だと終了後も transform が残り、子孫の position:fixed を閉じ込めるため使わない */
+  animation: slide-up-from-bottom var(--dur-normal) var(--ease);
 }
 
 .day-detail--mobile .day-detail__header {
@@ -4012,16 +4013,19 @@ a { text-decoration: none; color: inherit; }
   z-index: 1000;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  /* flex ではなくシートを下端に絶対配置し、親 transform や flex 崩れの影響を受けにくくする */
   pointer-events: auto;
   animation: fadeIn 0.15s var(--ease);
 }
 
 .goal-detail-sheet-backdrop .goal-detail-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .goal-detail-sheet {
@@ -4855,8 +4859,8 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     box-shadow: 0 -24px 60px rgba(0, 0, 0, 0.35);
     margin: 0;
-    transform: translateY(100%);
-    animation: slide-up-from-bottom var(--dur-normal) var(--ease) both;
+    /* transform を残すと子孫の position:fixed（タスク詳細シート）が日パネル内に閉じ込められる */
+    animation: slide-up-from-bottom var(--dur-normal) var(--ease);
     overflow-y: auto;
     z-index: 20;
   }
