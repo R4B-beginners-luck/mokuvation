@@ -112,7 +112,11 @@ export function TaskAddModal({
   })();
 
   return (
-    <TaskModalShell title={isEdit ? 'タスクの編集' : 'タスクの追加'} onClose={onClose}>
+    <TaskModalShell
+      title={isEdit ? 'タスクの編集' : 'タスクの追加'}
+      onClose={onClose}
+      resetKey={isEdit && task?.id ? `edit-${task.id}` : `create-${initialDate ?? ''}`}
+    >
       <form onSubmit={handleSubmit}>
         {isEdit ? (
           <div className="form-field">

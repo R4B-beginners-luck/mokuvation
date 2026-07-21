@@ -11,8 +11,10 @@ import { DayGoalList } from './DayGoalList';
 import type { Task } from '../types';
 import type { Task as CreatedTask } from '../../tasks';
 import { Skeleton } from '../../../components/ui/Skeleton';
-import { crdtAddTask, crdtDeleteTask } from '../../../services/crdtStore';
+import { crdtAddTask, crdtDeleteTask, crdtToggleTask } from '../../../services/crdtStore';
 import { db, type LocalTask } from '../../../services/db';
+import { taskApi } from '../../tasks/api/taskApi';
+import { isOnline, isNetworkFailure, updateTaskLocally } from '../../../services/syncService';
 
 const MONTH_JP = [
   '1月', '2月', '3月', '4月', '5月', '6月',
@@ -76,6 +78,95 @@ export function CalendarContainer() {
       deleted_at: null,
     };
     setCalendarTasks((prev) => prev.map((t) => (t.id === mappedTask.id ? { ...t, ...mappedTask } : t)));
+  };
+
+  /**
+   * Today(App.handleToggleTask)と同じ永続化経路。
+   * Today側のラッパ／celebrationは触らず、CRDT + API/Dexie だけを再利用する。
+   */
+  const handleToggleTask = async (id: string) => {
+    const target = calendarTasks.find((t) => t.id === id);
+    if (!target) return;
+
+    const nextCompleted = !target.is_completed;
+    const now = new Date().toISOString();
+
+    setCalendarTasks((prev) =>
+      prev.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              is_completed: nextCompleted,
+              completed_at: nextCompleted ? (t.completed_at ?? now) : null,
+              updated_at: now,
+            }
+          : t,
+      ),
+    );
+
+    void crdtToggleTask(id, nextCompleted);
+
+    try {
+      if (isOnline()) {
+        try {
+          const raw = await taskApi.update(id, { is_completed: nextCompleted });
+          const dbTask = await db.tasks.get(id);
+          if (dbTask) {
+            await db.tasks.put({
+              ...dbTask,
+              is_completed: nextCompleted,
+              completed_at: nextCompleted ? (dbTask.completed_at ?? now) : null,
+              updated_at: raw.updated_at ?? dbTask.updated_at,
+            });
+          }
+        } catch (error: any) {
+          if (error?.status === 404) {
+            const dbTask = await db.tasks.get(id);
+            if (dbTask) {
+              await updateTaskLocally({
+                ...dbTask,
+                is_completed: nextCompleted,
+                completed_at: nextCompleted ? (dbTask.completed_at ?? now) : null,
+              });
+            }
+          } else if (!isNetworkFailure(error)) {
+            throw error;
+          } else {
+            const dbTask = await db.tasks.get(id);
+            if (dbTask) {
+              await updateTaskLocally({
+                ...dbTask,
+                is_completed: nextCompleted,
+                completed_at: nextCompleted ? (dbTask.completed_at ?? now) : null,
+              });
+            }
+          }
+        }
+      } else {
+        const dbTask = await db.tasks.get(id);
+        if (dbTask) {
+          await updateTaskLocally({
+            ...dbTask,
+            is_completed: nextCompleted,
+            completed_at: nextCompleted ? (dbTask.completed_at ?? now) : null,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('カレンダー: タスク更新に失敗しました', error);
+      void crdtToggleTask(id, !nextCompleted);
+      setCalendarTasks((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                is_completed: !nextCompleted,
+                completed_at: !nextCompleted ? (t.completed_at ?? now) : null,
+              }
+            : t,
+        ),
+      );
+    }
   };
 
   const handleSelectDate = (date: string) => {
@@ -215,6 +306,7 @@ export function CalendarContainer() {
           onTaskAdded={handleTaskAdded}
           onTaskUpdated={handleTaskUpdated}
           onTaskDeleted={handleTaskDeleted}
+          onToggleTask={handleToggleTask}
           onClose={() => setSelectedDate(null)}
         />
       </div>

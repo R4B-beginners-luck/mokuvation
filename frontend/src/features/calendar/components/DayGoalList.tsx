@@ -14,6 +14,8 @@ interface DayGoalListProps {
   onTaskAdded?: (task: CreatedTask) => void;
   onTaskUpdated?: (task: CreatedTask) => void;
   onTaskDeleted?: (taskId: string) => void;
+  /** 一覧チェックボックスからの完了トグル（詳細シートには付けない） */
+  onToggleTask?: (taskId: string) => void;
   onClose?: () => void;
 }
 
@@ -36,6 +38,7 @@ export function DayGoalList({
   onTaskAdded,
   onTaskUpdated,
   onTaskDeleted,
+  onToggleTask,
   onClose,
 }: DayGoalListProps) {
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -206,7 +209,11 @@ export function DayGoalList({
                 >
                   <div
                     className={`goal-item__check${task.is_completed ? ' checked' : ''}`}
+                    role={!isEditing ? 'checkbox' : undefined}
+                    aria-checked={!isEditing ? task.is_completed : undefined}
+                    aria-label={!isEditing ? (task.is_completed ? '未完了にする' : '完了にする') : undefined}
                     style={{
+                      cursor: !isEditing && onToggleTask ? 'pointer' : undefined,
                       ...(isSelected
                         ? {
                             backgroundColor: 'rgba(212, 122, 106, 0.95)',
@@ -217,6 +224,11 @@ export function DayGoalList({
                             lineHeight: 1,
                           }
                         : {}),
+                    }}
+                    onClick={(e) => {
+                      if (isEditing || !onToggleTask) return;
+                      e.stopPropagation();
+                      onToggleTask(task.id);
                     }}
                   >
                     {isSelected ? (

@@ -57,7 +57,7 @@ export function TaskDetailModal({ task, goals, onClose, onEdit }: TaskDetailModa
   const chain = resolveGoalChain(task.goal_id, goals);
 
   return (
-    <TaskModalShell title="タスクの詳細" onClose={onClose}>
+    <TaskModalShell title="タスクの詳細" onClose={onClose} resetKey={task.id}>
       <div className="task-detail">
         <div className="task-detail__section">
           <div className="task-detail__label">題名</div>
