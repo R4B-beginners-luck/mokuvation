@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { vhToViewportPx, viewportPxToVh } from '../../utils/viewport';
 
@@ -276,8 +277,15 @@ export function SnapBottomSheet({
     </div>
   );
 
+  // SSR / テスト環境ガード
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  // カレンダーの .day-detail--mobile 等、祖先の transform に fixed が閉じ込められないよう
+  // 常に body へポータルする（目標マップ側も同じ経路で問題ない）。
   if (hasBackdrop) {
-    return (
+    return createPortal(
       <div
         className={`${p}-backdrop ${p}--open`}
         onClick={(e) => {
@@ -285,13 +293,15 @@ export function SnapBottomSheet({
         }}
       >
         {sheet}
-      </div>
+      </div>,
+      document.body,
     );
   }
 
-  return (
+  return createPortal(
     <div className={`${p}-root ${p}--open`}>
       {sheet}
-    </div>
+    </div>,
+    document.body,
   );
 }
