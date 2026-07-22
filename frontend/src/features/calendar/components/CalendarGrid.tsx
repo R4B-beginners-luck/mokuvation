@@ -246,21 +246,18 @@ export function CalendarGrid({
         }}
       >
         <div className="calendar-grid__weekdays">
-          {WEEKDAYS.map((d, index) => {
-            const color = index === 0 ? '#ef4444' : index === 6 ? '#3b82f6' : '#fff';
-
-            return (
-              <div key={d} className="calendar-grid__weekday" style={{ color }}>{d}</div>
-            );
-          })}
+          {WEEKDAYS.map((d) => (
+            <div key={d} className="calendar-grid__weekday">{d}</div>
+          ))}
         </div>
         <div className="calendar-grid__days">
-          {cells.map(({ date, inMonth, day }) => {
+          {cells.map(({ date, inMonth, day }, index) => {
             const stats   = statsByDate[date];
             const isToday = date === today;
             const isSel   = date === selectedDate;
             const dotCount = Math.min(stats?.total ?? 0, 3);
             const allDone  = stats ? stats.done === stats.total : false;
+            const dow = index % 7; // 0=日 … 6=土
 
             const progressLevel = stats
               ? getProgressLevel(stats.total, stats.done)
@@ -276,6 +273,8 @@ export function CalendarGrid({
                   !inMonth ? 'other-month' : '',
                   isToday   ? 'today'    : '',
                   isSel     ? 'selected' : '',
+                  dow === 0 ? 'calendar-day--sun' : '',
+                  dow === 6 ? 'calendar-day--sat' : '',
                   progressLevel > 0 ? `calendar-day--progress-${progressLevel}` : '',
                 ].filter(Boolean).join(' ')}
                 onClick={() => {

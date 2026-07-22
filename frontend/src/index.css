@@ -2623,6 +2623,9 @@ a { text-decoration: none; color: inherit; }
 .calendar-grid__weekday:first-child { color: var(--accent-coral); }
 .calendar-grid__weekday:last-child  { color: var(--accent-teal); }
 
+.calendar-day--sun:not(.today) .calendar-day__num { color: var(--accent-coral); }
+.calendar-day--sat:not(.today) .calendar-day__num { color: var(--accent-teal); }
+
 .calendar-grid__days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);

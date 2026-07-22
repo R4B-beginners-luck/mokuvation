@@ -45,7 +45,6 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           id="login-id"
           className="form-input"
           type="text"
-          placeholder="ユーザーIDを入力"
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
           disabled={isLoading}
@@ -60,7 +59,6 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           id="login-pass"
           className="form-input"
           type="password"
-          placeholder="パスワードを入力"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={isLoading}

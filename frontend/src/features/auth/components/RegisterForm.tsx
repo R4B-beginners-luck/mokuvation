@@ -23,7 +23,6 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         <input 
           className="form-input" 
           type="text"
-          placeholder="ユーザーIDを入力"
           onChange={e => setFields({...fields, user_id: e.target.value})} 
           required 
           disabled={isLoading}
@@ -35,7 +34,6 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         <input 
           className="form-input" 
           type="text"
-          placeholder="表示名を入力"
           onChange={e => setFields({...fields, user_name: e.target.value})} 
           required 
           disabled={isLoading}
@@ -47,7 +45,6 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         <input 
           className="form-input" 
           type="password"
-          placeholder="パスワードを入力"
           onChange={e => setFields({...fields, password: e.target.value})} 
           required 
           disabled={isLoading}
