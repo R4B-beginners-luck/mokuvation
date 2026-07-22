@@ -13,6 +13,9 @@ interface CalendarGridProps {
   /** スマホ左右スワイプ用。未指定ならスワイプ無効（PCは渡さない想定） */
   onPrevMonth?: () => void;
   onNextMonth?: () => void;
+  /** スマホ月切替のスライド方向（ボタン・スワイプ共通） */
+  monthSlideDirection?: 'next' | 'prev' | null;
+  onMonthSlideEnd?: () => void;
 }
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -100,19 +103,46 @@ export function CalendarGrid({
   onSelectDate,
   onPrevMonth,
   onNextMonth,
+  monthSlideDirection = null,
+  onMonthSlideEnd,
 }: CalendarGridProps) {
   const today = getJstTodayStr();
   const gridRef = useRef<HTMLDivElement | null>(null);
   const selectedCellRef = useRef<HTMLDivElement | null>(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const swipeEnabled = Boolean(isMobile && onPrevMonth && onNextMonth);
   const [mobileLiftPx, setMobileLiftPx] = useState(0);
+  const [slideAnimating, setSlideAnimating] = useState(false);
+  const swipeEnabled = Boolean(isMobile && onPrevMonth && onNextMonth && !slideAnimating);
 
   const { handlers: swipeHandlers, shouldSuppressClick } = useMonthSwipe({
     enabled: swipeEnabled,
     onSwipeLeft: () => onNextMonth?.(),
     onSwipeRight: () => onPrevMonth?.(),
   });
+
+  const slideClass =
+    isMobile && monthSlideDirection === 'next'
+      ? 'calendar-grid__month-pane--enter-next'
+      : isMobile && monthSlideDirection === 'prev'
+        ? 'calendar-grid__month-pane--enter-prev'
+        : '';
+
+  useEffect(() => {
+    if (!isMobile || !monthSlideDirection) {
+      setSlideAnimating(false);
+      return;
+    }
+    setSlideAnimating(true);
+
+    // prefers-reduced-motion や animation 未発火でも必ず解除する
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const ms = reduced ? 0 : 260;
+    const timer = window.setTimeout(() => {
+      setSlideAnimating(false);
+      onMonthSlideEnd?.();
+    }, ms);
+    return () => window.clearTimeout(timer);
+  }, [isMobile, monthSlideDirection, year, month, onMonthSlideEnd]);
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -192,7 +222,11 @@ export function CalendarGrid({
   return (
     <div
       ref={gridRef}
-      className={`calendar-grid${swipeEnabled ? ' calendar-grid--swipeable' : ''}`}
+      className={[
+        'calendar-grid',
+        swipeEnabled ? 'calendar-grid--swipeable' : '',
+        isMobile ? 'calendar-grid--mobile-clip' : '',
+      ].filter(Boolean).join(' ')}
       style={
         isMobile && mobileLiftPx > 0
           ? { transform: `translateY(-${mobileLiftPx}px)` }
@@ -202,58 +236,68 @@ export function CalendarGrid({
       }
       {...swipeHandlers}
     >
-      <div className="calendar-grid__weekdays">
-        {WEEKDAYS.map((d, index) => {
-          const color = index === 0 ? '#ef4444' : index === 6 ? '#3b82f6' : '#fff';
+      <div
+        key={`${year}-${month}`}
+        className={['calendar-grid__month-pane', slideClass].filter(Boolean).join(' ')}
+        onAnimationEnd={(e) => {
+          if (e.target !== e.currentTarget) return;
+          setSlideAnimating(false);
+          onMonthSlideEnd?.();
+        }}
+      >
+        <div className="calendar-grid__weekdays">
+          {WEEKDAYS.map((d, index) => {
+            const color = index === 0 ? '#ef4444' : index === 6 ? '#3b82f6' : '#fff';
 
-          return (
-            <div key={d} className="calendar-grid__weekday" style={{ color }}>{d}</div>
-          );
-        })}
-      </div>
-      <div className="calendar-grid__days">
-        {cells.map(({ date, inMonth, day }) => {
-          const stats   = statsByDate[date];
-          const isToday = date === today;
-          const isSel   = date === selectedDate;
-          const dotCount = Math.min(stats?.total ?? 0, 3);
-          const allDone  = stats ? stats.done === stats.total : false;
+            return (
+              <div key={d} className="calendar-grid__weekday" style={{ color }}>{d}</div>
+            );
+          })}
+        </div>
+        <div className="calendar-grid__days">
+          {cells.map(({ date, inMonth, day }) => {
+            const stats   = statsByDate[date];
+            const isToday = date === today;
+            const isSel   = date === selectedDate;
+            const dotCount = Math.min(stats?.total ?? 0, 3);
+            const allDone  = stats ? stats.done === stats.total : false;
 
-          const progressLevel = stats
-            ? getProgressLevel(stats.total, stats.done)
-            : 0;
+            const progressLevel = stats
+              ? getProgressLevel(stats.total, stats.done)
+              : 0;
 
-          return (
-            <div
-              key={date}
-              ref={isSel ? selectedCellRef : undefined}
-              data-date={date}
-              className={[
-                'calendar-day',
-                !inMonth ? 'other-month' : '',
-                isToday   ? 'today'    : '',
-                isSel     ? 'selected' : '',
-                progressLevel > 0 ? `calendar-day--progress-${progressLevel}` : '',
-              ].filter(Boolean).join(' ')}
-              onClick={() => {
-                if (shouldSuppressClick()) return;
-                if (inMonth) onSelectDate(date);
-              }}
-            >
-              <div className="calendar-day__num">{day}</div>
-              {stats && dotCount > 0 && (
-                <div className="calendar-day__dots">
-                  {Array.from({ length: dotCount }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`calendar-day__dot${allDone ? ' calendar-day__dot--completed' : ' calendar-day__dot--partial'}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={date}
+                ref={isSel ? selectedCellRef : undefined}
+                data-date={date}
+                className={[
+                  'calendar-day',
+                  !inMonth ? 'other-month' : '',
+                  isToday   ? 'today'    : '',
+                  isSel     ? 'selected' : '',
+                  progressLevel > 0 ? `calendar-day--progress-${progressLevel}` : '',
+                ].filter(Boolean).join(' ')}
+                onClick={() => {
+                  if (shouldSuppressClick()) return;
+                  if (inMonth) onSelectDate(date);
+                }}
+              >
+                <div className="calendar-day__num">{day}</div>
+                {stats && dotCount > 0 && (
+                  <div className="calendar-day__dots">
+                    {Array.from({ length: dotCount }).map((_, i) => (
+                      <span
+                        key={i}
+                        className={`calendar-day__dot${allDone ? ' calendar-day__dot--completed' : ' calendar-day__dot--partial'}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

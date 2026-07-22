@@ -2514,6 +2514,56 @@ a { text-decoration: none; color: inherit; }
   flex-direction: column;
 }
 
+.calendar-grid__month-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* スマホ月切替: はみ出しをクリップ（lift の transform とは別要素でスライド） */
+.calendar-grid--mobile-clip {
+  overflow: hidden;
+}
+
+.calendar-grid__month-pane--enter-next {
+  animation: calendar-month-enter-next var(--dur-normal) var(--ease);
+}
+
+.calendar-grid__month-pane--enter-prev {
+  animation: calendar-month-enter-prev var(--dur-normal) var(--ease);
+}
+
+@keyframes calendar-month-enter-next {
+  from {
+    transform: translateX(28%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes calendar-month-enter-prev {
+  from {
+    transform: translateX(-28%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-grid__month-pane--enter-next,
+  .calendar-grid__month-pane--enter-prev {
+    animation: none;
+  }
+}
+
 /* スマホ月スワイプ: 縦スクロールはブラウザに任せ、横は JS で月移動 */
 .calendar-grid--swipeable {
   touch-action: pan-y;
