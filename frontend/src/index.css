@@ -1365,12 +1365,14 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
+  min-width: 0;
 }
 
 .top-page__sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
+  min-width: 0;
 }
 
 /* Card base */
@@ -1379,6 +1381,8 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: var(--sp-5);
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 @media (max-width: 768px) {
@@ -1490,6 +1494,7 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
   min-width: 0; /* 親(<li>)がflexの時、子のテキストが伸び切って
                    カード全体の横幅を押し広げてしまうのを防ぐ */
+  overflow: hidden; /* 長いタイトル／タグがカード外へはみ出さない */
 }
 
 .goal-item:hover { border-color: rgba(240,236,224,0.12); background: var(--bg-hover); }
@@ -1531,7 +1536,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-primary);
 }
 
-.goal-item__body { flex: 1; min-width: 0; }
+.goal-item__body { flex: 1; min-width: 0; max-width: 100%; }
 
 .goal-item__title {
   font-size: 14px;
@@ -1541,6 +1546,7 @@ a { text-decoration: none; color: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .goal-item__meta {
@@ -1549,20 +1555,23 @@ a { text-decoration: none; color: inherit; }
   flex-wrap: wrap;
   gap: var(--sp-2);
   margin-top: var(--sp-1);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .tag {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   font-size: 11px;
   font-weight: 600;
   padding: 2px var(--sp-2);
   border-radius: var(--r-sm);
   white-space: nowrap;
   max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  vertical-align: bottom; /* text-overflow: ellipsisにはブロック的な計算幅が必要 */
+  vertical-align: bottom;
+  box-sizing: border-box;
 }
 
 .tag--long  { background: var(--goal-type-long-bg); color: var(--goal-type-long); }
@@ -1718,7 +1727,9 @@ a { text-decoration: none; color: inherit; }
   gap: var(--sp-2);
   height: 400px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
@@ -1890,6 +1901,36 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* Long-term goal summary */
+.lt-summary__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+@media (max-width: 768px) {
+  .lt-summary__list {
+    max-height: 300px;
+  }
+}
+
+.lt-summary__list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lt-summary__list::-webkit-scrollbar-thumb {
+  background: rgba(160, 160, 160, 0.35);
+  border-radius: 999px;
+}
+
+.lt-summary__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .lt-summary-item {
   display: flex;
   flex-direction: column;
@@ -1899,6 +1940,7 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   background: var(--bg-raised);
   margin-bottom: var(--sp-2);
+  min-width: 0;
 }
 
 .lt-summary-item:last-child { margin-bottom: 0; }
