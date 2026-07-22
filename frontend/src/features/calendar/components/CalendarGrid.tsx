@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { getJstTodayStr } from '../../../components/ui/DatePickerField/dateUtils';
 import type { Task } from '../types';
 
@@ -39,6 +40,7 @@ export function CalendarGrid({
   onSelectDate,
 }: CalendarGridProps) {
   const today = getJstTodayStr();
+  const selectedCellRef = useRef<HTMLDivElement | null>(null);
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -74,6 +76,16 @@ export function CalendarGrid({
     if (task.is_completed) statsByDate[taskDate].done++;
   });
 
+  // PCで詳細パネル表示中に選択日が横スクロール外なら、見える位置まで寄せる
+  useEffect(() => {
+    if (!selectedDate || !selectedCellRef.current) return;
+    selectedCellRef.current.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'nearest',
+      block: 'nearest',
+    });
+  }, [selectedDate, year, month]);
+
   return (
     <div className="calendar-grid">
       <div className="calendar-grid__weekdays">
@@ -100,6 +112,8 @@ export function CalendarGrid({
           return (
             <div
               key={date}
+              ref={isSel ? selectedCellRef : undefined}
+              data-date={date}
               className={[
                 'calendar-day',
                 !inMonth ? 'other-month' : '',

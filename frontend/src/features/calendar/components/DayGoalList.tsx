@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, ChevronLeft, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Check, Minus, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { parseApiDate } from '../../../components/ui/DatePickerField/dateUtils';
 import { TaskAddModal, TaskDeleteConfirm, TaskDetailModal } from '../../tasks';
 import type { Task as CreatedTask } from '../../tasks';
@@ -157,9 +157,9 @@ export function DayGoalList({
               onClose?.();
             }}
             aria-label="閉じる"
-            title="このパネルを閉じる"
+            title="閉じる"
           >
-            <ChevronLeft size={15} strokeWidth={1.75} aria-hidden />
+            <X size={15} strokeWidth={1.75} aria-hidden />
           </button>
         </div>
       </div>

@@ -2630,7 +2630,11 @@ a { text-decoration: none; color: inherit; }
 .calendar-day__dot--completed { background: var(--accent-gold); }
 .calendar-day__dot--partial   { background: var(--accent-violet); }
 
-/* Day detail panel */
+/* Day detail panel
+ * PC: 既定は absolute オーバーレイだが、パネル表示中は下の min-width:769px ルールで
+ * 横並び＋カレンダー横スクロールに切り替える（列の圧縮・隠れをやめる）。
+ * スマホ: .day-detail--mobile / max-width:768px で下端シートのまま。
+ */
 .day-detail {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -2647,6 +2651,43 @@ a { text-decoration: none; color: inherit; }
   animation: slide-in-right var(--dur-normal) var(--ease) both;
   will-change: transform, opacity;
   z-index: 1;
+}
+
+/* PC: 詳細パネル表示時はオーバーレイをやめ、カレンダーを横スクロール可能にする */
+@media (min-width: 769px) {
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: var(--sp-4);
+  }
+
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .calendar-page__grid-col {
+    overflow-x: auto;
+    overflow-y: hidden;
+    min-width: 0;
+  }
+
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .calendar-grid {
+    /* 7列が潰れない下限（約80px×7）。余白が足りなければ横スクロール */
+    min-width: 560px;
+  }
+
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .calendar-grid__weekdays,
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .calendar-grid__days {
+    grid-template-columns: repeat(7, minmax(80px, 1fr));
+  }
+
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .day-detail {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    z-index: auto;
+    /* both だと transform が残りレイアウトに影響するため、フロー配置時は切る */
+    animation: slide-in-right var(--dur-normal) var(--ease);
+    will-change: opacity;
+  }
 }
 
 .day-detail--mobile {
