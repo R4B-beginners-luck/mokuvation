@@ -107,7 +107,7 @@ export function AddGoalModal({ longTermGoals, midTermGoals, onAdd, onClose }: Ad
           <textarea
             id="goal-desc"
             className="form-textarea"
-            placeholder="具体的な行動内容や達成条件など…"
+            placeholder="任意：具体的な行動内容や達成条件など"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />

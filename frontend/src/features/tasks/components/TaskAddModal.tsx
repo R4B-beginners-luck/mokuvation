@@ -155,6 +155,7 @@ export function TaskAddModal({
             autoFocus
             disabled={isLoading}
             aria-required="true"
+            placeholder="例：朝のストレッチ"
           />
         </div>
 
@@ -169,6 +170,7 @@ export function TaskAddModal({
             value={description ?? ''}
             onChange={(e) => setDescription(e.target.value)}
             disabled={isLoading}
+            placeholder="任意：詳細やメモなど"
           />
         </div>
 

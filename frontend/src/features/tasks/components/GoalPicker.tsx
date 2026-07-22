@@ -297,7 +297,7 @@ export function GoalPicker({ goals, value, onChange, disabled }: GoalPickerProps
             <span className="goal-picker__title">{selectedGoal.title}</span>
           </span>
         ) : (
-          <span className="goal-picker__placeholder">-- 指定なし（単独タスク） --</span>
+          <span className="goal-picker__placeholder">指定なし（単独タスク）</span>
         )}
         <ChevronDown size={16} strokeWidth={2} aria-hidden style={{ flexShrink: 0, opacity: 0.6 }} />
       </button>

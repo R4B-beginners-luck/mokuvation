@@ -95,7 +95,7 @@ export const HELP_FAQ_GROUPS: HelpFaqGroup[] = [
       },
       {
         id: 'streak-stats',
-        question: '「連続達成日数」「今日の達成」「累計完了」はそれぞれ何ですか？',
+        question: '「連続達成日数」「今日完了」「累計完了」はそれぞれ何ですか？',
         answer: (
           <ul>
             <li>
@@ -103,8 +103,8 @@ export const HELP_FAQ_GROUPS: HelpFaqGroup[] = [
               … 何日連続でタスクを完了しているか。連日完了で増え、完了のない日があるとリセットされます。
             </li>
             <li>
-              <strong>今日の達成</strong>
-              … 今日完了したタスク数。完了するたびに増え、日付が変わるとリセットされます。
+              <strong>今日完了</strong>
+              … 今日完了したタスク数（件数のみ）。完了するたびに増え、日付が変わるとリセットされます。一覧ヘッダーの「完了 X / Y」は、今日のタスク全体に対する進捗です。
             </li>
             <li>
               <strong>累計完了</strong>
