@@ -60,6 +60,8 @@ export interface Task {
   completed: boolean;
   /** Which goal this task is related to */
   goalId?: string;
+  /** ISO datetime — used to keep Today list in creation order */
+  createdAt?: string;
 }
 
 // ─── Navigation ─────────────────────────────────────────────────────────────

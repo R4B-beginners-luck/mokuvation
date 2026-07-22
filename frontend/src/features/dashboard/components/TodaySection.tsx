@@ -102,21 +102,11 @@ export function TodaySection({
     return undefined;
   };
 
+  /** タスクが短期に直接紐づいているときだけ短期タグを出す（中期紐づけ時に配下の短期を勝手に出さない） */
   const resolveShortTermGoalId = (goalId?: string): string | undefined => {
     if (!goalId) return undefined;
-
-    // goalId が short term goal ID の場合はそのまま返す
     const shortTerm = shortTermGoals.find((s) => s.id === goalId);
-    if (shortTerm) return shortTerm.id;
-
-    // goalId が mid term goal ID の場合、その mid に紐づく short-term があれば最初のものを返す（任意）
-    const midTerm = midTermGoals.find((m) => m.id === goalId);
-    if (midTerm) {
-      const childShort = shortTermGoals.find((s) => s.midTermGoalId === midTerm.id);
-      return childShort?.id;
-    }
-
-    return undefined;
+    return shortTerm?.id;
   };
 
   return (
@@ -242,7 +232,8 @@ export function TodaySection({
               // goal_id が 0、null、空文字、undefined のどれであっても綺麗に undefined に統一
               goalId: (newTask.goal_id && String(newTask.goal_id) !== '0') ? String(newTask.goal_id) : undefined,
               completed: Boolean(newTask.is_completed ?? newTask.completed),
-              date: taskDate // ➔ これで親の「g.date === TODAY」を確実に突破します！
+              date: taskDate, // ➔ これで親の「g.date === TODAY」を確実に突破します！
+              createdAt: newTask.created_at ?? newTask.createdAt ?? new Date().toISOString(),
             };
 
             onAddTask(formattedTask);

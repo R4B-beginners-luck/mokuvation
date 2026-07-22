@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
-import { Calendar, Check, ChevronLeft, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
-import { TaskAddModal, TaskDeleteConfirm } from '../../tasks';
+import { Check, Minus, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { parseApiDate } from '../../../components/ui/DatePickerField/dateUtils';
+import { TaskAddModal, TaskDeleteConfirm, TaskDetailModal } from '../../tasks';
 import type { Task as CreatedTask } from '../../tasks';
 import type { Task, Goal } from '../types';
+import { db, type LocalGoal } from '../../../services/db';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 
 interface DayGoalListProps {
   date: string | null;
   tasks: Task[];
   goals: Goal[];
   onTaskAdded?: (task: CreatedTask) => void;
+  onTaskUpdated?: (task: CreatedTask) => void;
   onTaskDeleted?: (taskId: string) => void;
+  /** 一覧チェックボックスからの完了トグル（詳細シートには付けない） */
+  onToggleTask?: (taskId: string) => void;
   onClose?: () => void;
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseApiDate(dateStr) ?? new Date(dateStr);
   const days = ['日', '月', '火', '水', '木', '金', '土'];
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日（${days[date.getDay()]}）`;
 }
@@ -25,29 +31,28 @@ function extractDateFromScheduled(scheduledAt: string | null): string | null {
   return normalized.split('T')[0] ?? null;
 }
 
-function getTodayLocalDateString(): string {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, onClose }: DayGoalListProps) {
+export function DayGoalList({
+  date,
+  tasks,
+  goals,
+  onTaskAdded,
+  onTaskUpdated,
+  onTaskDeleted,
+  onToggleTask,
+  onClose,
+}: DayGoalListProps) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [deleteConfirmTaskId, setDeleteConfirmTaskId] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [localGoals, setLocalGoals] = useState<LocalGoal[]>([]);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    void db.goals.toArray().then(setLocalGoals).catch(() => setLocalGoals([]));
+  }, [date, detailTaskId, editingTaskId]);
 
   if (!date) {
     return null;
@@ -58,11 +63,9 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
     return taskDate === date;
   });
 
-  const isPastDate = date < getTodayLocalDateString();
-  const canModifyTasks = !isPastDate;
-  const isEditingEnabled = isEditing && canModifyTasks;
-
   const completedCount = dayTasks.filter((task) => task.is_completed).length;
+  const detailTask = detailTaskId ? tasks.find((t) => t.id === detailTaskId) ?? null : null;
+  const editTask = editingTaskId ? tasks.find((t) => t.id === editingTaskId) ?? null : null;
 
   const getLinkedGoalInfo = (goalId: string | null) => {
     if (!goalId) return { goalTitle: undefined, periodType: undefined };
@@ -75,6 +78,24 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
       periodType: linkedGoal.period_type,
     };
   };
+
+  const goalsForDetail: LocalGoal[] = localGoals.length > 0
+    ? localGoals
+    : goals.map((g) => ({
+        id: g.id,
+        user_id: g.user_id ?? '',
+        title: g.title,
+        description: g.description ?? null,
+        parent_goal_id: g.parent_goal_id ?? null,
+        period_type: g.period_type,
+        due_at: g.due_at ?? null,
+        is_completed: g.is_completed,
+        color_code: null,
+        position_x: null,
+        position_y: null,
+        created_at: g.created_at ?? '',
+        updated_at: g.updated_at ?? '',
+      }));
 
   return (
     <div className={`day-detail${isMobile ? ' day-detail--mobile' : ''}`}>
@@ -89,7 +110,7 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
         </div>
 
         <div className="day-detail__actions">
-          {isEditingEnabled ? (
+          {isEditing ? (
             <button
               type="button"
               className="day-detail__delete-button"
@@ -108,13 +129,9 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
             <button
               type="button"
               className="day-detail__add-button"
-              onClick={() => {
-                if (!canModifyTasks) return;
-                setIsModalOpen(true);
-              }}
-              disabled={!canModifyTasks}
+              onClick={() => setIsModalOpen(true)}
               aria-label="タスクを追加"
-              title={canModifyTasks ? 'タスクを追加' : '過去の日付にはタスクを追加できません'}
+              title="タスクを追加"
             >
               <Plus size={15} strokeWidth={1.75} aria-hidden />
             </button>
@@ -122,15 +139,13 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
 
           <button
             type="button"
-            className={`day-detail__edit-button${isEditingEnabled ? ' is-active' : ''}`}
+            className={`day-detail__edit-button${isEditing ? ' is-active' : ''}`}
             onClick={() => {
-              if (!canModifyTasks) return;
               setIsEditing((prev) => !prev);
               setSelectedTaskIds([]);
             }}
-            disabled={!canModifyTasks}
-            aria-label={isEditingEnabled ? '編集を終了' : '編集モードにする'}
-            title={canModifyTasks ? (isEditingEnabled ? '編集を終了' : '編集する') : '過去の日付は編集できません'}
+            aria-label={isEditing ? '編集を終了' : '編集モードにする'}
+            title={isEditing ? '編集を終了' : '編集する'}
           >
             <Pencil size={15} strokeWidth={1.75} aria-hidden />
           </button>
@@ -142,25 +157,21 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
               onClose?.();
             }}
             aria-label="閉じる"
-            title="このパネルを閉じる"
+            title="閉じる"
           >
-            <ChevronLeft size={15} strokeWidth={1.75} aria-hidden />
+            <X size={15} strokeWidth={1.75} aria-hidden />
           </button>
         </div>
       </div>
 
-      {!canModifyTasks ? (
+      {isEditing ? (
         <div className="day-detail__hint">
-          今日より前の日付のタスクは追加も削除もできません。
-        </div>
-      ) : isEditingEnabled ? (
-        <div className="day-detail__hint">
-          編集モードではタスクを押すと削除対象として赤く選択されます。
+          編集モードではタスクを押すと削除対象として赤く選択されます。通常時はタスクを押すと詳細を表示します。
         </div>
       ) : null}
 
       {dayTasks.length === 0 ? (
-        <div className="day-detail__empty">この日は目標が設定されていません</div>
+        <div className="day-detail__empty">この日はタスクがありません</div>
       ) : (
         <ul className="day-detail__list">
           {dayTasks.map((task) => {
@@ -179,24 +190,30 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
                 <div
                   className={`goal-item${task.is_completed ? ' completed' : ''}`}
                   style={{
-                    cursor: isEditingEnabled ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     backgroundColor: isSelected ? 'rgba(212, 122, 106, 0.14)' : undefined,
                     borderColor: isSelected ? 'rgba(212, 122, 106, 0.6)' : undefined,
                     borderRadius: '8px',
                   }}
                   onClick={() => {
-                    if (!isEditingEnabled) return;
-
-                    setSelectedTaskIds((prev) => (
-                      prev.includes(task.id)
-                        ? prev.filter((id) => id !== task.id)
-                        : [...prev, task.id]
-                    ));
+                    if (isEditing) {
+                      setSelectedTaskIds((prev) => (
+                        prev.includes(task.id)
+                          ? prev.filter((id) => id !== task.id)
+                          : [...prev, task.id]
+                      ));
+                      return;
+                    }
+                    setDetailTaskId(task.id);
                   }}
                 >
                   <div
                     className={`goal-item__check${task.is_completed ? ' checked' : ''}`}
+                    role={!isEditing ? 'checkbox' : undefined}
+                    aria-checked={!isEditing ? task.is_completed : undefined}
+                    aria-label={!isEditing ? (task.is_completed ? '未完了にする' : '完了にする') : undefined}
                     style={{
+                      cursor: !isEditing && onToggleTask ? 'pointer' : undefined,
                       ...(isSelected
                         ? {
                             backgroundColor: 'rgba(212, 122, 106, 0.95)',
@@ -207,6 +224,11 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
                             lineHeight: 1,
                           }
                         : {}),
+                    }}
+                    onClick={(e) => {
+                      if (isEditing || !onToggleTask) return;
+                      e.stopPropagation();
+                      onToggleTask(task.id);
                     }}
                   >
                     {isSelected ? (
@@ -244,20 +266,42 @@ export function DayGoalList({ date, tasks, goals, onTaskAdded, onTaskDeleted, on
         </ul>
       )}
 
-      {isModalOpen && canModifyTasks && (
-        <div className="calendar-task-add-modal">
-          <TaskAddModal
-            initialDate={date}
-            onClose={() => setIsModalOpen(false)}
-            onSuccess={(newTask) => {
-              onTaskAdded?.(newTask);
-              setIsModalOpen(false);
-            }}
-          />
-        </div>
+      {isModalOpen && (
+        <TaskAddModal
+          initialDate={date}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={(newTask) => {
+            onTaskAdded?.(newTask);
+            setIsModalOpen(false);
+          }}
+        />
       )}
 
-      {deleteConfirmTaskId && canModifyTasks && (
+      {detailTask && (
+        <TaskDetailModal
+          task={detailTask}
+          goals={goalsForDetail}
+          onClose={() => setDetailTaskId(null)}
+          onEdit={() => {
+            setEditingTaskId(detailTask.id);
+            setDetailTaskId(null);
+          }}
+        />
+      )}
+
+      {editTask && (
+        <TaskAddModal
+          mode="edit"
+          task={editTask}
+          onClose={() => setEditingTaskId(null)}
+          onSuccess={(updated) => {
+            onTaskUpdated?.(updated);
+            setEditingTaskId(null);
+          }}
+        />
+      )}
+
+      {deleteConfirmTaskId && (
         <TaskDeleteConfirm
           taskId={deleteConfirmTaskId}
           onClose={() => setDeleteConfirmTaskId(null)}

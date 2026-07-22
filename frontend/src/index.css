@@ -1965,7 +1965,7 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
   padding: var(--sp-6);
-  width: 480px;
+  width: 440px;
   max-width: calc(100vw - var(--sp-8));
   max-height: calc(100vh - var(--sp-8));
   overflow-y: auto;
@@ -2007,6 +2007,160 @@ a { text-decoration: none; color: inherit; }
 }
 
 .modal__close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* ============================================================
+   TASK SHEET（カレンダー等・スマホ用ボトムシート）
+   date-picker-sheet と同系統。PC は共有 Modal を使う。
+   ============================================================ */
+.task-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.15s var(--ease);
+}
+
+.task-sheet {
+  width: 100%;
+  max-height: min(90dvh, 100%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  box-shadow: var(--shadow-lg);
+  animation: task-sheet-up 0.28s var(--ease);
+}
+
+@keyframes task-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.task-sheet__handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  margin: 4px auto 10px;
+  flex-shrink: 0;
+}
+
+.task-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  flex-shrink: 0;
+}
+
+.task-sheet__title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.task-sheet__close {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.task-sheet__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.task-sheet__body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--sp-2);
+}
+
+.task-detail__section {
+  margin-bottom: var(--sp-4);
+}
+
+.task-detail__label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.task-detail__title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.task-detail__value {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.task-detail__description {
+  color: var(--text-secondary);
+}
+
+.task-detail__muted {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.task-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.task-detail__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: var(--sp-5);
+}
+
+.task-form__goal-readonly {
+  font-size: 14px;
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+}
+
+/* PC: タスク詳細・追加モーダルの内側余白を他画面の modal__form と揃える */
+.task-modal-form {
+  gap: var(--sp-4);
+}
+
+.task-modal-form .form-field {
+  margin-bottom: 0;
+}
+
+.task-modal-form .form-field + .form-field {
+  margin-top: var(--sp-4);
+}
 
 /* 設定のヘルプ／規約／ポリシー本文（ダーク Modal 向け） */
 .legal-modal-content {
@@ -2273,13 +2427,14 @@ a { text-decoration: none; color: inherit; }
    CALENDAR PAGE
    ============================================================ */
 .calendar-page {
-  padding: var(--sp-6) 0;
+  padding: var(--sp-6) var(--sp-8);
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
   gap: var(--sp-4);
+  box-sizing: border-box;
 }
 
 .calendar-page__loading {
@@ -2475,7 +2630,11 @@ a { text-decoration: none; color: inherit; }
 .calendar-day__dot--completed { background: var(--accent-gold); }
 .calendar-day__dot--partial   { background: var(--accent-violet); }
 
-/* Day detail panel */
+/* Day detail panel
+ * PC: 既定は absolute オーバーレイだが、パネル表示中は下の min-width:769px ルールで
+ * 横並び＋カレンダー横スクロールに切り替える（列の圧縮・隠れをやめる）。
+ * スマホ: .day-detail--mobile / max-width:768px で下端シートのまま。
+ */
 .day-detail {
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -2494,6 +2653,43 @@ a { text-decoration: none; color: inherit; }
   z-index: 1;
 }
 
+/* PC: 詳細パネル表示時はオーバーレイをやめ、カレンダーを横スクロール可能にする */
+@media (min-width: 769px) {
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: var(--sp-4);
+  }
+
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .calendar-page__grid-col {
+    overflow-x: auto;
+    overflow-y: hidden;
+    min-width: 0;
+  }
+
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .calendar-grid {
+    /* 7列が潰れない下限（約80px×7）。余白が足りなければ横スクロール */
+    min-width: 560px;
+  }
+
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .calendar-grid__weekdays,
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .calendar-grid__days {
+    grid-template-columns: repeat(7, minmax(80px, 1fr));
+  }
+
+  .calendar-page__content:has(.day-detail:not(.day-detail--mobile)) .day-detail {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    z-index: auto;
+    /* both だと transform が残りレイアウトに影響するため、フロー配置時は切る */
+    animation: slide-in-right var(--dur-normal) var(--ease);
+    will-change: opacity;
+  }
+}
+
 .day-detail--mobile {
   position: fixed;
   top: auto;
@@ -2510,7 +2706,8 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: slide-up-from-bottom var(--dur-normal) var(--ease) both;
+  /* both だと終了後も transform が残り、子孫の position:fixed を閉じ込めるため使わない */
+  animation: slide-up-from-bottom var(--dur-normal) var(--ease);
 }
 
 .day-detail--mobile .day-detail__header {
@@ -3838,7 +4035,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* ============================================================
-   GOAL DETAIL SHEET (mobile goals map)
+   GOAL DETAIL SHEET (mobile goals map) / SnapBottomSheet 共用
    ============================================================ */
 .goal-detail-sheet-root {
   position: fixed;
@@ -3848,6 +4045,28 @@ a { text-decoration: none; color: inherit; }
   z-index: 100;
   width: 100%;
   pointer-events: none;
+}
+
+/* カレンダー等：暗転付き（背後操作しない） */
+.goal-detail-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  /* flex ではなくシートを下端に絶対配置し、親 transform や flex 崩れの影響を受けにくくする */
+  pointer-events: auto;
+  animation: fadeIn 0.15s var(--ease);
+}
+
+.goal-detail-sheet-backdrop .goal-detail-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .goal-detail-sheet {
@@ -4681,8 +4900,8 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     box-shadow: 0 -24px 60px rgba(0, 0, 0, 0.35);
     margin: 0;
-    transform: translateY(100%);
-    animation: slide-up-from-bottom var(--dur-normal) var(--ease) both;
+    /* transform を残すと子孫の position:fixed（タスク詳細シート）が日パネル内に閉じ込められる */
+    animation: slide-up-from-bottom var(--dur-normal) var(--ease);
     overflow-y: auto;
     z-index: 20;
   }
@@ -4973,106 +5192,35 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
 }
 
 /* ============================================================
-   RESPONSIVE: TABLET ADJUSTMENTS (1024px以下への対応)
+   RESPONSIVE: TABLET ADJUSTMENTS (769px〜1024px)
+   ────────────────────────────────────────────────────────────
+   以前はこのブレークポイントで .sidebar を下部横並びナビに作り替え、
+   かつ .app-shell を column + .app-shell__sidebars { height:100vh } のまま
+   にしていたため、メインが画面外へ押し出され真っ黒に見えていた。
+
+   769px以上は PC と同じ左レール＋.page-content。
+   下部ナビ（.bottom-nav）は max-width:768px のみ。
    ============================================================ */
 @media (max-width: 1024px) {
-  /* PC用の固定画面縛りを解除し、縦スクロールを可能にする */
-  html, body, #root, .app-shell {
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
-    overflow-x: hidden;
-  }
-
-  .app-shell {
-    flex-direction: column;
-  }
-
-  /* サイドバーをスマホ同様に下部ナビゲーション化、あるいは非表示に */
-  /* 今回はスマホと同じ下部ナビ形式へ切り替える設定を1024pxから適用 */
-  .sidebar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
-    height: 64px;
-    min-height: 64px;
-    flex-direction: row;
-    border-right: none;
-    border-top: 1px solid var(--border);
-    z-index: 1000;
-  }
-  .sidebar__brand, .sidebar__footer {
-    display: none;
-  }
-  .sidebar__nav {
-    flex: 1;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    align-items: center;
-    padding: 0 var(--sp-2);
-    height: 100%;
-  }
-  .sidebar__nav-item {
-    flex: 1;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    height: 100%;
-    font-size: 11px;
-  }
-  .sidebar__nav-item.active::before {
-    top: 0; left: 50%; transform: translateX(-50%); width: 40px; height: 3px;
-  }
-
-  /* メインコンテンツを横幅いっぱいに広げる */
-  .page-content {
-    width: 100%;
-    padding: var(--sp-5) var(--sp-5) 84px var(--sp-5); /* 下部にナビ分の余白 */
-  }
-
-  /* トップページのグリッドを1カラムに強制変更 */
+  /* TopPage は1カラム（タブレット幅ではサイドバー列を落とす） */
   .top-page {
     display: flex;
     flex-direction: column;
     gap: var(--sp-5);
-    padding: 0;
   }
 
-  /* ヘッダー周りの要素が潰れないよう縦並び or 柔軟なレイアウトに */
   .top-page__header {
     flex-direction: column;
     align-items: stretch;
     gap: var(--sp-4);
   }
 
-  /* 達成マップ（中央）と継続状況（右）のラッパーを幅100%に */
   .week-check-map {
     margin-left: 0;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
-  }
-
-  .week-check-map__content {
-    display: flex;
-    justify-content: space-between; /* 曜日アイコンを横いっぱいに均等配置 */
-    align-items: center;
-    width: 100%;
-  }
-
-  .week-check-map__days {
-    flex: 1;
-    display: flex;
-    justify-content: space-around; /* 曜日同士の間隔を等間隔にする */
-    margin-left: var(--sp-4); /* 「達成マップ」の文字との間の余白 */
   }
 
   .top-page__streak-wrapper {

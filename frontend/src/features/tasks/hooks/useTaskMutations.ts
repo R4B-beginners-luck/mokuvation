@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { taskApi } from '../api/taskApi';
-import type { CreateTaskPayload, Task } from '../types';
+import type { CreateTaskPayload, Task, UpdateTaskPayload } from '../types';
 import { db } from '../../../services/db';
 import type { LocalTask } from '../../../services/db';
 import { isOnline, cacheUserId, getCachedUserId, isNetworkFailure } from '../../../services/syncService';
@@ -186,5 +186,81 @@ export const useTaskMutations = () => {
     }
   };
 
-  return { addTask, removeTask, isLoading, error };
+  /** 題名・詳細・予定日などの更新（目標付け替えはAPI非対応のため含めない） */
+  const updateTask = async (
+    taskId: string,
+    payload: UpdateTaskPayload,
+  ): Promise<Task | null> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const existing = await db.tasks.get(taskId);
+      const now = new Date().toISOString();
+
+      const applyLocal = async (base: LocalTask, server?: Task): Promise<Task> => {
+        const localTask: LocalTask = {
+          ...base,
+          title: payload.title ?? base.title,
+          description:
+            payload.description !== undefined
+              ? (payload.description ?? null)
+              : base.description,
+          scheduled_at:
+            payload.scheduled_at !== undefined
+              ? (payload.scheduled_at ?? null)
+              : base.scheduled_at,
+          is_completed:
+            payload.is_completed !== undefined
+              ? Boolean(payload.is_completed)
+              : base.is_completed,
+          completed_at:
+            payload.is_completed === undefined
+              ? base.completed_at
+              : payload.is_completed
+                ? (base.completed_at ?? now)
+                : null,
+          updated_at: server?.updated_at ?? now,
+          created_at: server?.created_at ?? base.created_at,
+        };
+        await db.tasks.put(localTask);
+        await crdtUpsertTask(localTask);
+        return localTask as unknown as Task;
+      };
+
+      if (isOnline()) {
+        try {
+          const serverTask = await taskApi.update(taskId, payload);
+          if (existing) {
+            return await applyLocal(existing, serverTask);
+          }
+          return serverTask;
+        } catch (err: any) {
+          if (!isNetworkFailure(err)) throw err;
+          console.warn('[useTaskMutations] 更新API失敗。オフライン扱いにフォールバックします。', err);
+        }
+      }
+
+      if (!existing) {
+        setError('タスクが見つかりません');
+        return null;
+      }
+
+      const localUpdated = await applyLocal(existing);
+      await db.sync_queue.add({
+        entity: 'task',
+        operation: 'update',
+        payload: localUpdated as unknown as LocalTask,
+        created_at: now,
+      });
+      return localUpdated;
+    } catch (err: any) {
+      setError(err.data?.message || err.message || 'タスクの更新に失敗しました');
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return { addTask, updateTask, removeTask, isLoading, error };
 };

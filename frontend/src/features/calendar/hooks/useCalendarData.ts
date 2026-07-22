@@ -15,6 +15,38 @@ interface UseCalendarDataResult {
   error: Error | null;
 }
 
+function mapLocalGoal(g: Awaited<ReturnType<typeof db.goals.toArray>>[number]): Goal {
+  return {
+    id: g.id,
+    user_id: g.user_id,
+    parent_goal_id: g.parent_goal_id,
+    title: g.title,
+    description: g.description,
+    period_type: g.period_type,
+    due_at: g.due_at,
+    is_completed: g.is_completed,
+    created_at: g.created_at,
+    updated_at: g.updated_at,
+    deleted_at: null,
+  };
+}
+
+function mapLocalTask(t: Awaited<ReturnType<typeof db.tasks.toArray>>[number]): Task {
+  return {
+    id: t.id,
+    user_id: t.user_id,
+    goal_id: t.goal_id,
+    title: t.title,
+    description: t.description,
+    scheduled_at: t.scheduled_at,
+    is_completed: t.is_completed,
+    completed_at: t.completed_at,
+    created_at: t.created_at,
+    updated_at: t.updated_at,
+    deleted_at: null,
+  };
+}
+
 export function useCalendarData(): UseCalendarDataResult {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -31,46 +63,22 @@ export function useCalendarData(): UseCalendarDataResult {
           setTasks(fetchedTasks);
           setError(null);
         } else {
-          // オフライン：Dexieからフォールバック
           const [dbGoals, dbTasks] = await Promise.all([
             db.goals.toArray(),
             db.tasks.toArray(),
           ]);
-          setGoals(dbGoals.map((g) => ({
-            id:          g.id,
-            title:       g.title,
-            period_type: g.period_type as Goal['period_type'],
-            is_completed: g.is_completed,
-          } as Goal)));
-          setTasks(dbTasks.map((t) => ({
-            id:           t.id,
-            title:        t.title,
-            goal_id:      t.goal_id ?? undefined,
-            scheduled_at: t.scheduled_at ?? undefined,
-            is_completed: t.is_completed,
-          } as Task)));
+          setGoals(dbGoals.map(mapLocalGoal));
+          setTasks(dbTasks.map(mapLocalTask));
           setError(null);
         }
       } catch (err) {
-        // オンラインで失敗した場合もDexieにフォールバック
         try {
           const [dbGoals, dbTasks] = await Promise.all([
             db.goals.toArray(),
             db.tasks.toArray(),
           ]);
-          setGoals(dbGoals.map((g) => ({
-            id:           g.id,
-            title:        g.title,
-            period_type:  g.period_type as Goal['period_type'],
-            is_completed: g.is_completed,
-          } as Goal)));
-          setTasks(dbTasks.map((t) => ({
-            id:           t.id,
-            title:        t.title,
-            goal_id:      t.goal_id ?? undefined,
-            scheduled_at: t.scheduled_at ?? undefined,
-            is_completed: t.is_completed,
-          } as Task)));
+          setGoals(dbGoals.map(mapLocalGoal));
+          setTasks(dbTasks.map(mapLocalTask));
           setError(null);
         } catch {
           const errorObj = err instanceof Error ? err : new Error('Failed to load calendar data');
@@ -82,7 +90,7 @@ export function useCalendarData(): UseCalendarDataResult {
       }
     };
 
-    loadData();
+    void loadData();
   }, []);
 
   return { goals, tasks, loading, error };

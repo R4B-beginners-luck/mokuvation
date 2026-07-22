@@ -34,6 +34,7 @@ export const localTaskToTask = (t: LocalTask): Task => ({
   goalId:      t.goal_id ?? undefined,
   completed:   t.is_completed,
   date:        t.scheduled_at ? t.scheduled_at.substring(0, 10) : getJstTodayStr(),
+  createdAt:   t.created_at,
 });
 
 // ─── hook 本体 ───────────────────────────────────────────────────
