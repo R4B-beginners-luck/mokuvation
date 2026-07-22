@@ -45,11 +45,11 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           id="login-id"
           className="form-input"
           type="text"
-          placeholder="user001"
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
           disabled={isLoading}
           autoFocus
+          autoComplete="username"
         />
       </div>
 
@@ -59,10 +59,10 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           id="login-pass"
           className="form-input"
           type="password"
-          placeholder="••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={isLoading}
+          autoComplete="current-password"
           // Enterキーでの送信を可能にする
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.form?.requestSubmit()}
         />

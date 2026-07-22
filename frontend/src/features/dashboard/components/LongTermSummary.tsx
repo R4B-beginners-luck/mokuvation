@@ -15,7 +15,8 @@ export function LongTermSummary({ longTermGoals, midTermGoals, shortTermGoals, t
         長期目標の進行状況
       </div>
 
-      {longTermGoals.map((lt) => {
+      <div className="lt-summary__list">
+        {longTermGoals.map((lt) => {
         // 1. 直接この long term goal に紐づくタスク
         const directTasks = tasks.filter((t) => t.goalId === lt.id);
 
@@ -67,7 +68,8 @@ export function LongTermSummary({ longTermGoals, midTermGoals, shortTermGoals, t
             </div>
           </div>
         );
-      })}
+        })}
+      </div>
     </section>
   );
 }

@@ -105,9 +105,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </>
         )}
 
-        <p className="login-hint">
-          ※ 認証機能テスト中
-        </p>
       </div>
     </div>
   );

@@ -86,6 +86,8 @@
   --sidebar-collapsed: 64px;
   --sidebar-secondary-width: 220px;
   --bottom-nav-height: 56px;
+  /* スマホ日詳細シートの高さ（JS の lift 計算と揃える） */
+  --calendar-day-sheet-height: 34vh;
 }
 
 /* ============================================================
@@ -1135,13 +1137,6 @@ a { text-decoration: none; color: inherit; }
 
 .btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-.login-hint {
-  text-align: center;
-  margin-top: var(--sp-4);
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
 /* ============================================================
    TOP PAGE
    ============================================================ */
@@ -1363,12 +1358,14 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
+  min-width: 0;
 }
 
 .top-page__sidebar {
   display: flex;
   flex-direction: column;
   gap: var(--sp-5);
+  min-width: 0;
 }
 
 /* Card base */
@@ -1377,6 +1374,8 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: var(--sp-5);
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 @media (max-width: 768px) {
@@ -1488,6 +1487,7 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
   min-width: 0; /* 親(<li>)がflexの時、子のテキストが伸び切って
                    カード全体の横幅を押し広げてしまうのを防ぐ */
+  overflow: hidden; /* 長いタイトル／タグがカード外へはみ出さない */
 }
 
 .goal-item:hover { border-color: rgba(240,236,224,0.12); background: var(--bg-hover); }
@@ -1529,7 +1529,7 @@ a { text-decoration: none; color: inherit; }
   color: var(--text-primary);
 }
 
-.goal-item__body { flex: 1; min-width: 0; }
+.goal-item__body { flex: 1; min-width: 0; max-width: 100%; }
 
 .goal-item__title {
   font-size: 14px;
@@ -1539,6 +1539,7 @@ a { text-decoration: none; color: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .goal-item__meta {
@@ -1547,20 +1548,23 @@ a { text-decoration: none; color: inherit; }
   flex-wrap: wrap;
   gap: var(--sp-2);
   margin-top: var(--sp-1);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .tag {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   font-size: 11px;
   font-weight: 600;
   padding: 2px var(--sp-2);
   border-radius: var(--r-sm);
   white-space: nowrap;
   max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  vertical-align: bottom; /* text-overflow: ellipsisにはブロック的な計算幅が必要 */
+  vertical-align: bottom;
+  box-sizing: border-box;
 }
 
 .tag--long  { background: var(--goal-type-long-bg); color: var(--goal-type-long); }
@@ -1716,7 +1720,9 @@ a { text-decoration: none; color: inherit; }
   gap: var(--sp-2);
   height: 400px;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 4px;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
@@ -1888,6 +1894,36 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* Long-term goal summary */
+.lt-summary__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+@media (max-width: 768px) {
+  .lt-summary__list {
+    max-height: 300px;
+  }
+}
+
+.lt-summary__list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lt-summary__list::-webkit-scrollbar-thumb {
+  background: rgba(160, 160, 160, 0.35);
+  border-radius: 999px;
+}
+
+.lt-summary__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .lt-summary-item {
   display: flex;
   flex-direction: column;
@@ -1897,6 +1933,7 @@ a { text-decoration: none; color: inherit; }
   border: 1px solid var(--border);
   background: var(--bg-raised);
   margin-bottom: var(--sp-2);
+  min-width: 0;
 }
 
 .lt-summary-item:last-child { margin-bottom: 0; }
@@ -2512,6 +2549,61 @@ a { text-decoration: none; color: inherit; }
   flex-direction: column;
 }
 
+.calendar-grid__month-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* スマホ月切替: はみ出しをクリップ（lift の transform とは別要素でスライド） */
+.calendar-grid--mobile-clip {
+  overflow: hidden;
+}
+
+.calendar-grid__month-pane--enter-next {
+  animation: calendar-month-enter-next var(--dur-normal) var(--ease);
+}
+
+.calendar-grid__month-pane--enter-prev {
+  animation: calendar-month-enter-prev var(--dur-normal) var(--ease);
+}
+
+@keyframes calendar-month-enter-next {
+  from {
+    transform: translateX(28%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes calendar-month-enter-prev {
+  from {
+    transform: translateX(-28%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-grid__month-pane--enter-next,
+  .calendar-grid__month-pane--enter-prev {
+    animation: none;
+  }
+}
+
+/* スマホ月スワイプ: 縦スクロールはブラウザに任せ、横は JS で月移動 */
+.calendar-grid--swipeable {
+  touch-action: pan-y;
+}
+
 .calendar-grid__weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -2530,6 +2622,9 @@ a { text-decoration: none; color: inherit; }
 
 .calendar-grid__weekday:first-child { color: var(--accent-coral); }
 .calendar-grid__weekday:last-child  { color: var(--accent-teal); }
+
+.calendar-day--sun:not(.today) .calendar-day__num { color: var(--accent-coral); }
+.calendar-day--sat:not(.today) .calendar-day__num { color: var(--accent-teal); }
 
 .calendar-grid__days {
   display: grid;
@@ -2698,7 +2793,7 @@ a { text-decoration: none; color: inherit; }
   bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   width: 100%;
   max-width: 100%;
-  height: 30vh;
+  height: var(--calendar-day-sheet-height);
   border-radius: var(--r-lg) var(--r-lg) 0 0;
   padding: var(--sp-4);
   box-shadow: 0 -24px 60px rgba(0, 0, 0, 0.35);
@@ -4866,22 +4961,27 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
   }
 
   .calendar-page__grid-col {
-    overflow: visible;
+    overflow: hidden;
     min-height: 0;
     width: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   .calendar-grid {
-    flex: none;
+    flex: 1;
+    min-height: 0;
     width: 100%;
-    height: calc(100vh - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px) - 30vh);
+    /* シート分を予め引かずフル高さ。選択時は JS で transform して週をシート上へ寄せる */
+    height: auto;
+    transition: transform var(--dur-normal) var(--ease);
   }
 
   .calendar-grid__days {
-    flex: none;
+    flex: 1;
     width: 100%;
     grid-auto-rows: 1fr;
-    height: calc(100% - 36px); /* 曜日ヘッダー分を引く */
+    min-height: 0;
   }
 
   .calendar-day {
@@ -4895,8 +4995,8 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
     width: 100%;
     max-width: 100%;
-    height: 34vh;
-    max-height: calc(34vh);
+    height: var(--calendar-day-sheet-height);
+    max-height: var(--calendar-day-sheet-height);
     border-radius: var(--r-lg) var(--r-lg) 0 0;
     box-shadow: 0 -24px 60px rgba(0, 0, 0, 0.35);
     margin: 0;

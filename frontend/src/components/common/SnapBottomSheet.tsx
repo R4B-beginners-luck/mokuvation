@@ -117,6 +117,29 @@ export function SnapBottomSheet({
   const [isDragging, setIsDragging] = useState(false);
   const [isEntering, setIsEntering] = useState(true);
   const dragRef = useRef<{ startY: number; startSnap: string } | null>(null);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+
+  /** 閉じアニメ中に aria-hidden/inert とフォーカスが共存しないよう、シート内フォーカスを外す */
+  const blurSheetFocus = useCallback(() => {
+    const root = sheetRef.current;
+    const active = document.activeElement;
+    if (root && active instanceof HTMLElement && root.contains(active)) {
+      active.blur();
+    }
+  }, []);
+
+  // isClosing 中は inert（フォーカス不可＋a11y ツリーから除外）。
+  // aria-hidden だけだと閉じるボタンにフォーカスが残ったまま警告になる。
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    if (isClosing) {
+      blurSheetFocus();
+      el.setAttribute('inert', '');
+    } else {
+      el.removeAttribute('inert');
+    }
+  }, [blurSheetFocus, isClosing]);
 
   useEffect(() => {
     setSnap(resolveLevelId(levels, initialLevelId));
@@ -175,6 +198,7 @@ export function SnapBottomSheet({
     const next = heightToSnapId(finalHeight, levels, DEFAULT_CLOSE_THRESHOLD_VH);
 
     if (next === 'close') {
+      blurSheetFocus();
       onClose();
     } else {
       setSnap(next);
@@ -182,7 +206,7 @@ export function SnapBottomSheet({
 
     setDragOffset(0);
     clearDrag();
-  }, [clearDrag, dragOffset, levelById, levels, onClose, snapVh]);
+  }, [blurSheetFocus, clearDrag, dragOffset, levelById, levels, onClose, snapVh]);
 
   const onDragPointerCancel = useCallback(() => {
     setDragOffset(0);
@@ -195,8 +219,10 @@ export function SnapBottomSheet({
       setSnap(collapseLevelId);
       return;
     }
+    // onClose → 親が isClosing にする前にフォーカスを外し、aria-hidden/inert 警告を防ぐ
+    blurSheetFocus();
     onClose();
-  }, [collapseLevelId, isClosing, levelById, onClose, snap, topLevelId]);
+  }, [blurSheetFocus, collapseLevelId, isClosing, levelById, onClose, snap, topLevelId]);
 
   const handleExpand = useCallback(() => {
     if (isClosing || !expandTargetId) return;
@@ -218,6 +244,7 @@ export function SnapBottomSheet({
   const p = classPrefix;
   const sheet = (
     <div
+      ref={sheetRef}
       className={[
         p,
         `${p}--${snap}`,
@@ -229,7 +256,6 @@ export function SnapBottomSheet({
       role="dialog"
       aria-modal={hasBackdrop || undefined}
       aria-label={ariaLabel ?? title}
-      aria-hidden={isClosing}
       onPointerDown={stopSheetPointerBubble}
       onClick={(e) => e.stopPropagation()}
     >
@@ -289,7 +315,10 @@ export function SnapBottomSheet({
       <div
         className={`${p}-backdrop ${p}--open`}
         onClick={(e) => {
-          if (e.target === e.currentTarget && !isClosing) onClose();
+          if (e.target === e.currentTarget && !isClosing) {
+            blurSheetFocus();
+            onClose();
+          }
         }}
       >
         {sheet}

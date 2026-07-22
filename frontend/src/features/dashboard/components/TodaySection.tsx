@@ -145,7 +145,7 @@ export function TodaySection({
                 isCelebratingRow ? 'goal-item--celebrating' : '',
               ].filter(Boolean).join(' ')}
               onClick={() => handleTaskToggle(goal)}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 0 }}
             >
               <div className="task-celebration-wrap">
                 <TaskCelebrationCheck
@@ -163,21 +163,32 @@ export function TodaySection({
                 )}
               </div>
               <div className="goal-item__body">
-                <div className="goal-item__title">{goal.title}</div>
+                <div className="goal-item__title" title={goal.title}>{goal.title}</div>
                 <div className="goal-item__meta">
                   {goal.goalId && resolveLongTermGoalId(goal.goalId) && (
-                    <span className="tag tag--long">
+                    <span
+                      className="tag tag--long"
+                      title={longTermGoals.find((l) => l.id === resolveLongTermGoalId(goal.goalId))?.title}
+                    >
                       {longTermGoals.find((l) => l.id === resolveLongTermGoalId(goal.goalId))?.title}
                     </span>
                   )}
                   {goal.goalId && resolveMidTermGoalId(goal.goalId) && (
-                    <span className="tag tag--mid" style={{ marginLeft: 4 }}>
+                    <span
+                      className="tag tag--mid"
+                      style={{ marginLeft: 4 }}
+                      title={midTermGoals.find((m) => m.id === resolveMidTermGoalId(goal.goalId))?.title}
+                    >
                       {midTermGoals.find((m) => m.id === resolveMidTermGoalId(goal.goalId))?.title}
                     </span>
                   )}
 
                   {goal.goalId && resolveShortTermGoalId(goal.goalId) && (
-                    <span className="tag tag--short" style={{ marginLeft: 4 }}>
+                    <span
+                      className="tag tag--short"
+                      style={{ marginLeft: 4 }}
+                      title={shortTermGoals.find((s) => s.id === resolveShortTermGoalId(goal.goalId))?.title}
+                    >
                       {shortTermGoals.find((s) => s.id === resolveShortTermGoalId(goal.goalId))?.title}
                     </span>
                   )}

@@ -4,7 +4,7 @@
  */
 
 import { Calendar } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useCalendarData } from '../hooks/useCalendarData';
 import { CalendarGrid } from './CalendarGrid';
 import { DayGoalList } from './DayGoalList';
@@ -26,6 +26,8 @@ export function CalendarContainer() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  /** スマホ月切替スライド方向。ボタン／スワイプ共通。PC では Grid 側で無視 */
+  const [monthSlideDirection, setMonthSlideDirection] = useState<'next' | 'prev' | null>(null);
 
   const { goals, tasks, loading, error } = useCalendarData();
   const [calendarTasks, setCalendarTasks] = useState<Task[]>([]);
@@ -174,6 +176,7 @@ export function CalendarContainer() {
   };
 
   const prevMonth = () => {
+    setMonthSlideDirection('prev');
     if (month === 0) {
       setYear((y) => y - 1);
       setMonth(11);
@@ -184,6 +187,7 @@ export function CalendarContainer() {
   };
 
   const nextMonth = () => {
+    setMonthSlideDirection('next');
     if (month === 11) {
       setYear((y) => y + 1);
       setMonth(0);
@@ -192,6 +196,10 @@ export function CalendarContainer() {
     }
     setSelectedDate(null);
   };
+
+  const handleMonthSlideEnd = useCallback(() => {
+    setMonthSlideDirection(null);
+  }, []);
 
   if (loading) {
     return (
@@ -245,6 +253,10 @@ export function CalendarContainer() {
             tasks={calendarTasks}
             selectedDate={selectedDate}
             onSelectDate={handleSelectDate}
+            onPrevMonth={prevMonth}
+            onNextMonth={nextMonth}
+            monthSlideDirection={monthSlideDirection}
+            onMonthSlideEnd={handleMonthSlideEnd}
           />
 
           <div
