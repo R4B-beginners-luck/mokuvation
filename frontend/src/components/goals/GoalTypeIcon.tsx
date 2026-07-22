@@ -1,22 +1,21 @@
 /**
- * 目標種別（長期/中期/短期）のバッジ表示。
- *
- * 目標マップのカード（GoalNodeCard.tsx の .gnc__type）と同じ
- * アイコン・ラベル定義（goalNode.config.ts の GOAL_TYPE_CONFIG）を
- * そのまま再利用し、見た目を統一する。
- *
- * .gnc__type 自体は GoalNodeCard 用の CSS 変数(--gnc-*)にスコープされて
- * 使えないため、同じトークン値を .goal-type-badge として index.css 側に
- * 複製している（値は goal-node.css と同期させること）。
+ * 目標種別（長期 / 中期 / 短期）バッジ。
+ * ラベル・アイコンは GOAL_TYPE_CONFIG を単一の真実とし、
+ * 色は CSS 変数 --goal-type-* を参照する。
  */
 import { GOAL_TYPE_CONFIG, FALLBACK_TYPE } from '../../features/goals/components/goalNodeCard/goalNode.config';
 
-type GoalPeriodType = 'long' | 'middle' | 'short';
+export type GoalPeriodType = 'long' | 'middle' | 'short' | 'mid';
 
-// LocalGoal.period_type は 'middle' 表記だが、GOAL_TYPE_CONFIG のキーは 'mid'
 const toConfigKey = (type: GoalPeriodType): string => (type === 'middle' ? 'mid' : type);
 
-export const GOAL_PERIOD_LABEL: Record<GoalPeriodType, string> = {
+const toCssKey = (type: GoalPeriodType): 'long' | 'mid' | 'short' => {
+  if (type === 'middle' || type === 'mid') return 'mid';
+  if (type === 'short') return 'short';
+  return 'long';
+};
+
+export const GOAL_PERIOD_LABEL: Record<'long' | 'middle' | 'short', string> = {
   long: GOAL_TYPE_CONFIG.long?.label ?? FALLBACK_TYPE.label,
   middle: GOAL_TYPE_CONFIG.mid?.label ?? FALLBACK_TYPE.label,
   short: GOAL_TYPE_CONFIG.short?.label ?? FALLBACK_TYPE.label,
@@ -24,16 +23,22 @@ export const GOAL_PERIOD_LABEL: Record<GoalPeriodType, string> = {
 
 interface GoalTypeBadgeProps {
   type: GoalPeriodType;
+  /** 詳細パネルなど「長期目標」表記が必要なとき */
+  fullLabel?: boolean;
 }
 
-export function GoalTypeBadge({ type }: GoalTypeBadgeProps) {
+export function GoalTypeBadge({ type, fullLabel = false }: GoalTypeBadgeProps) {
   const meta = GOAL_TYPE_CONFIG[toConfigKey(type)] ?? FALLBACK_TYPE;
   const Icon = meta.icon;
+  const cssKey = toCssKey(type);
+  const label = fullLabel
+    ? ({ long: '長期目標', mid: '中期目標', short: '短期目標' } as const)[cssKey]
+    : meta.label;
 
   return (
-    <span className={`goal-type-badge${type === 'long' ? ' goal-type-badge--long' : ''}`}>
+    <span className={`goal-type-badge goal-type-badge--${cssKey}`}>
       <Icon size={13} strokeWidth={1.75} aria-hidden />
-      {meta.label}
+      {label}
     </span>
   );
 }

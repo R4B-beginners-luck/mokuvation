@@ -1,3 +1,4 @@
+import { Menu, X } from 'lucide-react';
 import type { Page } from '../types';
 import { BrandMark } from '../components/BrandMark/BrandMark';
 import { NAV_ITEMS } from './navItems';
@@ -8,7 +9,11 @@ interface SidebarProps {
   rail?: boolean;
 }
 
-export function Sidebar({ currentPage, onNavigate, rail = false }: SidebarProps) {
+export function Sidebar({
+  currentPage,
+  onNavigate,
+  rail = false,
+}: SidebarProps) {
   return (
     <aside className={`sidebar${rail ? ' sidebar--rail' : ''}`}>
       <div className="sidebar__surface">
