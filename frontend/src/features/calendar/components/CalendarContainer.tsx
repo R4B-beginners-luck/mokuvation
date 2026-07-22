@@ -245,6 +245,8 @@ export function CalendarContainer() {
             tasks={calendarTasks}
             selectedDate={selectedDate}
             onSelectDate={handleSelectDate}
+            onPrevMonth={prevMonth}
+            onNextMonth={nextMonth}
           />
 
           <div

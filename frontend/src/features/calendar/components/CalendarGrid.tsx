@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { getJstTodayStr } from '../../../components/ui/DatePickerField/dateUtils';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
+import { useMonthSwipe } from '../hooks/useMonthSwipe';
 import type { Task } from '../types';
 
 interface CalendarGridProps {
@@ -8,6 +10,9 @@ interface CalendarGridProps {
   tasks: Task[];
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
+  /** スマホ左右スワイプ用。未指定ならスワイプ無効（PCは渡さない想定） */
+  onPrevMonth?: () => void;
+  onNextMonth?: () => void;
 }
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -38,9 +43,19 @@ export function CalendarGrid({
   tasks,
   selectedDate,
   onSelectDate,
+  onPrevMonth,
+  onNextMonth,
 }: CalendarGridProps) {
   const today = getJstTodayStr();
   const selectedCellRef = useRef<HTMLDivElement | null>(null);
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const swipeEnabled = Boolean(isMobile && onPrevMonth && onNextMonth);
+
+  const { handlers: swipeHandlers, shouldSuppressClick } = useMonthSwipe({
+    enabled: swipeEnabled,
+    onSwipeLeft: () => onNextMonth?.(),
+    onSwipeRight: () => onPrevMonth?.(),
+  });
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -87,7 +102,10 @@ export function CalendarGrid({
   }, [selectedDate, year, month]);
 
   return (
-    <div className="calendar-grid">
+    <div
+      className={`calendar-grid${swipeEnabled ? ' calendar-grid--swipeable' : ''}`}
+      {...swipeHandlers}
+    >
       <div className="calendar-grid__weekdays">
         {WEEKDAYS.map((d, index) => {
           const color = index === 0 ? '#ef4444' : index === 6 ? '#3b82f6' : '#fff';
@@ -121,7 +139,10 @@ export function CalendarGrid({
                 isSel     ? 'selected' : '',
                 progressLevel > 0 ? `calendar-day--progress-${progressLevel}` : '',
               ].filter(Boolean).join(' ')}
-              onClick={() => inMonth && onSelectDate(date)}
+              onClick={() => {
+                if (shouldSuppressClick()) return;
+                if (inMonth) onSelectDate(date);
+              }}
             >
               <div className="calendar-day__num">{day}</div>
               {stats && dotCount > 0 && (

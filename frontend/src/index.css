@@ -2512,6 +2512,11 @@ a { text-decoration: none; color: inherit; }
   flex-direction: column;
 }
 
+/* スマホ月スワイプ: 縦スクロールはブラウザに任せ、横は JS で月移動 */
+.calendar-grid--swipeable {
+  touch-action: pan-y;
+}
+
 .calendar-grid__weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
