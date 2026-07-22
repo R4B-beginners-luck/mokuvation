@@ -46,7 +46,7 @@ export function AddGoalModal({ longTermGoals, midTermGoals, onAdd, onClose }: Ad
             id="goal-title"
             className="form-input"
             type="text"
-            placeholder="例：TypeScriptの型パズルを3問解く"
+            placeholder="例：毎朝の散歩を続ける"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             autoFocus

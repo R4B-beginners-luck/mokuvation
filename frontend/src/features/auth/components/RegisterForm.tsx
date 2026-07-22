@@ -22,30 +22,36 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         <label>ユーザーID</label>
         <input 
           className="form-input" 
-          type="text" 
+          type="text"
+          placeholder="ユーザーIDを入力"
           onChange={e => setFields({...fields, user_id: e.target.value})} 
           required 
           disabled={isLoading}
+          autoComplete="username"
         />
       </div>
       <div className="form-field">
         <label>ユーザー名</label>
         <input 
           className="form-input" 
-          type="text" 
+          type="text"
+          placeholder="表示名を入力"
           onChange={e => setFields({...fields, user_name: e.target.value})} 
           required 
           disabled={isLoading}
+          autoComplete="nickname"
         />
       </div>
       <div className="form-field">
         <label>パスワード</label>
         <input 
           className="form-input" 
-          type="password" 
+          type="password"
+          placeholder="パスワードを入力"
           onChange={e => setFields({...fields, password: e.target.value})} 
           required 
           disabled={isLoading}
+          autoComplete="new-password"
         />
       </div>
       {error && <p role="alert" style={{ color: 'var(--accent-coral)', fontSize: '13px' }}>{error}</p>}
