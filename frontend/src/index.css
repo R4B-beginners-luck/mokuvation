@@ -1384,14 +1384,24 @@ a { text-decoration: none; color: inherit; }
     margin-left: 0 ;
     flex: none ;
     box-sizing: border-box ;
-    overflow: hidden ;
+    /* hidden だと右端の「土」がクリップされるため、折り返して7日を必ず見せる */
+    overflow: visible ;
+    flex-wrap: wrap;
     gap: var(--sp-2);
     padding: var(--sp-3) ;
+  }
+
+  .week-check-map__left {
+    width: 100%;
+    margin-right: 0;
   }
 
   /* 曜日ドットをさらに小さく、間隔を詰める */
   .week-check-map__checks {
     gap: 4px ;
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
   }
 
   .week-check-map__dot {
