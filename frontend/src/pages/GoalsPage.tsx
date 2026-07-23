@@ -1179,6 +1179,21 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         if (isOnline()) {
           try {
             await goalApi.update(goal.id, updatePayload);
+            // オンライン成功時も Dexie / CRDT を更新しないと、古いタイトルのまま
+            // syncDocToDexie で上書きされ、タスク詳細・編集に旧名が残る。
+            const dbGoal = await db.goals.get(goal.id);
+            if (dbGoal) {
+              const updated = {
+                ...dbGoal,
+                title:        updatePayload.title ?? dbGoal.title,
+                description:  updatePayload.description ?? null,
+                due_at:       updatePayload.due_at ?? null,
+                is_completed: updatePayload.is_completed ?? dbGoal.is_completed,
+                color_code:   updatePayload.color_code ?? null,
+              };
+              await db.goals.put(updated);
+              crdtUpsertGoal(updated);
+            }
           } catch (error) {
             if (!isNetworkFailure(error)) throw error;
             // navigator.onLine=true だが実際は通信不可 → オフライン扱いにフォールバック
