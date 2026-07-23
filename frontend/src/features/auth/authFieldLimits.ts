@@ -1,7 +1,7 @@
 /** 認証フォーム共通の文字数制限（フロント検証用） */
 export const AUTH_FIELD_LIMITS = {
   userId: { min: 4, max: 32, label: 'ユーザーID' },
-  userName: { min: 1, max: 32, label: 'ユーザー名' },
+  userName: { min: 1, max: 10, label: 'ユーザー名' },
   password: { min: 8, max: 72, label: 'パスワード' },
 } as const;
 

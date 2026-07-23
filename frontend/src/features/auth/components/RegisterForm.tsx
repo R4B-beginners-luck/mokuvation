@@ -52,7 +52,10 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         />
       </div>
       <div className="form-field">
-        <label htmlFor="register-name">ユーザー名</label>
+        <label htmlFor="register-name">
+          ユーザー名
+          <span className="form-field__hint">（10文字以内）</span>
+        </label>
         <input
           id="register-name"
           className="form-input"

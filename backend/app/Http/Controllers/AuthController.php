@@ -17,7 +17,7 @@ class AuthController extends Controller
         // 1. コントローラー内で最低限のバリデーション（DBエラー回避）
         $request->validate([
             'user_id' => ['required', 'string', 'unique:users,user_id'], // 重複チェックは必須
-            'user_name' => ['required', 'string'],
+            'user_name' => ['required', 'string', 'max:10'],
             'password' => ['required', 'string'],
         ]);
 
