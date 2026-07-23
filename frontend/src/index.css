@@ -1267,26 +1267,31 @@ a { text-decoration: none; color: inherit; }
 
 /* ============================================================
    Week check map (ヘッダー中央の小さな週表示)
+   PC/スマホ共通: タイトルを上、日〜土の7列を下に全幅配置する。
+   （横並び + min-width だとヘッダー幅不足で .card の overflow-x:hidden が土曜を切る）
    ============================================================ */
 .week-check-map {
   display: flex;
-  align-items: center;
-  gap: var(--sp-4);
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--sp-2) var(--sp-4);
   padding: var(--sp-3) var(--sp-4);
   background: linear-gradient(180deg, rgba(155,127,212,0.06), rgba(155,127,212,0.03));
   border: 1px solid rgba(155,127,212,0.12);
   border-radius: 12px;
-  min-width: 380px;
-  max-width: 100%; /* 💡 最大幅の制限を解除 */
-  flex: 1;         /* 💡 ヘッダーの空きスペースいっぱいに広げる */
-  margin-left: var(--sp-8); /* 💡 左側の挨拶文との間に余裕を持たせる */
+  min-width: 0;
+  max-width: 100%;
+  flex: 1;
+  margin-left: var(--sp-8);
+  box-sizing: border-box;
 }
 
 .week-check-map__left {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-right: var(--sp-2);
+  width: 100%;
+  margin-right: 0;
   flex-shrink: 0;
 }
 
@@ -1305,9 +1310,11 @@ a { text-decoration: none; color: inherit; }
 .week-check-map__checks {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;                        /* 💡 横に広げる */
-  justify-content: space-between; /* 💡 曜日を等間隔に配置 */
+  gap: 8px;
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  justify-content: space-between;
 }
 
 .week-check-map__day {
@@ -1315,8 +1322,8 @@ a { text-decoration: none; color: inherit; }
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  flex: 1;                        /* 💡 横に広げる */
-  min-width: 30px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .week-check-map__weekday {
@@ -1349,70 +1356,36 @@ a { text-decoration: none; color: inherit; }
   border-color: var(--accent-gold);
 }
 
-.week-check-map__day.is-completed .week-check-map__dot {
-  background: var(--color-success);
-  border-color: var(--color-success);
-  color: #102513;
-}
-
-.week-check-map__day.is-today .week-check-map__dot {
-  box-shadow: 0 0 0 2px rgba(232,162,52,0.12);
-  border-color: var(--accent-gold);
-}
-
 @media (max-width: 900px) {
-  .week-check-map { min-width: 300px; }
   .week-check-map__dot { width: 24px; height: 24px; font-size: 12px; }
-  .week-check-map__day { min-width: 32px; }
 }
 
 @media (max-width: 768px) {
   /* 達成マップの親ラッパー（インラインで flex:1 / justify-content:center が付いている div）を左寄せに上書き */
   .top-page__header > div[style*="justify-content: center"],
   .top-page__header > div[style*="justify-content:center"] {
-    
-    display: block ;
-    width: 100% ;
-    justify-content: flex-start ;
+    display: block;
+    width: 100%;
+    justify-content: flex-start;
   }
 
-  /* 達成マップカード自体を全幅・左寄せに、はみ出し防止 */
   .week-check-map {
-    min-width: 0 ;
-    width: 100% ;
-    max-width: 100% ;
-    margin-left: 0 ;
-    flex: none ;
-    box-sizing: border-box ;
-    /* hidden だと右端の「土」がクリップされるため、折り返して7日を必ず見せる */
-    overflow: visible ;
-    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    flex: none;
     gap: var(--sp-2);
-    padding: var(--sp-3) ;
+    padding: var(--sp-3);
   }
 
-  .week-check-map__left {
-    width: 100%;
-    margin-right: 0;
-  }
-
-  /* 曜日ドットをさらに小さく、間隔を詰める */
   .week-check-map__checks {
-    gap: 4px ;
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 0;
+    gap: 4px;
   }
 
   .week-check-map__dot {
-    width: 22px ;
-    height: 22px ;
-    font-size: 11px ;
-  }
-
-  .week-check-map__day {
-    min-width: 0 ;
-    flex: 1 ;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
   }
 
   .week-check-map__weekday {
@@ -1443,6 +1416,12 @@ a { text-decoration: none; color: inherit; }
   min-width: 0;
   overflow-x: hidden;
   box-shadow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.08);
+}
+
+/* 達成マップは .card の overflow-x:hidden より後に定義し、土曜クリップを防ぐ */
+.week-check-map.card {
+  overflow-x: visible;
+  overflow-y: visible;
 }
 
 @media (max-width: 768px) {
@@ -5508,7 +5487,7 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     justify-content: stretch;
   }
 
-  /* 達成マップ本体をタブレット幅いっぱいに伸ばす（スマホ用の縮小は引き継がない） */
+  /* 達成マップ本体をタブレット幅いっぱいに伸ばす */
   .week-check-map {
     width: 100%;
     max-width: 100%;
@@ -5522,15 +5501,10 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     gap: var(--sp-3);
   }
 
-  /* タブレットでは900px用の縮小ルールより見やすいサイズに戻す */
   .week-check-map__dot {
     width: 28px;
     height: 28px;
     font-size: 13px;
-  }
-
-  .week-check-map__day {
-    min-width: 0;
   }
 }
 /* ============================================================
