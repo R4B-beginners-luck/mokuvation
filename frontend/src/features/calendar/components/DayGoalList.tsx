@@ -51,8 +51,9 @@ export function DayGoalList({
   const [localGoals, setLocalGoals] = useState<LocalGoal[]>([]);
 
   useEffect(() => {
+    // 詳細／編集を開くたびに最新の目標名を取り直す（マップで改名した直後のズレ防止）
     void db.goals.toArray().then(setLocalGoals).catch(() => setLocalGoals([]));
-  }, [date, detailTaskId, editingTaskId]);
+  }, [date, detailTaskId, editingTaskId, isModalOpen]);
 
   if (!date) {
     return null;
@@ -73,7 +74,8 @@ export function DayGoalList({
     const id = String(goalId);
     const fromApi = goals.find((goal) => String(goal.id) === id);
     const fromLocal = localGoals.find((goal) => String(goal.id) === id);
-    const linkedGoal = fromApi ?? fromLocal;
+    // Dexie（改名直後）を優先。無ければカレンダー取得分を使う
+    const linkedGoal = fromLocal ?? fromApi;
     if (!linkedGoal) return { goalTitle: undefined, periodType: undefined };
 
     return {
