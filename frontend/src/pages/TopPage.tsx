@@ -11,6 +11,8 @@ import { db } from '../services/db';
 import { isOnline, isNetworkFailure } from '../services/syncService';
 import { reconcileServerSnapshot } from '../services/crdtStore';
 import { localTaskToTask } from '../hooks/useLocalData';
+import { formatApiDate, getJstTodayStr, parseApiDate } from '../components/ui/DatePickerField/dateUtils';
+import { addDays, startOfWeek } from 'date-fns';
 
 const MOTIVATIONAL_MESSAGES = [
   '小さな一歩が、大きな目標への道になる。',
@@ -280,18 +282,17 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
   const msgIdx = new Date().getDate() % MOTIVATIONAL_MESSAGES.length;
   const message = MOTIVATIONAL_MESSAGES[msgIdx];
 
-  // 先週日曜始まりで当週の日付配列を作成（yyyy-mm-dd）
-  const formatISO = (d: Date) => d.toISOString().slice(0, 10);
+  // 日曜始まりで当週の日付配列を作成（yyyy-mm-dd / JST）
+  // ※ toISOString().slice(0,10) は UTC になり、JST 早朝で日付がズレるため使わない
   const getWeekDays = () => {
-    const today = new Date();
-    const sunday = new Date(today);
-    sunday.setDate(today.getDate() - today.getDay());
+    const todayStr = getJstTodayStr();
+    const today = parseApiDate(todayStr) ?? new Date();
+    const sunday = startOfWeek(today, { weekStartsOn: 0 });
     const labels = ['日', '月', '火', '水', '木', '金', '土'];
-    return Array.from({ length: 7 }).map((_, i) => {
-      const dt = new Date(sunday);
-      dt.setDate(sunday.getDate() + i);
-      const iso = formatISO(dt);
-      return { date: iso, label: labels[i], isToday: iso === formatISO(new Date()) };
+    return Array.from({ length: 7 }, (_, i) => {
+      const dt = addDays(sunday, i);
+      const iso = formatApiDate(dt);
+      return { date: iso, label: labels[i], isToday: iso === todayStr };
     });
   };
 
@@ -331,11 +332,11 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
                 </div>
 
                 <div className="week-check-map__checks">
-                  {weekDays.map((d) => {
+                  {weekDays.map((d, index) => {
                     const completed = completedDates.has(d.date);
                     return (
                       <div
-                        key={d.date}
+                        key={`${d.label}-${d.date}-${index}`}
                         className={`week-check-map__day ${completed ? 'is-completed' : ''} ${d.isToday ? 'is-today' : ''}`}
                       >
                         <div className="week-check-map__weekday">{d.label}</div>
