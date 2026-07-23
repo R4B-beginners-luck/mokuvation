@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { taskApi } from '../features/tasks/api/taskApi';
-import { longTermGoals, midTermGoals, TODAY } from '../data/dummy';
+import { TODAY } from '../data/dummy';
 import { EmptyTodayCard, TodaySection, WeeklyProgressChart, StreakDisplay, LongTermSummary } from '../features/dashboard';
 import { TaskAddModal } from '../features/tasks';
 import { TopPageSkeleton } from '../components/ui/TopPageSkeleton';
@@ -9,6 +9,7 @@ import type { Task, User, ShortTermGoal, LongTermGoal, MidTermGoal } from '../ty
 import { goalApi, type BackendGoal } from '../features/goals/api/goalApi';
 import { db } from '../services/db';
 import { isOnline, isNetworkFailure } from '../services/syncService';
+import { reconcileServerSnapshot } from '../services/crdtStore';
 import { localTaskToTask } from '../hooks/useLocalData';
 
 const MOTIVATIONAL_MESSAGES = [
@@ -39,8 +40,8 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
   const [modalOpen, setModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
-  const [longTermGoalsList, setLongTermGoalsList] = useState<LongTermGoal[]>(longTermGoals);
-  const [midTermGoalsList, setMidTermGoalsList] = useState<MidTermGoal[]>(midTermGoals);
+  const [longTermGoalsList, setLongTermGoalsList] = useState<LongTermGoal[]>([]);
+  const [midTermGoalsList, setMidTermGoalsList] = useState<MidTermGoal[]>([]);
   const [shortTermGoalsList, setShortTermGoalsList] = useState<ShortTermGoal[]>([]);
   
   // 🌟 目標マップ画面と同じローディング状態管理のState群
@@ -128,23 +129,38 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
         }
 
         // 目標データを取得してフロント用型に変換する
-        // ⚠️ 以前は goalApi.getAll() が失敗した時にダミーデータ(longTermGoals等の
-        // 静的インポート)へフォールバックしていたため、オフライン時は実際の
-        // 目標と紐付かず、タスクの親目標表示が消えてしまっていた。
-        // GoalsPage.tsx と同様、Dexie(db.goals) からフォールバックするように揃える。
+        // ⚠️ 以前は goalApi.getAll() が失敗した時にダミーデータへフォールバックしていたため、
+        // 実際のタスク.goalId と一致せず関連タグが消えて見えていた。
+        // Dexie → API の順で読み、失敗時も空配列のままダミーには戻さない。
         try {
-          let backendGoals: BackendGoal[];
+          let backendGoals: BackendGoal[] = await db.goals.toArray() as BackendGoal[];
 
           if (isOnline()) {
             try {
               backendGoals = await goalApi.getAll();
+              // Today のタグ解決用にローカルも最新化（GoalsPage と同様）
+              const localGoals = backendGoals.map((g) => ({
+                id: String(g.id),
+                user_id: '',
+                title: g.title,
+                description: g.description ?? null,
+                parent_goal_id: g.parent_goal_id != null ? String(g.parent_goal_id) : null,
+                period_type: g.period_type,
+                due_at: g.due_at ?? null,
+                is_completed: Boolean(g.is_completed),
+                color_code: g.color_code ?? null,
+                position_x: g.position_x ?? null,
+                position_y: g.position_y ?? null,
+                created_at: g.created_at,
+                updated_at: g.created_at,
+              }));
+              await db.goals.bulkPut(localGoals);
+              await reconcileServerSnapshot([], localGoals);
             } catch (err) {
               if (!isNetworkFailure(err)) throw err;
               console.warn('[TopPage] 目標取得に失敗。Dexieからフォールバックします。', err);
-              backendGoals = await db.goals.toArray();
+              backendGoals = await db.goals.toArray() as BackendGoal[];
             }
-          } else {
-            backendGoals = await db.goals.toArray();
           }
 
           const byId = new Map(backendGoals.map((g) => [String(g.id), g]));
@@ -201,12 +217,13 @@ export function TopPage({ tasks, onToggle, onAddTask, onDeleteTask, user }: TopP
               color_code: g.color_code != null ? String(g.color_code) : undefined,
             }));
 
-          setLongTermGoalsList(longTerms);
-          setMidTermGoalsList(midTerms);
-          setShortTermGoalsList(shortTerms);
+          if (mounted) {
+            setLongTermGoalsList(longTerms);
+            setMidTermGoalsList(midTerms);
+            setShortTermGoalsList(shortTerms);
+          }
         } catch (e) {
-          // 目標API失敗時はダミーデータのままにする
-          console.warn('目標データの取得に失敗しました。ダミーデータを使用します。', e);
+          console.warn('目標データの取得に失敗しました。', e);
         }
 
       } catch (err) {

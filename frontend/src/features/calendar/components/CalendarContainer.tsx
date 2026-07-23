@@ -259,54 +259,10 @@ export function CalendarContainer() {
             onMonthSlideEnd={handleMonthSlideEnd}
           />
 
-          <div
-            style={{
-              display: 'flex',
-              gap: 'var(--sp-4)',
-              marginTop: 'var(--sp-3)',
-              paddingLeft: 'var(--sp-2)',
-              flexShrink: 0,
-            }}
-          >
-            <span
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 11,
-                color: '#fff',
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: 'var(--accent-gold)',
-                  display: 'inline-block',
-                }}
-              />
+          <div className="calendar-legend">
+            <span className="calendar-legend__item">
+              <span className="tag calendar-day__done-chip" aria-hidden>達成</span>
               全達成
-            </span>
-            <span
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 11,
-                color: '#fff',
-              }}
-            >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: 'var(--accent-violet)',
-                  display: 'inline-block',
-                }}
-              />
-              一部達成
             </span>
           </div>
         </div>

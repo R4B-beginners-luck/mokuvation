@@ -68,21 +68,22 @@ export function TodaySection({
   // goalId が何の目標種別を指しているか判定し、長期・中期の親を遡る
   const resolveLongTermGoalId = (goalId?: string): string | undefined => {
     if (!goalId) return undefined;
+    const id = String(goalId);
 
     // goalId が long term goal ID か確認
-    const longTerm = longTermGoals.find((l) => l.id === goalId);
+    const longTerm = longTermGoals.find((l) => String(l.id) === id);
     if (longTerm) return longTerm.id;
 
     // goalId が mid term goal ID か確認
-    const midTerm = midTermGoals.find((m) => m.id === goalId);
+    const midTerm = midTermGoals.find((m) => String(m.id) === id);
     if (midTerm && midTerm.longTermGoalId) return midTerm.longTermGoalId;
 
     // goalId が short term goal ID か確認
-    const shortTerm = shortTermGoals.find((s) => s.id === goalId);
+    const shortTerm = shortTermGoals.find((s) => String(s.id) === id);
     if (shortTerm) {
       if (shortTerm.longTermGoalId) return shortTerm.longTermGoalId;
       if (shortTerm.midTermGoalId) {
-        const parentMid = midTermGoals.find((m) => m.id === shortTerm.midTermGoalId);
+        const parentMid = midTermGoals.find((m) => String(m.id) === String(shortTerm.midTermGoalId));
         return parentMid?.longTermGoalId;
       }
     }
@@ -92,13 +93,14 @@ export function TodaySection({
 
   const resolveMidTermGoalId = (goalId?: string): string | undefined => {
     if (!goalId) return undefined;
+    const id = String(goalId);
 
     // goalId が mid term goal ID か確認
-    const midTerm = midTermGoals.find((m) => m.id === goalId);
+    const midTerm = midTermGoals.find((m) => String(m.id) === id);
     if (midTerm) return midTerm.id;
 
     // goalId が short term goal ID か確認
-    const shortTerm = shortTermGoals.find((s) => s.id === goalId);
+    const shortTerm = shortTermGoals.find((s) => String(s.id) === id);
     if (shortTerm && shortTerm.midTermGoalId) return shortTerm.midTermGoalId;
 
     return undefined;
@@ -107,7 +109,7 @@ export function TodaySection({
   /** タスクが短期に直接紐づいているときだけ短期タグを出す（中期紐づけ時に配下の短期を勝手に出さない） */
   const resolveShortTermGoalId = (goalId?: string): string | undefined => {
     if (!goalId) return undefined;
-    const shortTerm = shortTermGoals.find((s) => s.id === goalId);
+    const shortTerm = shortTermGoals.find((s) => String(s.id) === String(goalId));
     return shortTerm?.id;
   };
 

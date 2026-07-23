@@ -61,7 +61,6 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           autoFocus
           autoComplete="username"
           maxLength={AUTH_FIELD_LIMITS.userId.max}
-          placeholder="例：mokuvation"
         />
       </div>
 
@@ -74,7 +73,6 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           disabled={isLoading}
           autoComplete="current-password"
           maxLength={AUTH_FIELD_LIMITS.password.max}
-          placeholder="例：8文字以上"
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.form?.requestSubmit()}
         />
       </div>

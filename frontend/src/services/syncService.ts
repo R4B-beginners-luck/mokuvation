@@ -215,7 +215,7 @@ export const syncFromServer = async (): Promise<void> => {
       user_id:        String(g.user_id ?? ''),
       title:          g.title,
       description:    g.description ?? null,
-      parent_goal_id: g.parent_goal_id ?? null,
+      parent_goal_id: g.parent_goal_id != null ? String(g.parent_goal_id) : null,
       period_type:    g.period_type,
       due_at:         g.due_at ?? null,
       is_completed:   Boolean(g.is_completed),

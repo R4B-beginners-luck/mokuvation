@@ -28,10 +28,10 @@ function getJstTodayStr(): string {
 }
 
 export const localTaskToTask = (t: LocalTask): Task => ({
-  id:          t.id,
+  id:          String(t.id),
   title:       t.title,
   description: t.description ?? undefined,
-  goalId:      t.goal_id ?? undefined,
+  goalId:      t.goal_id ? String(t.goal_id) : undefined,
   completed:   t.is_completed,
   date:        t.scheduled_at ? t.scheduled_at.substring(0, 10) : getJstTodayStr(),
   createdAt:   t.created_at,

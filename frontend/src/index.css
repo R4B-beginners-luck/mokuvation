@@ -86,6 +86,8 @@
   --sidebar-collapsed: 64px;
   --sidebar-secondary-width: 220px;
   --bottom-nav-height: 56px;
+  /* 内側 padding で持ち上げた後の、画面下端からの占有高さ（シート・余白計算用） */
+  --bottom-nav-stack: calc(var(--bottom-nav-height) + 20px + env(safe-area-inset-bottom, 0px));
   /* スマホ日詳細シートの高さ（JS の lift 計算と揃える） */
   --calendar-day-sheet-height: 34vh;
 }
@@ -169,7 +171,7 @@ a { text-decoration: none; color: inherit; }
 
   .page-content {
     /* 下部ナビが bottom:10px で浮いている分も見切れないよう余白を確保 */
-    padding-bottom: calc(var(--bottom-nav-height) + 22px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--bottom-nav-stack) + 8px);
   }
 
   .page-content:has(.goals-page) {
@@ -746,13 +748,18 @@ a { text-decoration: none; color: inherit; }
     position: fixed;
     left: 8px;
     right: 8px;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    /* バー本体は下端に張り付かせ、内側 padding でアイコンを持ち上げる。
+       これによりナビ下にページ背景が覗く隙間をなくす */
+    bottom: 0;
     z-index: 50;
-    height: var(--bottom-nav-height);
-    padding-bottom: 0;
+    height: auto;
+    min-height: var(--bottom-nav-height);
+    padding-top: 6px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: var(--r-lg);
+    border-bottom: none;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
   }
 }
@@ -2428,6 +2435,8 @@ a { text-decoration: none; color: inherit; }
   font-weight: 400;
   color: var(--text-muted);
   line-height: 1.5;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .goal-color-default {
@@ -2799,15 +2808,34 @@ a { text-decoration: none; color: inherit; }
   flex-shrink: 0;
 }
 
-.calendar-day__done-mark {
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--accent-teal);
-  padding: 2px 3px;
-  border-radius: var(--r-sm);
-  background: rgba(45, 166, 153, 0.18);
+.calendar-day__done-chip {
+  /* 緑の達成率背景の上でも読めるよう、Todayの「今日」マーカーと同系の金チップ */
+  font-size: 9px;
+  line-height: 1.2;
+  padding: 2px 5px;
+  background: var(--accent-gold);
+  color: #16151a;
+  border: 1px solid rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
+  max-width: none;
+  letter-spacing: 0.02em;
+}
+
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+  padding-left: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.calendar-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
 .calendar-day__titles {
@@ -2909,7 +2937,7 @@ a { text-decoration: none; color: inherit; }
   top: auto;
   left: 0;
   right: 0;
-  bottom: calc(var(--bottom-nav-height) + 14px + env(safe-area-inset-bottom, 0px));
+  bottom: var(--bottom-nav-stack);
   width: 100%;
   max-width: 100%;
   height: var(--calendar-day-sheet-height);
@@ -5070,7 +5098,7 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
 @media (max-width: 768px) {
   .calendar-page {
     padding: 0;
-    height: calc(100vh - var(--bottom-nav-height) - 14px - env(safe-area-inset-bottom, 0px));
+    height: calc(100vh - var(--bottom-nav-stack));
     overflow: hidden;
     min-height: unset;
   }
@@ -5112,7 +5140,7 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(var(--bottom-nav-height) + 14px + env(safe-area-inset-bottom, 0px));
+    bottom: var(--bottom-nav-stack);
     width: 100%;
     max-width: 100%;
     height: var(--calendar-day-sheet-height);

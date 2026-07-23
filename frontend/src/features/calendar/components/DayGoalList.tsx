@@ -70,7 +70,10 @@ export function DayGoalList({
   const getLinkedGoalInfo = (goalId: string | null) => {
     if (!goalId) return { goalTitle: undefined, periodType: undefined };
 
-    const linkedGoal = goals.find((goal) => goal.id === goalId);
+    const id = String(goalId);
+    const fromApi = goals.find((goal) => String(goal.id) === id);
+    const fromLocal = localGoals.find((goal) => String(goal.id) === id);
+    const linkedGoal = fromApi ?? fromLocal;
     if (!linkedGoal) return { goalTitle: undefined, periodType: undefined };
 
     return {

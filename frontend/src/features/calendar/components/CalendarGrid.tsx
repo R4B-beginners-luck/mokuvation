@@ -290,7 +290,9 @@ export function CalendarGrid({
                 <div className="calendar-day__head">
                   <div className="calendar-day__num">{day}</div>
                   {allDone && (
-                    <span className="calendar-day__done-mark" title="全達成" aria-label="全達成">✓</span>
+                    <span className="tag calendar-day__done-chip" title="全達成" aria-label="全達成">
+                      達成
+                    </span>
                   )}
                 </div>
                 {visibleTitles.length > 0 && (

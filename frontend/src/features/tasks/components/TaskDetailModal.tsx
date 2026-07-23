@@ -26,8 +26,8 @@ type GoalChain = {
 
 function resolveGoalChain(goalId: string | null | undefined, goals: LocalGoal[]): GoalChain {
   if (!goalId) return {};
-  const byId = new Map(goals.map((g) => [g.id, g]));
-  const linked = byId.get(goalId);
+  const byId = new Map(goals.map((g) => [String(g.id), g]));
+  const linked = byId.get(String(goalId));
   if (!linked) return {};
 
   const chain: GoalChain = {};
@@ -37,7 +37,7 @@ function resolveGoalChain(goalId: string | null | undefined, goals: LocalGoal[])
 
   let cur: LocalGoal | undefined = linked;
   while (cur?.parent_goal_id) {
-    const parent = byId.get(cur.parent_goal_id);
+    const parent = byId.get(String(cur.parent_goal_id));
     if (!parent) break;
     if (parent.period_type === 'middle') chain.mid = parent;
     if (parent.period_type === 'long') chain.long = parent;

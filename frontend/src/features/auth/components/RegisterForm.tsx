@@ -67,7 +67,10 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         />
       </div>
       <div className="form-field">
-        <label htmlFor="register-pass">パスワード</label>
+        <label htmlFor="register-pass">
+          パスワード
+          <span className="form-field__hint">（8文字以上）</span>
+        </label>
         <PasswordInput
           id="register-pass"
           value={fields.password}
@@ -75,7 +78,6 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           disabled={isLoading}
           autoComplete="new-password"
           maxLength={AUTH_FIELD_LIMITS.password.max}
-          placeholder="例：8文字以上"
         />
       </div>
       {displayError && (
