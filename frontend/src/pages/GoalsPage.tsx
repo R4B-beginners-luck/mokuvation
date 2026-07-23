@@ -21,7 +21,7 @@ import { ButtonSpinner } from '../components/ui/ButtonSpinner';
 import { db } from '../services/db';
 import type { LocalGoal, SyncQueueItem } from '../services/db';
 import { isOnline, isNetworkFailure } from '../services/syncService';
-import { crdtUpsertGoal, crdtDeleteGoal } from '../services/crdtStore';
+import { crdtUpsertGoal, crdtDeleteGoal, reconcileServerSnapshot } from '../services/crdtStore';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { vhToViewportPx } from '../utils/viewport';
 import {
@@ -62,11 +62,11 @@ const enqueueGoal = async (
 
 /** BackendGoal → LocalGoal 変換 */
 const toLocalGoal = (g: BackendGoal): LocalGoal => ({
-  id:             g.id,
+  id:             String(g.id),
   user_id:        '',
   title:          g.title,
   description:    g.description ?? null,
-  parent_goal_id: g.parent_goal_id ?? null,
+  parent_goal_id: g.parent_goal_id != null ? String(g.parent_goal_id) : null,
   period_type:    g.period_type,
   due_at:         g.due_at ?? null,
   is_completed:   g.is_completed,
@@ -124,30 +124,32 @@ function formatDateString(value?: string | null): string | undefined {
 }
 
 function buildGoalTree(goals: BackendGoal[]) {
-  const goalById = Object.fromEntries(goals.map((goal) => [goal.id, goal])) as Record<string, BackendGoal>;
+  const goalById = Object.fromEntries(
+    goals.map((goal) => [String(goal.id), { ...goal, id: String(goal.id), parent_goal_id: goal.parent_goal_id != null ? String(goal.parent_goal_id) : null }]),
+  ) as Record<string, BackendGoal>;
 
   const findRootLongId = (goal: BackendGoal): string => {
     let current: BackendGoal = goal;
     while (current.parent_goal_id) {
-      const parent = goalById[current.parent_goal_id];
+      const parent = goalById[String(current.parent_goal_id)];
       if (!parent) break;
       current = parent;
     }
-    return current.id;
+    return String(current.id);
   };
 
   const findNearestNonShortAncestor = (goal: BackendGoal): BackendGoal | null => {
-    let parent = goal.parent_goal_id ? goalById[goal.parent_goal_id] : null;
+    let parent = goal.parent_goal_id ? goalById[String(goal.parent_goal_id)] : null;
     while (parent && parent.period_type === 'short') {
-      parent = parent.parent_goal_id ? goalById[parent.parent_goal_id] : null;
+      parent = parent.parent_goal_id ? goalById[String(parent.parent_goal_id)] : null;
     }
     return parent;
   };
 
   const longTermGoals: LongTermGoal[] = goals
-    .filter((goal) => goal.parent_goal_id === null)
+    .filter((goal) => goal.parent_goal_id === null || goal.parent_goal_id === undefined)
     .map((goal) => ({
-      id: goal.id,
+      id: String(goal.id),
       type: 'long',
       title: goal.title,
       description: goal.description ?? '',
@@ -158,13 +160,13 @@ function buildGoalTree(goals: BackendGoal[]) {
     }));
 
   const midTermGoals: MidTermGoal[] = goals
-    .filter((goal) => goal.parent_goal_id !== null && goal.period_type !== 'short')
+    .filter((goal) => goal.parent_goal_id != null && goal.period_type !== 'short')
     .map((goal) => ({
-      id: goal.id,
+      id: String(goal.id),
       type: 'mid',
       title: goal.title,
       description: goal.description ?? '',
-      longTermGoalId: findRootLongId(goal),
+      longTermGoalId: findRootLongId({ ...goal, id: String(goal.id), parent_goal_id: goal.parent_goal_id != null ? String(goal.parent_goal_id) : null }),
       dueDate: formatDateString(goal.due_at),
       completed: goal.is_completed,
       color_code: typeof goal.color_code === 'number' ? COLOR_PALETTE[goal.color_code] : goal.color_code ?? undefined,
@@ -174,14 +176,19 @@ function buildGoalTree(goals: BackendGoal[]) {
   const shortTermGoals: ShortTermGoal[] = goals
     .filter((goal) => goal.period_type === 'short')
     .map((goal) => {
-      const rootLongId = findRootLongId(goal);
-      const nearestNonShortAncestor = findNearestNonShortAncestor(goal);
+      const normalized = {
+        ...goal,
+        id: String(goal.id),
+        parent_goal_id: goal.parent_goal_id != null ? String(goal.parent_goal_id) : null,
+      };
+      const rootLongId = findRootLongId(normalized);
+      const nearestNonShortAncestor = findNearestNonShortAncestor(normalized);
       const midTermGoalId = nearestNonShortAncestor && nearestNonShortAncestor.parent_goal_id !== null
-        ? nearestNonShortAncestor.id
+        ? String(nearestNonShortAncestor.id)
         : undefined;
 
       return {
-        id: goal.id,
+        id: String(goal.id),
         type: 'short',
         title: goal.title,
         description: goal.description ?? '',
@@ -254,6 +261,34 @@ function buildBaselinePositions(
     if (merged[id]) baseline[id] = merged[id];
   });
   return baseline;
+}
+
+/** 座標未保存の中期・短期に、自動配置の座標を割り当てるエントリを作る */
+function collectMissingPositionBackfill(
+  longTerms: LongTermGoal[],
+  mids: MidTermGoal[],
+  shorts: ShortTermGoal[],
+  saved: Record<string, NodePosition>,
+): Array<readonly [string, NodePosition]> {
+  const entries: Array<readonly [string, NodePosition]> = [];
+
+  longTerms.forEach((lt) => {
+    const activeMids = mids.filter((m) => m.longTermGoalId === lt.id);
+    const activeShorts = shorts.filter((s) => s.longTermGoalId === lt.id);
+    const missingIds = [
+      ...activeMids.filter((m) => !saved[m.id]).map((m) => m.id),
+      ...activeShorts.filter((s) => !saved[s.id]).map((s) => s.id),
+    ];
+    if (missingIds.length === 0) return;
+
+    const baseline = buildBaselinePositions(lt, activeMids, activeShorts, saved, missingIds);
+    missingIds.forEach((id) => {
+      const sanitized = baseline[id] ? sanitizePosition(baseline[id]) : null;
+      if (sanitized) entries.push([id, sanitized]);
+    });
+  });
+
+  return entries;
 }
 
 function formatPositionSaveError(error: unknown): string {
@@ -426,7 +461,11 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         try {
           goals = await goalApi.getAll();
           // Dexieにキャッシュ
-          await db.goals.bulkPut(goals.map(toLocalGoal));
+          const localGoals = goals.map(toLocalGoal);
+          await db.goals.bulkPut(localGoals);
+          // CRDT doc に無い目標を補完。これがないと後続の syncDocToDexie が
+          // doc外の目標を stale 扱いで Dexie から消し、タスクの関連タグが消える。
+          await reconcileServerSnapshot([], localGoals);
         } catch (error) {
           if (!isNetworkFailure(error)) throw error;
           // navigator.onLine=true だが実際は通信不可 → Dexieからフォールバック
@@ -447,6 +486,53 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
         goals.filter((goal) => goal.period_type === 'long').map((goal) => goal.id)
       );
       const nextSavedPositions = extractSavedPositions(goals);
+
+      // 過去の「スキップ」等で座標が null の中期・短期を自動配置で補完する
+      const backfillEntries = collectMissingPositionBackfill(
+        longTermGoals,
+        midTermGoals,
+        shortTermGoals,
+        nextSavedPositions,
+      );
+      if (backfillEntries.length > 0) {
+        try {
+          let wentOffline = !isOnline();
+          if (isOnline()) {
+            try {
+              await goalApi.updatePositions({
+                positions: backfillEntries.map(([goal_id, position]) => ({
+                  goal_id,
+                  x: position.x,
+                  y: position.y,
+                })),
+              });
+            } catch (error) {
+              if (!isNetworkFailure(error)) throw error;
+              console.warn('[GoalsPage] 座標バックフィルの送信に失敗。ローカルのみ更新します。', error);
+              wentOffline = true;
+            }
+          }
+          for (const [goalId, position] of backfillEntries) {
+            const dbGoal = await db.goals.get(goalId);
+            if (dbGoal) {
+              const updated = { ...dbGoal, position_x: position.x, position_y: position.y };
+              await db.goals.put(updated);
+              crdtUpsertGoal(updated);
+            }
+            nextSavedPositions[goalId] = position;
+          }
+          if (wentOffline) {
+            await enqueueGoal('update', {
+              positions: backfillEntries.map(([goal_id, position]) => ({
+                goal_id, x: position.x, y: position.y,
+              })),
+            });
+          }
+        } catch (error) {
+          console.warn('[GoalsPage] 座標バックフィルに失敗しました。', error);
+        }
+      }
+
       setLongTermGoals(longTermGoals);
       setMidTermGoals(midTermGoals);
       setShortTermGoals(shortTermGoals);
@@ -698,7 +784,8 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     setPlacementSession({
       type,
       movableGoalIds,
-      draftPositions: {},
+      // 未ドラッグでも確定時に座標が取れるよう、自動配置を draft に載せる
+      draftPositions: { ...baselinePositions },
       baselinePositions,
     });
     setPositionSaveNotice(null);
@@ -717,11 +804,6 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     }
   }, []);
 
-  const handleSkipPlacement = useCallback(() => {
-    setPlacementSession(null);
-    setPositionSaveNotice(null);
-  }, []);
-
   const handleConfirmPlacement = async (options?: { suppressNotice?: boolean }): Promise<boolean> => {
     if (!placementSession || isSavingPositions) return false;
 
@@ -736,7 +818,15 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
     if (placementSession.type === 'add') {
       const goalId = placementSession.movableGoalIds[0];
       const position = goalId ? resolvePosition(goalId) : null;
-      entries = goalId && position ? [[goalId, position] as const] : [];
+      // 追加フローでは座標なしでセッション終了させない（スキップ相当の抜け道を防ぐ）
+      if (!goalId || !position) {
+        setPositionSaveNotice({
+          type: 'error',
+          text: '配置座標を決定できませんでした。もう一度お試しください。',
+        });
+        return false;
+      }
+      entries = [[goalId, position] as const];
     } else {
       entries = placementSession.movableGoalIds
         .map((goalId) => {
@@ -1240,18 +1330,10 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
           <div className="goals-page__placement-bar" role="region" aria-label="配置プレビュー">
               <p className="goals-page__placement-message">
                 {placementSession.type === 'add'
-                  ? '追加した目標の位置を決めてください。'
+                  ? '追加した目標の位置を決めてください。未操作のまま確定すると自動配置で保存されます。'
                   : '目標の位置を調整してください。複数まとめて動かせます。'}
               </p>
               <div className="goals-page__placement-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={isSavingPositions}
-                  onClick={handleSkipPlacement}
-                >
-                  スキップ
-                </button>
                 <button
                   type="button"
                   className="btn-primary"
@@ -1375,6 +1457,7 @@ export function GoalsPage({ shortTermGoals, tasks }: GoalsPageProps) {
       {leavePrompt && (
         <GoalPositionLeaveModal
           isSaving={isSavingPositions}
+          allowDiscard={placementSession?.type !== 'add'}
           onSaveAndLeave={handleLeaveSave}
           onDiscardAndLeave={handleLeaveDiscard}
           onCancel={handleLeaveCancel}
