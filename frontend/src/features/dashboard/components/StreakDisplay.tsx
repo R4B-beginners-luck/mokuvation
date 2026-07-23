@@ -53,9 +53,9 @@ export function StreakDisplay({ tasks, streakCount }: StreakDisplayProps) {
         
         <div className="streak-stat">
           <div className="streak-stat__number" style={{ color: 'var(--accent-teal)', fontSize: 26 }}>
-            {todayGoals.filter((g) => g.completed).length}/{todayGoals.length}
+            {todayGoals.filter((g) => g.completed).length}
           </div>
-          <div className="streak-stat__label">今日の達成</div>
+          <div className="streak-stat__label">今日完了</div>
         </div>
 
         <div className="streak-divider" />

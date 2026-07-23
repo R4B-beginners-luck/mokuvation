@@ -24,6 +24,11 @@ class User extends Authenticatable
         'theme_color',
     ];
 
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
     // 3. リレーション：ユーザーは複数の目標を持つ（1対多）
     public function goals()
     {

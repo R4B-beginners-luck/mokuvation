@@ -20,6 +20,8 @@ interface CalendarGridProps {
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 const SHEET_CLEARANCE_PX = 12;
+/** マス内にタイトルを出す上限。超えた分は +N でまとめる */
+const DAY_TITLE_VISIBLE_MAX = 4;
 
 function pad2(n: number) { return String(n).padStart(2, '0'); }
 
@@ -169,13 +171,14 @@ export function CalendarGrid({
     }
   }
 
-  const statsByDate: Record<string, { total: number; done: number }> = {};
+  const statsByDate: Record<string, { total: number; done: number; titles: string[] }> = {};
   tasks.forEach((task) => {
     const taskDate = extractDateFromScheduled(task.scheduled_at);
     if (!taskDate) return;
-    if (!statsByDate[taskDate]) statsByDate[taskDate] = { total: 0, done: 0 };
+    if (!statsByDate[taskDate]) statsByDate[taskDate] = { total: 0, done: 0, titles: [] };
     statsByDate[taskDate].total++;
     if (task.is_completed) statsByDate[taskDate].done++;
+    statsByDate[taskDate].titles.push(task.title);
   });
 
   // PC: 詳細パネル表示中の横スクロール寄せ
@@ -255,10 +258,11 @@ export function CalendarGrid({
             const stats   = statsByDate[date];
             const isToday = date === today;
             const isSel   = date === selectedDate;
-            const dotCount = Math.min(stats?.total ?? 0, 3);
-            const allDone  = stats ? stats.done === stats.total : false;
+            const allDone  = Boolean(stats && stats.total > 0 && stats.done === stats.total);
             const dow = index % 7; // 0=日 … 6=土
-
+            const titles = stats?.titles ?? [];
+            const visibleTitles = titles.slice(0, DAY_TITLE_VISIBLE_MAX);
+            const moreCount = Math.max(0, titles.length - visibleTitles.length);
             const progressLevel = stats
               ? getProgressLevel(stats.total, stats.done)
               : 0;
@@ -276,22 +280,32 @@ export function CalendarGrid({
                   dow === 0 ? 'calendar-day--sun' : '',
                   dow === 6 ? 'calendar-day--sat' : '',
                   progressLevel > 0 ? `calendar-day--progress-${progressLevel}` : '',
+                  allDone ? 'calendar-day--all-done' : '',
                 ].filter(Boolean).join(' ')}
                 onClick={() => {
                   if (shouldSuppressClick()) return;
                   if (inMonth) onSelectDate(date);
                 }}
               >
-                <div className="calendar-day__num">{day}</div>
-                {stats && dotCount > 0 && (
-                  <div className="calendar-day__dots">
-                    {Array.from({ length: dotCount }).map((_, i) => (
-                      <span
-                        key={i}
-                        className={`calendar-day__dot${allDone ? ' calendar-day__dot--completed' : ' calendar-day__dot--partial'}`}
-                      />
+                <div className="calendar-day__head">
+                  <div className="calendar-day__num">{day}</div>
+                  {allDone && (
+                    <span className="tag calendar-day__done-chip" title="全達成" aria-label="全達成">
+                      達成
+                    </span>
+                  )}
+                </div>
+                {visibleTitles.length > 0 && (
+                  <ul className="calendar-day__titles">
+                    {visibleTitles.map((title, i) => (
+                      <li key={`${date}-t-${i}`} className="calendar-day__title" title={title}>
+                        {title}
+                      </li>
                     ))}
-                  </div>
+                    {moreCount > 0 && (
+                      <li className="calendar-day__more">+{moreCount}</li>
+                    )}
+                  </ul>
                 )}
               </div>
             );

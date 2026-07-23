@@ -3,6 +3,8 @@ import { ButtonSpinner } from '../../../components/ui/ButtonSpinner';
 
 interface GoalPositionLeaveModalProps {
   isSaving: boolean;
+  /** false のとき「保存せず移動」を出さない（新規追加の配置中など） */
+  allowDiscard?: boolean;
   onSaveAndLeave: () => void;
   onDiscardAndLeave: () => void;
   onCancel: () => void;
@@ -10,6 +12,7 @@ interface GoalPositionLeaveModalProps {
 
 export function GoalPositionLeaveModal({
   isSaving,
+  allowDiscard = true,
   onSaveAndLeave,
   onDiscardAndLeave,
   onCancel,
@@ -18,7 +21,9 @@ export function GoalPositionLeaveModal({
     <Modal title="配置の変更が保存されていません" onClose={onCancel}>
       <div className="goal-position-leave-modal">
         <p className="goal-position-leave-modal__message">
-          保存されていない配置の変更があります。どうしますか？
+          {allowDiscard
+            ? '保存されていない配置の変更があります。どうしますか？'
+            : '追加した目標の配置を保存してから移動してください。未操作のまま保存すると自動配置で確定されます。'}
         </p>
         <div className="goal-position-leave-modal__actions">
           <button
@@ -29,14 +34,16 @@ export function GoalPositionLeaveModal({
           >
             キャンセル
           </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={onDiscardAndLeave}
-            disabled={isSaving}
-          >
-            保存せず移動
-          </button>
+          {allowDiscard && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onDiscardAndLeave}
+              disabled={isSaving}
+            >
+              保存せず移動
+            </button>
+          )}
           <button
             type="button"
             className="btn-primary goal-position-leave-modal__save"

@@ -33,6 +33,8 @@ export function TodaySection({
 }: TodaySectionProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<'default' | 'title' | 'goal'>('default');
+  const [filterGoalId, setFilterGoalId] = useState<string>('all');
   const [taskCelebration, setTaskCelebration] = useState<{
     taskId: string;
     message: string;
@@ -66,21 +68,22 @@ export function TodaySection({
   // goalId が何の目標種別を指しているか判定し、長期・中期の親を遡る
   const resolveLongTermGoalId = (goalId?: string): string | undefined => {
     if (!goalId) return undefined;
+    const id = String(goalId);
 
     // goalId が long term goal ID か確認
-    const longTerm = longTermGoals.find((l) => l.id === goalId);
+    const longTerm = longTermGoals.find((l) => String(l.id) === id);
     if (longTerm) return longTerm.id;
 
     // goalId が mid term goal ID か確認
-    const midTerm = midTermGoals.find((m) => m.id === goalId);
+    const midTerm = midTermGoals.find((m) => String(m.id) === id);
     if (midTerm && midTerm.longTermGoalId) return midTerm.longTermGoalId;
 
     // goalId が short term goal ID か確認
-    const shortTerm = shortTermGoals.find((s) => s.id === goalId);
+    const shortTerm = shortTermGoals.find((s) => String(s.id) === id);
     if (shortTerm) {
       if (shortTerm.longTermGoalId) return shortTerm.longTermGoalId;
       if (shortTerm.midTermGoalId) {
-        const parentMid = midTermGoals.find((m) => m.id === shortTerm.midTermGoalId);
+        const parentMid = midTermGoals.find((m) => String(m.id) === String(shortTerm.midTermGoalId));
         return parentMid?.longTermGoalId;
       }
     }
@@ -90,13 +93,14 @@ export function TodaySection({
 
   const resolveMidTermGoalId = (goalId?: string): string | undefined => {
     if (!goalId) return undefined;
+    const id = String(goalId);
 
     // goalId が mid term goal ID か確認
-    const midTerm = midTermGoals.find((m) => m.id === goalId);
+    const midTerm = midTermGoals.find((m) => String(m.id) === id);
     if (midTerm) return midTerm.id;
 
     // goalId が short term goal ID か確認
-    const shortTerm = shortTermGoals.find((s) => s.id === goalId);
+    const shortTerm = shortTermGoals.find((s) => String(s.id) === id);
     if (shortTerm && shortTerm.midTermGoalId) return shortTerm.midTermGoalId;
 
     return undefined;
@@ -105,9 +109,33 @@ export function TodaySection({
   /** タスクが短期に直接紐づいているときだけ短期タグを出す（中期紐づけ時に配下の短期を勝手に出さない） */
   const resolveShortTermGoalId = (goalId?: string): string | undefined => {
     if (!goalId) return undefined;
-    const shortTerm = shortTermGoals.find((s) => s.id === goalId);
+    const shortTerm = shortTermGoals.find((s) => String(s.id) === String(goalId));
     return shortTerm?.id;
   };
+
+  const filterOptions = longTermGoals.map((lt) => ({ id: lt.id, title: lt.title }));
+
+  let visibleGoals = [...goals];
+  if (filterGoalId === 'none') {
+    visibleGoals = visibleGoals.filter((g) => !g.goalId);
+  } else if (filterGoalId !== 'all') {
+    visibleGoals = visibleGoals.filter(
+      (g) => resolveLongTermGoalId(g.goalId) === filterGoalId,
+    );
+  }
+  if (sortKey === 'title') {
+    visibleGoals = [...visibleGoals].sort((a, b) =>
+      a.title.localeCompare(b.title, 'ja'),
+    );
+  } else if (sortKey === 'goal') {
+    visibleGoals = [...visibleGoals].sort((a, b) => {
+      const aLt = resolveLongTermGoalId(a.goalId) ?? '';
+      const bLt = resolveLongTermGoalId(b.goalId) ?? '';
+      const byGoal = aLt.localeCompare(bLt, 'ja');
+      if (byGoal !== 0) return byGoal;
+      return a.title.localeCompare(b.title, 'ja');
+    });
+  }
 
   return (
     <section className="card">
@@ -115,19 +143,48 @@ export function TodaySection({
         <span className="card__title-dot" style={{ background: 'var(--accent-gold)' }} />
         今日のタスク
         <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--accent-gold)' }}>
-          {completed} / {goals.length}
+          完了 {completed} / {goals.length}
         </span>
       </div>
 
-      <div className="progress-bar" style={{ marginBottom: 'var(--sp-4)' }}>
+      <div className="progress-bar" style={{ marginBottom: 'var(--sp-3)' }}>
         <div
           className="progress-bar__fill"
           style={{ width: `${goals.length ? (completed / goals.length) * 100 : 0}%` }}
         />
       </div>
 
+      <div className="today-goals__toolbar">
+        <label className="today-goals__control">
+          <span className="today-goals__control-label">並び</span>
+          <select
+            className="form-select today-goals__select"
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as 'default' | 'title' | 'goal')}
+          >
+            <option value="default">追加順</option>
+            <option value="title">五十音順</option>
+            <option value="goal">目標ごと</option>
+          </select>
+        </label>
+        <label className="today-goals__control">
+          <span className="today-goals__control-label">絞り込み</span>
+          <select
+            className="form-select today-goals__select"
+            value={filterGoalId}
+            onChange={(e) => setFilterGoalId(e.target.value)}
+          >
+            <option value="all">すべて</option>
+            <option value="none">目標なし</option>
+            {filterOptions.map((opt) => (
+              <option key={opt.id} value={opt.id}>{opt.title}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       <ul className="today-goals__list">
-        {goals.map((goal) => {
+        {visibleGoals.map((goal) => {
           const isCelebratingRow = taskCelebration?.taskId === goal.id && celebrationPhase !== 'idle';
           const showCheckPop = isCelebratingRow
             && (celebrationPhase === 'entering' || celebrationPhase === 'visible');

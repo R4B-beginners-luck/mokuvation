@@ -6,6 +6,8 @@ import { DatePickerField } from '../../../components/ui/DatePickerField/DatePick
 import { getTodayApiDate } from '../../../components/ui/DatePickerField/dateUtils';
 import { GoalPicker } from './GoalPicker';
 import { TaskModalShell } from './TaskModalShell';
+import { resolveGoalChain } from '../utils/resolveGoalChain';
+import { GoalChainTags } from './GoalChainTags';
 
 export type TaskFormMode = 'create' | 'edit';
 
@@ -106,10 +108,7 @@ export function TaskAddModal({
     }
   };
 
-  const linkedGoalTitle = (() => {
-    if (!selectedGoalId) return null;
-    return goals.find((g) => g.id === selectedGoalId)?.title ?? null;
-  })();
+  const linkedGoalChain = resolveGoalChain(selectedGoalId || null, goals);
 
   return (
     <TaskModalShell
@@ -122,7 +121,7 @@ export function TaskAddModal({
           <div className="form-field">
             <label>紐づいている目標</label>
             <div className="task-form__goal-readonly">
-              {linkedGoalTitle ?? 'なし'}
+              <GoalChainTags chain={linkedGoalChain} />
               <span className="form-field__optional">（編集では変更できません）</span>
             </div>
           </div>
@@ -155,6 +154,7 @@ export function TaskAddModal({
             autoFocus
             disabled={isLoading}
             aria-required="true"
+            placeholder="例：朝のストレッチ"
           />
         </div>
 
@@ -169,6 +169,7 @@ export function TaskAddModal({
             value={description ?? ''}
             onChange={(e) => setDescription(e.target.value)}
             disabled={isLoading}
+            placeholder="任意：詳細やメモなど"
           />
         </div>
 

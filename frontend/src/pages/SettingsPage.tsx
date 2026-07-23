@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { getAppVersionLabel } from '../utils/appVersion';
 import { authApi } from '../features/auth/api/authApi';
+import { AUTH_FIELD_LIMITS, validateAuthLength } from '../features/auth/authFieldLimits';
 import { Modal } from '../components/Modal';
 import { ButtonSpinner } from '../components/ui/ButtonSpinner';
 // 💡 ConfirmationModal をインポート (パスは環境に合わせて適宜調整してください)
@@ -103,6 +104,7 @@ function AccountEditModal({ user, onClose, onSave, isSaving = false, errorMessag
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const wantsPasswordChange = Boolean(currentPassword || newPassword || newPasswordConfirm);
   const passwordFieldsComplete = Boolean(currentPassword && newPassword && newPasswordConfirm);
@@ -125,6 +127,17 @@ function AccountEditModal({ user, onClose, onSave, isSaving = false, errorMessag
 
   const handleSave = () => {
     if (saveDisabled) return;
+
+    const lengthError =
+      validateAuthLength('userId', userId)
+      || validateAuthLength('userName', userName)
+      || (wantsPasswordChange ? validateAuthLength('password', newPassword) : null);
+    if (lengthError) {
+      setLocalError(lengthError);
+      return;
+    }
+    setLocalError(null);
+
     onSave({
       user_id: userId.trim(),
       user_name: userName.trim(),
@@ -133,6 +146,8 @@ function AccountEditModal({ user, onClose, onSave, isSaving = false, errorMessag
         : {}),
     });
   };
+
+  const displayError = passwordValidationError || localError || errorMessage;
 
   return (
     <Modal title="アカウントを変更" onClose={onClose}>
@@ -144,21 +159,32 @@ function AccountEditModal({ user, onClose, onSave, isSaving = false, errorMessag
             className="form-input"
             type="text"
             value={userId}
-            onChange={(e) => setUserId(e.target.value)}
+            onChange={(e) => {
+              setLocalError(null);
+              setUserId(e.target.value);
+            }}
             disabled={isSaving}
             autoFocus
+            maxLength={AUTH_FIELD_LIMITS.userId.max}
           />
         </div>
 
         <div className="form-field">
-          <label htmlFor="account-user-name">ユーザー名</label>
+          <label htmlFor="account-user-name">
+            ユーザー名
+            <span className="form-field__optional">（10文字以内）</span>
+          </label>
           <input
             id="account-user-name"
             className="form-input"
             type="text"
             value={userName}
-            onChange={(e) => setUserName(e.target.value)}
+            onChange={(e) => {
+              setLocalError(null);
+              setUserName(e.target.value);
+            }}
             disabled={isSaving}
+            maxLength={AUTH_FIELD_LIMITS.userName.max}
           />
         </div>
 
@@ -191,6 +217,7 @@ function AccountEditModal({ user, onClose, onSave, isSaving = false, errorMessag
             onChange={(e) => setNewPassword(e.target.value)}
             disabled={isSaving}
             autoComplete="new-password"
+            maxLength={AUTH_FIELD_LIMITS.password.max}
           />
         </div>
 
@@ -207,12 +234,13 @@ function AccountEditModal({ user, onClose, onSave, isSaving = false, errorMessag
             onChange={(e) => setNewPasswordConfirm(e.target.value)}
             disabled={isSaving}
             autoComplete="new-password"
+            maxLength={AUTH_FIELD_LIMITS.password.max}
           />
         </div>
 
-        {(passwordValidationError || errorMessage) && (
+        {displayError && (
           <p role="alert" style={{ color: 'var(--accent-coral)', fontSize: '13px' }}>
-            {passwordValidationError ?? errorMessage}
+            {displayError}
           </p>
         )}
 
@@ -324,7 +352,18 @@ export function SettingsPage({
       onAccountUpdated?.(updatedUser);
       setIsAccountModalOpen(false);
     } catch (err: any) {
-      setAccountError(err?.data?.message ?? 'アカウント情報の更新に失敗しました。もう一度お試しください。');
+      const errors = err?.data?.errors;
+      const firstFieldError =
+        errors?.user_name?.[0]
+        || errors?.user_id?.[0]
+        || errors?.current_password?.[0]
+        || errors?.new_password?.[0]
+        || errors?.new_password_confirmation?.[0];
+      setAccountError(
+        firstFieldError
+        || err?.data?.message
+        || 'アカウント情報の更新に失敗しました。もう一度お試しください。',
+      );
     } finally {
       setIsSavingAccount(false);
     }

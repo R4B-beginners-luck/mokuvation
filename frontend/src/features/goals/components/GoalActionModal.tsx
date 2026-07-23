@@ -201,7 +201,7 @@ export function GoalActionModal({
           <textarea
             id="goal-action-desc"
             className="form-textarea"
-            placeholder="具体的な行動内容や達成条件など…"
+            placeholder="任意：具体的な行動内容や達成条件など"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -301,7 +301,7 @@ export function GoalActionModal({
             value={dueDate}
             onChange={setDueDate}
             clearable
-            placeholder="未設定"
+            placeholder="日付を選択"
           />
         </div>
 

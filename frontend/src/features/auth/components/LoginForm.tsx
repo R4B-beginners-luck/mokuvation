@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { AUTH_FIELD_LIMITS, validateAuthLength } from '../authFieldLimits';
+import { PasswordInput } from './PasswordInput';
 
 interface LoginFormProps {
   onLogin: () => void | Promise<void>;
 }
 
 export function LoginForm({ onLogin }: LoginFormProps) {
-  // useAuthから必要な機能を取り出す
   const { login, isLoading, error: authError } = useAuth();
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
@@ -15,14 +16,24 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // 1. フロントエンドでのバリデーション
-    if (!userId.trim() || !password.trim()) {
+    if (!userId.trim() || !password) {
       setValidationError('ユーザーIDとパスワードを入力してください');
       return;
     }
+
+    const idErr = validateAuthLength('userId', userId);
+    if (idErr) {
+      setValidationError(idErr);
+      return;
+    }
+    const passErr = validateAuthLength('password', password);
+    if (passErr) {
+      setValidationError(passErr);
+      return;
+    }
+
     setValidationError('');
 
-    // Splash で LoginForm を消さない（失敗時のエラー表示を維持するため）
     const result = await login({ user_id: userId, password });
 
     if (result) {
@@ -34,7 +45,6 @@ export function LoginForm({ onLogin }: LoginFormProps) {
     }
   };
 
-  // エラー表示の優先順位決定
   const displayError = validationError || authError;
 
   return (
@@ -50,20 +60,19 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           disabled={isLoading}
           autoFocus
           autoComplete="username"
+          maxLength={AUTH_FIELD_LIMITS.userId.max}
         />
       </div>
 
       <div className="form-field">
         <label htmlFor="login-pass">パスワード</label>
-        <input
+        <PasswordInput
           id="login-pass"
-          className="form-input"
-          type="password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           disabled={isLoading}
           autoComplete="current-password"
-          // Enterキーでの送信を可能にする
+          maxLength={AUTH_FIELD_LIMITS.password.max}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.form?.requestSubmit()}
         />
       </div>
@@ -85,9 +94,9 @@ export function LoginForm({ onLogin }: LoginFormProps) {
         </p>
       )}
 
-      <button 
-        type="submit" 
-        className="btn-primary" 
+      <button
+        type="submit"
+        className="btn-primary"
         style={{ width: '100%', padding: 'var(--sp-4)' }}
         disabled={isLoading}
       >

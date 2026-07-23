@@ -86,6 +86,8 @@
   --sidebar-collapsed: 64px;
   --sidebar-secondary-width: 220px;
   --bottom-nav-height: 56px;
+  /* 内側 padding で持ち上げた後の、画面下端からの占有高さ（シート・余白計算用） */
+  --bottom-nav-stack: calc(var(--bottom-nav-height) + 20px + env(safe-area-inset-bottom, 0px));
   /* スマホ日詳細シートの高さ（JS の lift 計算と揃える） */
   --calendar-day-sheet-height: 34vh;
 }
@@ -95,7 +97,7 @@
    ============================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: 15px; }
+html { font-size: 16px; }
 
 body {
   background: var(--bg-base);
@@ -106,6 +108,16 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   overflow: hidden;
+  /* ページ全体のピンチ／ダブルタップズームを抑止（viewport と併用） */
+  touch-action: manipulation;
+}
+
+/* 目標マップだけは JS ピンチズーム用にジェスチャを受け取る */
+.goals-page,
+.goals-page .graph-canvas-wrap,
+.goals-page .goal-graph__canvas,
+.goals-page .goal-graph__html-nodes {
+  touch-action: none;
 }
 
 #root { width: 100vw; height: 100vh; display: flex; }
@@ -158,7 +170,8 @@ a { text-decoration: none; color: inherit; }
   }
 
   .page-content {
-    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    /* 下部ナビが bottom:10px で浮いている分も見切れないよう余白を確保 */
+    padding-bottom: calc(var(--bottom-nav-stack) + 8px);
   }
 
   .page-content:has(.goals-page) {
@@ -733,14 +746,20 @@ a { text-decoration: none; color: inherit; }
   .bottom-nav {
     display: flex;
     position: fixed;
-    left: 0;
-    right: 0;
+    left: 8px;
+    right: 8px;
+    /* バー本体は下端に張り付かせ、内側 padding でアイコンを持ち上げる。
+       これによりナビ下にページ背景が覗く隙間をなくす */
     bottom: 0;
     z-index: 50;
-    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    height: auto;
+    min-height: var(--bottom-nav-height);
+    padding-top: 6px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     background: var(--bg-surface);
-    border-top: 1px solid var(--border);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
   }
 }
@@ -761,7 +780,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 .bottom-nav__item.active {
-  color: var(--accent-gold);
+  color: var(--color-primary);
 }
 
 .bottom-nav__icon {
@@ -906,6 +925,43 @@ a { text-decoration: none; color: inherit; }
 }
 
 .form-input::placeholder { color: var(--text-muted); }
+
+.form-input-password {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.form-input-password .form-input {
+  padding-right: 44px;
+}
+
+.form-input-password__toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.form-input-password__toggle:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.form-input-password__toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 
 /* ─── GoalPicker（目標選択カスタムドロップダウン） ─────────────────
    native <select>/<option> はプレーンテキストしか描画できず、CSSも
@@ -1211,26 +1267,31 @@ a { text-decoration: none; color: inherit; }
 
 /* ============================================================
    Week check map (ヘッダー中央の小さな週表示)
+   PC/スマホ共通: タイトルを上、日〜土の7列を下に全幅配置する。
+   （横並び + min-width だとヘッダー幅不足で .card の overflow-x:hidden が土曜を切る）
    ============================================================ */
 .week-check-map {
   display: flex;
-  align-items: center;
-  gap: var(--sp-4);
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--sp-2) var(--sp-4);
   padding: var(--sp-3) var(--sp-4);
   background: linear-gradient(180deg, rgba(155,127,212,0.06), rgba(155,127,212,0.03));
   border: 1px solid rgba(155,127,212,0.12);
   border-radius: 12px;
-  min-width: 380px;
-  max-width: 100%; /* 💡 最大幅の制限を解除 */
-  flex: 1;         /* 💡 ヘッダーの空きスペースいっぱいに広げる */
-  margin-left: var(--sp-8); /* 💡 左側の挨拶文との間に余裕を持たせる */
+  min-width: 0;
+  max-width: 100%;
+  flex: 1;
+  margin-left: var(--sp-8);
+  box-sizing: border-box;
 }
 
 .week-check-map__left {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-right: var(--sp-2);
+  width: 100%;
+  margin-right: 0;
   flex-shrink: 0;
 }
 
@@ -1249,9 +1310,11 @@ a { text-decoration: none; color: inherit; }
 .week-check-map__checks {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;                        /* 💡 横に広げる */
-  justify-content: space-between; /* 💡 曜日を等間隔に配置 */
+  gap: 8px;
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  justify-content: space-between;
 }
 
 .week-check-map__day {
@@ -1259,8 +1322,8 @@ a { text-decoration: none; color: inherit; }
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  flex: 1;                        /* 💡 横に広げる */
-  min-width: 30px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .week-check-map__weekday {
@@ -1293,60 +1356,36 @@ a { text-decoration: none; color: inherit; }
   border-color: var(--accent-gold);
 }
 
-.week-check-map__day.is-completed .week-check-map__dot {
-  background: var(--color-success);
-  border-color: var(--color-success);
-  color: #102513;
-}
-
-.week-check-map__day.is-today .week-check-map__dot {
-  box-shadow: 0 0 0 2px rgba(232,162,52,0.12);
-  border-color: var(--accent-gold);
-}
-
 @media (max-width: 900px) {
-  .week-check-map { min-width: 300px; }
   .week-check-map__dot { width: 24px; height: 24px; font-size: 12px; }
-  .week-check-map__day { min-width: 32px; }
 }
 
 @media (max-width: 768px) {
   /* 達成マップの親ラッパー（インラインで flex:1 / justify-content:center が付いている div）を左寄せに上書き */
   .top-page__header > div[style*="justify-content: center"],
   .top-page__header > div[style*="justify-content:center"] {
-    
-    display: block ;
-    width: 100% ;
-    justify-content: flex-start ;
+    display: block;
+    width: 100%;
+    justify-content: flex-start;
   }
 
-  /* 達成マップカード自体を全幅・左寄せに、はみ出し防止 */
   .week-check-map {
-    min-width: 0 ;
-    width: 100% ;
-    max-width: 100% ;
-    margin-left: 0 ;
-    flex: none ;
-    box-sizing: border-box ;
-    overflow: hidden ;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    flex: none;
     gap: var(--sp-2);
-    padding: var(--sp-3) ;
+    padding: var(--sp-3);
   }
 
-  /* 曜日ドットをさらに小さく、間隔を詰める */
   .week-check-map__checks {
-    gap: 4px ;
+    gap: 4px;
   }
 
   .week-check-map__dot {
-    width: 22px ;
-    height: 22px ;
-    font-size: 11px ;
-  }
-
-  .week-check-map__day {
-    min-width: 0 ;
-    flex: 1 ;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
   }
 
   .week-check-map__weekday {
@@ -1371,11 +1410,18 @@ a { text-decoration: none; color: inherit; }
 /* Card base */
 .card {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.45);
   border-radius: var(--r-lg);
   padding: var(--sp-5);
   min-width: 0;
   overflow-x: hidden;
+  box-shadow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.08);
+}
+
+/* 達成マップは .card の overflow-x:hidden より後に定義し、土曜クリップを防ぐ */
+.week-check-map.card {
+  overflow-x: visible;
+  overflow-y: visible;
 }
 
 @media (max-width: 768px) {
@@ -1714,6 +1760,34 @@ a { text-decoration: none; color: inherit; }
   background: var(--bg-hover);
 }
 
+.today-goals__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.today-goals__control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 140px;
+}
+
+.today-goals__control-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.today-goals__select {
+  width: 100%;
+  min-height: 36px;
+  font-size: 13px;
+}
+
 .today-goals__list {
   display: flex;
   flex-direction: column;
@@ -1937,6 +2011,16 @@ a { text-decoration: none; color: inherit; }
 }
 
 .lt-summary-item:last-child { margin-bottom: 0; }
+
+.lt-summary-item--achieved {
+  border-color: rgba(45, 166, 153, 0.55);
+  background: rgba(45, 166, 153, 0.1);
+}
+
+.lt-summary-item--achieved .lt-summary-item__pct {
+  color: var(--accent-teal);
+  font-weight: 700;
+}
 
 .lt-summary-item__header {
   display: flex;
@@ -2178,6 +2262,10 @@ a { text-decoration: none; color: inherit; }
 }
 
 .task-form__goal-readonly {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   font-size: 14px;
   color: var(--text-primary);
   padding: 10px 12px;
@@ -2340,6 +2428,8 @@ a { text-decoration: none; color: inherit; }
   font-weight: 400;
   color: var(--text-muted);
   line-height: 1.5;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .goal-color-default {
@@ -2637,21 +2727,22 @@ a { text-decoration: none; color: inherit; }
 .calendar-day {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
-  padding: var(--sp-2);
-  border: 1px solid transparent;
+  padding: 4px 3px 3px;
+  border: 1px solid var(--border);
   cursor: pointer;
   transition: background var(--dur-fast), border-color var(--dur-fast);
   position: relative;
   min-height: 0;
+  overflow: hidden;
+  gap: 2px;
 }
 
 .calendar-day:hover { background: var(--bg-raised); }
 .calendar-day.other-month { opacity: 0.25; pointer-events: none; }
 
 .calendar-day.selected {
-  /* background: rgba(232,162,52,0.1); こいつがいると色が変わらないためいったんコメントアウトします*/
   border-color: var(--border-accent);
   outline: 1px solid #d99a2b;
   outline-offset: -1px;
@@ -2688,6 +2779,15 @@ a { text-decoration: none; color: inherit; }
   background-color: rgba(46, 160, 67, 0.88);
 }
 
+.calendar-day__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  min-height: 26px;
+  flex-shrink: 0;
+}
+
 .calendar-day__num {
   font-size: 13px;
   font-weight: 600;
@@ -2697,33 +2797,73 @@ a { text-decoration: none; color: inherit; }
   align-items: center;
   justify-content: center;
   border-radius: var(--r-full);
-  margin-bottom: 2px;
   transition: background var(--dur-fast);
+  flex-shrink: 0;
 }
 
-.calendar-day__dots {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -35%);
+.calendar-day__done-chip {
+  /* 緑の達成率背景の上でも読めるよう、Todayの「今日」マーカーと同系の金チップ */
+  font-size: 9px;
+  line-height: 1.2;
+  padding: 2px 5px;
+  background: var(--accent-gold);
+  color: #16151a;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  max-width: none;
+  letter-spacing: 0.02em;
+}
+
+.calendar-legend {
   display: flex;
-  gap: 3px;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: 36px;
-  pointer-events: none;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+  padding-left: var(--sp-2);
+  flex-shrink: 0;
 }
 
-.calendar-day__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-teal);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+.calendar-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
-.calendar-day__dot--completed { background: var(--accent-gold); }
-.calendar-day__dot--partial   { background: var(--accent-violet); }
+.calendar-day__titles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.calendar-day__title,
+.calendar-day__more {
+  margin: 0;
+  padding: 1px 3px;
+  font-size: 9px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-raised);
+  border-radius: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.calendar-day__more {
+  color: var(--text-muted);
+  background: transparent;
+  font-weight: 700;
+}
 
 /* Day detail panel
  * PC: 既定は absolute オーバーレイだが、パネル表示中は下の min-width:769px ルールで
@@ -2790,7 +2930,7 @@ a { text-decoration: none; color: inherit; }
   top: auto;
   left: 0;
   right: 0;
-  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  bottom: var(--bottom-nav-stack);
   width: 100%;
   max-width: 100%;
   height: var(--calendar-day-sheet-height);
@@ -3410,6 +3550,7 @@ a { text-decoration: none; color: inherit; }
   height: 100%;
   cursor: grab;
   z-index: 1;
+  touch-action: none;
 }
 
 .goal-graph__html-nodes {
@@ -4950,7 +5091,7 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
 @media (max-width: 768px) {
   .calendar-page {
     padding: 0;
-    height: calc(100vh - var(--bottom-nav-height) - env(safe-area-inset-bottom, 0px));
+    height: calc(100vh - var(--bottom-nav-stack));
     overflow: hidden;
     min-height: unset;
   }
@@ -4992,7 +5133,7 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    bottom: var(--bottom-nav-stack);
     width: 100%;
     max-width: 100%;
     height: var(--calendar-day-sheet-height);
@@ -5057,7 +5198,7 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
 
   .calendar-day {
     min-height: 44px;
-    padding: var(--sp-1);
+    padding: 3px 2px 2px;
   }
 
   .calendar-day__num {
@@ -5066,9 +5207,14 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     height: 22px;
   }
 
-  .calendar-day__dot {
-    width: 5px;
-    height: 5px;
+  .calendar-day__head {
+    min-height: 22px;
+  }
+
+  .calendar-day__title,
+  .calendar-day__more {
+    font-size: 8px;
+    padding: 0 2px;
   }
 
   .day-detail {
@@ -5341,7 +5487,7 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     justify-content: stretch;
   }
 
-  /* 達成マップ本体をタブレット幅いっぱいに伸ばす（スマホ用の縮小は引き継がない） */
+  /* 達成マップ本体をタブレット幅いっぱいに伸ばす */
   .week-check-map {
     width: 100%;
     max-width: 100%;
@@ -5355,15 +5501,10 @@ body.goal-sheet-dragging .goal-graph__zoom-control {
     gap: var(--sp-3);
   }
 
-  /* タブレットでは900px用の縮小ルールより見やすいサイズに戻す */
   .week-check-map__dot {
     width: 28px;
     height: 28px;
     font-size: 13px;
-  }
-
-  .week-check-map__day {
-    min-width: 0;
   }
 }
 /* ============================================================

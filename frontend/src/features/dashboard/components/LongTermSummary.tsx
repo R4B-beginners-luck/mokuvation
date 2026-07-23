@@ -50,21 +50,29 @@ export function LongTermSummary({ longTermGoals, midTermGoals, shortTermGoals, t
         const allRelated = Array.from(combinedMap.values());
         const completed = allRelated.filter((t) => t.completed).length;
         const pct = allRelated.length > 0 ? Math.round((completed / allRelated.length) * 100) : 0;
+        const isAchieved = allRelated.length > 0 && pct === 100;
 
         return (
-          <div key={lt.id} className="lt-summary-item">
+          <div
+            key={lt.id}
+            className={`lt-summary-item${isAchieved ? ' lt-summary-item--achieved' : ''}`}
+          >
             <div className="lt-summary-item__header">
               <span className="lt-summary-item__title" title={lt.title}>{lt.title}</span>
-              <span className="lt-summary-item__pct">{pct}%</span>
+              <span className="lt-summary-item__pct">
+                {isAchieved ? '達成' : `${pct}%`}
+              </span>
             </div>
             <div className="progress-bar">
               <div
-                className="progress-bar__fill"
+                className={`progress-bar__fill${isAchieved ? ' progress-bar__fill--teal' : ''}`}
                 style={{ width: `${pct}%` }}
               />
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 'var(--sp-1)' }}>
-              {completed} / {allRelated.length} タスク完了
+              {isAchieved
+                ? '関連タスクをすべて完了しました'
+                : `${completed} / ${allRelated.length} タスク完了`}
             </div>
           </div>
         );
